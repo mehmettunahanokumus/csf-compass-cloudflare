@@ -1,0 +1,30 @@
+{
+  "name": "csf-compass-worker",
+  "version": "1.0.0",
+  "description": "CSF Compass Cloudflare Worker API",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create csf-compass-db",
+    "db:migrate": "wrangler d1 migrations apply csf-compass-db",
+    "db:migrate:local": "wrangler d1 migrations apply csf-compass-db --local",
+    "r2:create": "wrangler r2 bucket create csf-evidence-files",
+    "generate": "drizzle-kit generate"
+  },
+  "keywords": ["cloudflare", "workers", "csf", "nist"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.11.9"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260210.0",
+    "@types/node": "^25.2.2",
+    "drizzle-kit": "^0.31.9",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.64.0"
+  }
+}
