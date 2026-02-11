@@ -112,7 +112,7 @@ app.post('/', async (c) => {
 
     // Create assessment items using raw SQL to avoid Drizzle expanding all columns
     // Insert in batches to stay under SQLite's 999 variable limit
-    const batchSize = 200; // 4 columns × 200 rows = 800 variables (under 999)
+    const batchSize = 50; // 4 columns × 50 rows = 200 variables (safe margin)
 
     for (let i = 0; i < subcategories.length; i += batchSize) {
       const batch = subcategories.slice(i, i + batchSize);
@@ -148,11 +148,12 @@ app.post('/', async (c) => {
     ];
 
     // Create wizard progress using raw SQL
-    const wizardValues = wizardSteps.map(() => '(?, ?, ?, ?, ?)').join(', ');
-    const wizardParams: (string | number | boolean)[] = [];
+    // SQLite uses 0/1 for boolean, not true/false
+    const wizardValues = wizardSteps.map(() => '(?, ?, ?, ?, 0)').join(', ');
+    const wizardParams: (string | number)[] = [];
 
     wizardSteps.forEach((step) => {
-      wizardParams.push(crypto.randomUUID(), assessmentId, step.step, step.name, false);
+      wizardParams.push(crypto.randomUUID(), assessmentId, step.step, step.name);
     });
 
     await c.env.DB.prepare(
