@@ -112,7 +112,7 @@ app.post('/', async (c) => {
 
     // Create assessment items using raw SQL to avoid Drizzle expanding all columns
     // Insert in batches to stay under SQLite's 999 variable limit
-    const batchSize = 50; // 4 columns × 50 rows = 200 variables (safe margin)
+    const batchSize = 25; // 4 columns × 25 rows = 100 variables (very safe)
 
     for (let i = 0; i < subcategories.length; i += batchSize) {
       const batch = subcategories.slice(i, i + batchSize);
