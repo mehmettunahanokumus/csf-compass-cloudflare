@@ -110,21 +110,22 @@ app.post('/', async (c) => {
     // Get all subcategories
     const subcategories = await db.select({ id: csf_subcategories.id }).from(csf_subcategories);
 
-    // Create assessment items for all subcategories
-    // Only specify required fields - let database defaults handle timestamps
-    const itemsToCreate = subcategories.map((sub) => ({
-      id: crypto.randomUUID(),
-      assessment_id: assessmentId,
-      subcategory_id: sub.id,
-      status: 'not_assessed' as const,
-    }));
+    // Create assessment items using raw SQL to avoid Drizzle expanding all columns
+    // Insert in batches to stay under SQLite's 999 variable limit
+    const batchSize = 200; // 4 columns × 200 rows = 800 variables (under 999)
 
-    // Insert in batches to avoid SQLite variable limit (999 max)
-    // With only 4 columns, we can insert more items per batch
-    const batchSize = 100;
-    for (let i = 0; i < itemsToCreate.length; i += batchSize) {
-      const batch = itemsToCreate.slice(i, i + batchSize);
-      await db.insert(assessment_items).values(batch);
+    for (let i = 0; i < subcategories.length; i += batchSize) {
+      const batch = subcategories.slice(i, i + batchSize);
+      const values = batch.map(() => '(?, ?, ?, ?)').join(', ');
+      const params: string[] = [];
+
+      batch.forEach((sub) => {
+        params.push(crypto.randomUUID(), assessmentId, sub.id, 'not_assessed');
+      });
+
+      await c.env.DB.prepare(
+        `INSERT INTO assessment_items (id, assessment_id, subcategory_id, status) VALUES ${values}`
+      ).bind(...params).run();
     }
 
     // Create wizard progress records (15 steps)
@@ -146,15 +147,17 @@ app.post('/', async (c) => {
       { step: 15, name: 'Business Continuity' },
     ];
 
-    const progressToCreate = wizardSteps.map((step) => ({
-      id: crypto.randomUUID(),
-      assessment_id: assessmentId,
-      step_number: step.step,
-      step_name: step.name,
-      is_complete: false,
-    }));
+    // Create wizard progress using raw SQL
+    const wizardValues = wizardSteps.map(() => '(?, ?, ?, ?, ?)').join(', ');
+    const wizardParams: (string | number | boolean)[] = [];
 
-    await db.insert(wizard_progress).values(progressToCreate);
+    wizardSteps.forEach((step) => {
+      wizardParams.push(crypto.randomUUID(), assessmentId, step.step, step.name, false);
+    });
+
+    await c.env.DB.prepare(
+      `INSERT INTO wizard_progress (id, assessment_id, step_number, step_name, is_complete) VALUES ${wizardValues}`
+    ).bind(...wizardParams).run();
 
     return c.json(newAssessment[0], 201);
   } catch (error) {
