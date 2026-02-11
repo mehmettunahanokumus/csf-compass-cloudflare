@@ -116,7 +116,13 @@ app.post('/', async (c) => {
       subcategory_id: sub.id,
     }));
 
-    await db.insert(assessment_items).values(itemsToCreate);
+    // Insert in batches to avoid SQLite variable limit (999 max)
+    // With 12 columns per row, we can safely insert 50 items per batch (600 variables)
+    const batchSize = 50;
+    for (let i = 0; i < itemsToCreate.length; i += batchSize) {
+      const batch = itemsToCreate.slice(i, i + batchSize);
+      await db.insert(assessment_items).values(batch);
+    }
 
     // Create wizard progress records (15 steps)
     const wizardSteps = [
