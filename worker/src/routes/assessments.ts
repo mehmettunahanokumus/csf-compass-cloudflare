@@ -111,14 +111,17 @@ app.post('/', async (c) => {
     const subcategories = await db.select({ id: csf_subcategories.id }).from(csf_subcategories);
 
     // Create assessment items for all subcategories
+    // Only specify required fields - let database defaults handle timestamps
     const itemsToCreate = subcategories.map((sub) => ({
+      id: crypto.randomUUID(),
       assessment_id: assessmentId,
       subcategory_id: sub.id,
+      status: 'not_assessed' as const,
     }));
 
     // Insert in batches to avoid SQLite variable limit (999 max)
-    // With 12 columns per row, we can safely insert 50 items per batch (600 variables)
-    const batchSize = 50;
+    // With only 4 columns, we can insert more items per batch
+    const batchSize = 100;
     for (let i = 0; i < itemsToCreate.length; i += batchSize) {
       const batch = itemsToCreate.slice(i, i + batchSize);
       await db.insert(assessment_items).values(batch);
@@ -144,9 +147,11 @@ app.post('/', async (c) => {
     ];
 
     const progressToCreate = wizardSteps.map((step) => ({
+      id: crypto.randomUUID(),
       assessment_id: assessmentId,
       step_number: step.step,
       step_name: step.name,
+      is_complete: false,
     }));
 
     await db.insert(wizard_progress).values(progressToCreate);
@@ -154,7 +159,12 @@ app.post('/', async (c) => {
     return c.json(newAssessment[0], 201);
   } catch (error) {
     console.error('Error creating assessment:', error);
-    return c.json({ error: 'Failed to create assessment' }, 500);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error details:', errorMessage);
+    return c.json({
+      error: 'Failed to create assessment',
+      details: errorMessage
+    }, 500);
   }
 });
 
