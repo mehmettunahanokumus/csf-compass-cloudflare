@@ -93,6 +93,8 @@ export const assessments = sqliteTable('assessments', {
   status: text('status').default('draft'), // draft, in_progress, completed, archived
   overall_score: real('overall_score').default(0.00), // 0-100
 
+  linked_assessment_id: text('linked_assessment_id'), // Links org assessment ↔ vendor self-assessment
+
   started_at: integer('started_at', { mode: 'timestamp_ms' }),
   completed_at: integer('completed_at', { mode: 'timestamp_ms' }),
   created_by: text('created_by').references(() => profiles.id, { onDelete: 'set null' }),
@@ -104,6 +106,7 @@ export const assessments = sqliteTable('assessments', {
   createdByIdx: index('idx_assessments_created_by').on(table.created_by),
   typeVendorIdx: index('idx_assessments_type_vendor').on(table.assessment_type, table.vendor_id),
   typeIdx: index('idx_assessments_type').on(table.assessment_type),
+  linkedIdx: index('idx_assessments_linked').on(table.linked_assessment_id),
 }));
 
 /**
@@ -298,6 +301,72 @@ export const executive_summaries = sqliteTable('executive_summaries', {
 });
 
 // ============================================================================
+// VENDOR SELF-ASSESSMENT INVITATION TABLES
+// ============================================================================
+
+/**
+ * Vendor assessment invitations with JWT token security
+ */
+export const vendor_assessment_invitations = sqliteTable('vendor_assessment_invitations', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organization_assessment_id: text('organization_assessment_id').notNull().references(() => assessments.id, { onDelete: 'cascade' }),
+  vendor_self_assessment_id: text('vendor_self_assessment_id').references(() => assessments.id, { onDelete: 'set null' }),
+  vendor_id: text('vendor_id').notNull().references(() => vendors.id, { onDelete: 'cascade' }),
+  organization_id: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+
+  vendor_contact_email: text('vendor_contact_email').notNull(),
+  vendor_contact_name: text('vendor_contact_name'),
+
+  // JWT tokens (signed with JWT_SECRET)
+  access_token: text('access_token').notNull().unique(),
+  token_expires_at: integer('token_expires_at').notNull(),
+
+  // Session management (one-time token consumption)
+  token_consumed_at: integer('token_consumed_at', { mode: 'timestamp_ms' }),
+  session_token: text('session_token'),
+  session_expires_at: integer('session_expires_at', { mode: 'timestamp_ms' }),
+
+  // Token revocation
+  revoked_at: integer('revoked_at', { mode: 'timestamp_ms' }),
+  revoked_by: text('revoked_by'),
+
+  // Status tracking
+  invitation_status: text('invitation_status').notNull().default('pending'), // pending, accessed, completed, expired, revoked
+  sent_at: integer('sent_at', { mode: 'timestamp_ms' }).notNull(),
+  accessed_at: integer('accessed_at', { mode: 'timestamp_ms' }),
+  last_accessed_at: integer('last_accessed_at', { mode: 'timestamp_ms' }),
+  completed_at: integer('completed_at', { mode: 'timestamp_ms' }),
+
+  message: text('message'),
+
+  created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updated_at: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (table) => ({
+  orgAssessmentIdx: index('idx_invitations_org_assessment').on(table.organization_assessment_id),
+  vendorAssessmentIdx: index('idx_invitations_vendor_assessment').on(table.vendor_self_assessment_id),
+  tokenIdx: index('idx_invitations_token').on(table.access_token),
+  sessionIdx: index('idx_invitations_session').on(table.session_token),
+  statusIdx: index('idx_invitations_status').on(table.invitation_status),
+}));
+
+/**
+ * Vendor audit log for security tracking
+ */
+export const vendor_audit_log = sqliteTable('vendor_audit_log', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  invitation_id: text('invitation_id').notNull().references(() => vendor_assessment_invitations.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(), // token_validated, token_rejected, token_expired, status_updated, assessment_submitted, rate_limited, token_revoked
+  ip_address: text('ip_address'),
+  user_agent: text('user_agent'),
+  metadata: text('metadata'), // JSON string with additional context
+  created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (table) => ({
+  invitationIdx: index('idx_audit_log_invitation').on(table.invitation_id),
+  actionIdx: index('idx_audit_log_action').on(table.action),
+  createdIdx: index('idx_audit_log_created').on(table.created_at),
+}));
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
@@ -337,3 +406,9 @@ export type NewGapRecommendation = typeof gap_recommendations.$inferInsert;
 
 export type ExecutiveSummary = typeof executive_summaries.$inferSelect;
 export type NewExecutiveSummary = typeof executive_summaries.$inferInsert;
+
+export type VendorAssessmentInvitation = typeof vendor_assessment_invitations.$inferSelect;
+export type NewVendorAssessmentInvitation = typeof vendor_assessment_invitations.$inferInsert;
+
+export type VendorAuditLog = typeof vendor_audit_log.$inferSelect;
+export type NewVendorAuditLog = typeof vendor_audit_log.$inferInsert;

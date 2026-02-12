@@ -1,7 +1,7 @@
 /**
- * Application Sidebar Navigation
- * Always uses dark Slate theme (#131926)
- * Pushes content to the right when open
+ * Application Sidebar
+ * Reference-based: Clean sections with solid teal active state
+ * Push layout: 240px when open, 0px when closed
  */
 
 import { NavLink } from 'react-router-dom';
@@ -11,10 +11,9 @@ import {
   Building2,
   BarChart3,
   FileDown,
-  Settings,
+  Settings as SettingsIcon,
   User,
   Shield,
-  LogOut,
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 
@@ -48,7 +47,7 @@ const navigationSections: NavSection[] = [
   {
     title: 'SETTINGS',
     items: [
-      { name: 'Organization', path: '/organization', icon: Settings },
+      { name: 'Organization', path: '/organization', icon: SettingsIcon },
       { name: 'Profile', path: '/profile', icon: User },
     ],
   },
@@ -59,33 +58,38 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const handleLogout = () => {
-    // TODO: Implement logout logic
-    alert('Logout functionality coming soon');
-  };
-
+export default function Sidebar({ isOpen }: SidebarProps) {
   return (
     <aside
-      style={{ backgroundColor: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
-      className={`
-        border-r flex-shrink-0 h-screen
-        transition-all duration-300 ease-in-out overflow-hidden
-        ${isOpen ? 'w-[260px]' : 'w-0'}
-      `}
+      className="flex-shrink-0 h-screen overflow-y-auto transition-all"
+      style={{
+        width: isOpen ? 'var(--sidebar-width)' : '0',
+        backgroundColor: 'var(--sidebar-bg)',
+        borderRight: `1px solid var(--sidebar-border)`,
+        transitionDuration: 'var(--transition-sidebar)',
+      }}
     >
-      {/* Sidebar content - maintains fixed width when open */}
-      <div className="w-[260px] h-full flex flex-col">
+      {/* Sidebar content - maintains 240px width when open */}
+      <div className="w-60 h-full flex flex-col">
         {/* Logo + App Name */}
-        <div className="flex items-center gap-3 px-6 py-5 flex-shrink-0">
-          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--sidebar-accent)' }}>
-            <Shield className="w-6 h-6" style={{ color: 'var(--sidebar-text-active)' }} />
+        <div className="flex items-center gap-3 px-5 pt-5 pb-6 flex-shrink-0">
+          <div
+            className="p-2 rounded-lg"
+            style={{ backgroundColor: 'var(--accent-primary)' }}
+          >
+            <Shield className="w-5 h-5" style={{ color: 'var(--text-inverse)' }} />
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-tight" style={{ color: 'var(--sidebar-logo-text)' }}>
+            <h1
+              className="font-semibold text-base leading-tight"
+              style={{ color: 'var(--text-primary)' }}
+            >
               CSF Compass
             </h1>
-            <p className="text-xs" style={{ color: 'var(--sidebar-logo-subtitle)' }}>
+            <p
+              className="text-xs"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
               NIST CSF 2.0
             </p>
           </div>
@@ -97,56 +101,59 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div key={section.title}>
               {/* Section Header */}
               <h3
-                className="uppercase text-xs font-semibold tracking-wider mt-6 mb-2 px-6"
-                style={{ color: 'var(--sidebar-section-label)' }}
+                className="uppercase text-[11px] font-medium tracking-[0.08em] px-5 mb-2"
+                style={{
+                  color: 'var(--sidebar-section-label)',
+                  marginTop: section.title === 'MAIN' ? '0' : '24px',
+                }}
               >
                 {section.title}
               </h3>
 
               {/* Section Items */}
-              <div className="space-y-1 px-3">
+              <div className="px-3">
                 {section.items.map((item) => (
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-150 cursor-pointer ${
-                        isActive
-                          ? 'font-medium border-l-[3px]'
-                          : 'border-l-[3px] border-transparent'
-                      }`
-                    }
+                    className="flex items-center gap-3 px-4 py-2.5 my-0.5 rounded-[10px] text-sm transition-all"
                     style={({ isActive }) => ({
-                      backgroundColor: isActive ? 'var(--sidebar-bg-active)' : 'transparent',
-                      color: isActive ? 'var(--sidebar-text-active)' : 'var(--sidebar-text)',
-                      borderLeftColor: isActive ? 'var(--sidebar-accent)' : 'transparent',
+                      backgroundColor: isActive
+                        ? 'var(--sidebar-active-bg)'
+                        : 'transparent',
+                      color: isActive
+                        ? 'var(--sidebar-text-active)'
+                        : 'var(--sidebar-text)',
+                      fontWeight: isActive ? '500' : '400',
+                      transitionDuration: 'var(--transition-base)',
                     })}
                     onMouseEnter={(e) => {
-                      const target = e.currentTarget;
-                      if (!target.classList.contains('font-medium')) {
-                        target.style.backgroundColor = 'var(--sidebar-bg-hover)';
-                        target.style.color = 'var(--sidebar-text-hover)';
+                      const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'var(--sidebar-hover-bg)';
+                        e.currentTarget.style.color = 'var(--sidebar-text-hover)';
                       }
                     }}
                     onMouseLeave={(e) => {
-                      const target = e.currentTarget;
-                      if (!target.classList.contains('font-medium')) {
-                        target.style.backgroundColor = 'transparent';
-                        target.style.color = 'var(--sidebar-text)';
+                      const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--sidebar-text)';
                       }
                     }}
                   >
                     {({ isActive }) => (
                       <>
-                        <span
+                        <div
                           style={{
-                            color: isActive ? 'var(--sidebar-icon-active)' : 'var(--sidebar-icon)'
+                            color: isActive
+                              ? 'var(--sidebar-icon-active)'
+                              : 'var(--sidebar-icon)',
                           }}
                         >
                           <item.icon className="w-5 h-5" />
-                        </span>
-                        <span className="text-sm">{item.name}</span>
+                        </div>
+                        <span>{item.name}</span>
                       </>
                     )}
                   </NavLink>
@@ -157,55 +164,55 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Theme Toggle */}
-        <div className="px-3 pb-3 flex-shrink-0">
-          <ThemeToggle />
-        </div>
+        <ThemeToggle />
 
-        {/* Divider */}
-        <div className="mx-3" style={{ borderTop: '1px solid var(--sidebar-border)' }}></div>
-
-        {/* User Info Card */}
-        <div className="mx-3 mb-3 mt-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--sidebar-user-bg)' }}>
-          <div className="flex items-center gap-3">
-            {/* Avatar */}
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--brand-primary)' }}
-            >
-              <span className="text-sm font-semibold" style={{ color: 'var(--text-inverse)' }}>
-                DU
-              </span>
-            </div>
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-user-text)' }}>
-                Demo User
-              </p>
-              <p className="text-xs truncate" style={{ color: 'var(--sidebar-user-role)' }}>
-                Demo Organization
-              </p>
-            </div>
-          </div>
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className="mt-2 w-full text-xs py-1.5 rounded-md transition-colors"
+        {/* User Card */}
+        <div
+          className="sticky bottom-0 flex items-center gap-3 px-5 py-4 border-t"
+          style={{
+            backgroundColor: 'var(--sidebar-bg)',
+            borderTopColor: 'var(--sidebar-border)',
+          }}
+        >
+          {/* Avatar */}
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0"
             style={{
-              color: 'var(--sidebar-text)',
-              backgroundColor: 'transparent',
-              border: '1px solid var(--sidebar-border)',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--sidebar-bg-hover)';
-              e.currentTarget.style.color = 'var(--sidebar-text-hover)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'var(--sidebar-text)';
+              backgroundColor: 'var(--accent-primary)',
+              color: 'var(--text-inverse)',
             }}
           >
-            <LogOut className="w-3 h-3 inline mr-1" />
-            Log out
+            DU
+          </div>
+          {/* User Info */}
+          <div className="flex-1 min-w-0">
+            <p
+              className="text-sm font-medium truncate"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              Demo User
+            </p>
+            <p
+              className="text-xs truncate"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Administrator
+            </p>
+          </div>
+          {/* Settings Icon */}
+          <button
+            className="p-1.5 rounded-md transition-colors flex-shrink-0"
+            style={{ color: 'var(--text-tertiary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-tertiary)';
+            }}
+            aria-label="Settings"
+            title="Settings"
+          >
+            <SettingsIcon className="w-4 h-4" />
           </button>
         </div>
       </div>

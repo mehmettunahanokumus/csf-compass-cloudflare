@@ -1,6 +1,7 @@
 /**
  * ThemeToggle Component
- * 3-state theme switcher: Light / System / Dark
+ * Reference-based segmented control for theme switching
+ * 3 segments: Light | System | Dark
  */
 
 import { Sun, Moon, Monitor } from 'lucide-react';
@@ -12,53 +13,39 @@ export default function ThemeToggle() {
 
   const options: { mode: ThemeMode; icon: typeof Sun; label: string }[] = [
     { mode: 'light', icon: Sun, label: 'Light' },
-    { mode: 'system', icon: Monitor, label: 'System' },
+    { mode: 'system', icon: Monitor, label: 'Sys' },
     { mode: 'dark', icon: Moon, label: 'Dark' },
   ];
 
   return (
     <div
-      className="flex items-center gap-0.5 rounded-lg p-0.5 border"
+      className="mx-3 mb-3 p-1 flex items-center gap-0.5 rounded-lg border"
       style={{
-        backgroundColor: 'var(--sidebar-bg)',
-        borderColor: 'var(--sidebar-border)'
+        backgroundColor: 'var(--surface-ground)',
+        borderColor: 'var(--border-subtle)',
       }}
     >
-      {options.map(({ mode, icon: Icon, label }) => (
-        <button
-          key={mode}
-          onClick={() => setTheme(mode)}
-          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-all duration-150 whitespace-nowrap overflow-hidden"
-          style={{
-            backgroundColor: theme === mode ? 'var(--sidebar-bg-active)' : 'transparent',
-            color: theme === mode ? 'var(--sidebar-text-active)' : 'var(--sidebar-text)',
-            cursor: 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            if (theme !== mode) {
-              e.currentTarget.style.backgroundColor = 'var(--sidebar-bg-hover)';
-              e.currentTarget.style.color = 'var(--sidebar-text-hover)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (theme !== mode) {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'var(--sidebar-text)';
-            }
-          }}
-          aria-label={`Switch to ${label} theme`}
-          title={`${label} theme`}
-        >
-          <span
+      {options.map(({ mode, icon: Icon, label }) => {
+        const isActive = theme === mode;
+        return (
+          <button
+            key={mode}
+            onClick={() => setTheme(mode)}
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium text-center whitespace-nowrap transition-all cursor-pointer"
             style={{
-              color: theme === mode ? 'var(--sidebar-icon-active)' : 'var(--sidebar-icon)',
+              backgroundColor: isActive ? 'var(--surface-base)' : 'transparent',
+              color: isActive ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+              transitionDuration: 'var(--transition-base)',
             }}
+            aria-label={`Switch to ${label} theme`}
+            title={`${label} theme`}
           >
             <Icon className="w-3.5 h-3.5" />
-          </span>
-          <span className="hidden sm:inline">{label}</span>
-        </button>
-      ))}
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

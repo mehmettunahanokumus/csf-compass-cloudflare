@@ -34,6 +34,7 @@ export interface Vendor {
   contact_phone?: string;
   description?: string;
   risk_level?: 'low' | 'medium' | 'high';
+  risk_tier?: 'low' | 'medium' | 'high' | 'critical';
   criticality_level?: 'low' | 'medium' | 'high' | 'critical';
   vendor_status?: 'active' | 'inactive' | 'under_review' | 'terminated';
   risk_score?: number;
@@ -43,6 +44,9 @@ export interface Vendor {
   created_by?: string;
   created_at: number;
   updated_at: number;
+  // Computed fields from stats
+  latest_assessment_score?: number;
+  open_findings?: number;
 }
 
 export interface Assessment {
@@ -218,4 +222,71 @@ export interface UpdateAssessmentItemData {
   status?: 'compliant' | 'partial' | 'non_compliant' | 'not_assessed' | 'not_applicable';
   notes?: string;
   evidence_summary?: string;
+}
+
+// Vendor Self-Assessment Invitation types
+export interface VendorAssessmentInvitation {
+  id: string;
+  organization_assessment_id: string;
+  vendor_self_assessment_id: string | null;
+  vendor_id: string;
+  organization_id: string;
+  vendor_contact_email: string;
+  vendor_contact_name: string | null;
+  access_token: string;
+  token_expires_at: number;
+  token_consumed_at?: number | null;
+  session_token?: string | null;
+  session_expires_at?: number | null;
+  revoked_at?: number | null;
+  revoked_by?: string | null;
+  invitation_status: 'pending' | 'accessed' | 'completed' | 'expired' | 'revoked';
+  sent_at: number;
+  accessed_at: number | null;
+  last_accessed_at: number | null;
+  completed_at: number | null;
+  message: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SendInvitationData {
+  organization_assessment_id: string;
+  vendor_contact_email: string;
+  vendor_contact_name?: string;
+  message?: string;
+  token_expiry_days?: number;
+}
+
+export interface SendInvitationResponse {
+  invitation_id: string;
+  magic_link: string;
+  expires_at: number;
+  vendor_email: string;
+}
+
+export interface ValidateTokenResponse {
+  valid: boolean;
+  invitation?: VendorAssessmentInvitation;
+  assessment?: Assessment;
+  vendor_contact_name?: string;
+  error?: string;
+}
+
+export interface ComparisonItem {
+  subcategory_id: string;
+  subcategory: CsfSubcategory | null;
+  category: CsfCategory | null;
+  function: CsfFunction | null;
+  org_item: AssessmentItem;
+  vendor_item: AssessmentItem | null;
+  matches: boolean;
+  difference: string | null;
+}
+
+export interface ComparisonData {
+  organization_assessment: Assessment;
+  vendor_self_assessment: Assessment | null;
+  invitation: VendorAssessmentInvitation | null;
+  comparison_items: ComparisonItem[];
 }

@@ -1,19 +1,25 @@
 /**
  * Dashboard Page
- * Overview of assessments, vendors, and recent activity
+ * Datadog-style: Data-dense overview with metrics and assessment rows
  */
 
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ClipboardList, TrendingUp, AlertCircle, Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Minus, Eye, Edit, Send, X } from 'lucide-react';
+import {
+  ClipboardList,
+  AlertCircle,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from 'lucide-react';
 import { assessmentsApi } from '../api/assessments';
 import { vendorsApi } from '../api/vendors';
 import type { Assessment, Vendor } from '../types';
-import { getErrorMessage, formatDate } from '../api/client';
+import { getErrorMessage } from '../api/client';
 
-// Helper: Format relative time (e.g., "2 hours ago")
+// Helper: Format relative time
 function formatRelativeTime(timestamp: number | null | undefined): string {
-  // Handle null/undefined/invalid timestamps
   if (!timestamp || isNaN(timestamp) || timestamp <= 0) {
     return 'just created';
   }
@@ -21,7 +27,6 @@ function formatRelativeTime(timestamp: number | null | undefined): string {
   const now = Date.now();
   const diff = now - timestamp;
 
-  // Handle future timestamps or invalid diff
   if (diff < 0 || isNaN(diff)) {
     return 'just now';
   }
@@ -44,16 +49,36 @@ function formatRelativeTime(timestamp: number | null | undefined): string {
 }
 
 // Helper: Get status badge styling
-function getStatusBadgeClass(status: string): string {
+function getStatusStyle(status: string): {
+  bg: string;
+  text: string;
+  border: string;
+} {
   switch (status) {
     case 'completed':
-      return 'bg-status-compliant-bg text-status-compliant-text border border-status-compliant-border';
+      return {
+        bg: 'var(--status-success-muted)',
+        text: 'var(--status-success-text)',
+        border: 'var(--status-success-border)',
+      };
     case 'in_progress':
-      return 'bg-status-inprogress-bg text-status-inprogress-text border border-status-inprogress-border';
+      return {
+        bg: 'var(--status-info-muted)',
+        text: 'var(--status-info-text)',
+        border: 'var(--status-info-border)',
+      };
     case 'draft':
-      return 'bg-status-draft-bg text-status-draft-text border border-status-draft-border';
+      return {
+        bg: 'var(--status-neutral-muted)',
+        text: 'var(--status-neutral-text)',
+        border: 'var(--status-neutral-border)',
+      };
     default:
-      return 'bg-status-draft-bg text-status-draft-text border border-status-draft-border';
+      return {
+        bg: 'var(--status-neutral-muted)',
+        text: 'var(--status-neutral-text)',
+        border: 'var(--status-neutral-border)',
+      };
   }
 }
 
@@ -61,40 +86,53 @@ function getStatusBadgeClass(status: string): string {
 function getStatusDotColor(status: string): string {
   switch (status) {
     case 'completed':
-      return 'bg-status-compliant';
+      return 'var(--status-success)';
     case 'in_progress':
-      return 'bg-status-inprogress';
+      return 'var(--status-info)';
     case 'draft':
-      return 'bg-status-draft';
+      return 'var(--status-neutral)';
     default:
-      return 'bg-status-draft';
+      return 'var(--status-neutral)';
   }
 }
 
 // Helper: Get assessment type badge styling
-function getAssessmentTypeBadge(type: string): { bg: string; text: string; border: string; label: string } {
+function getAssessmentTypeBadge(type: string): {
+  bg: string;
+  text: string;
+  border: string;
+  label: string;
+} {
   switch (type) {
     case 'vendor':
-      return { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'Vendor Assessment' };
+      return {
+        bg: 'var(--status-vendor-muted)',
+        text: 'var(--status-vendor-text)',
+        border: 'var(--status-vendor-border)',
+        label: 'Vendor',
+      };
     case 'organization':
-      return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', label: 'Self-Assessment' };
+      return {
+        bg: 'var(--status-neutral-muted)',
+        text: 'var(--status-neutral-text)',
+        border: 'var(--status-neutral-border)',
+        label: 'Self',
+      };
     default:
-      return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: type };
+      return {
+        bg: 'var(--status-neutral-muted)',
+        text: 'var(--status-neutral-text)',
+        border: 'var(--status-neutral-border)',
+        label: type,
+      };
   }
 }
 
-// Helper: Get score color class (red/amber/green)
-function getScoreColorClass(score: number): string {
-  if (score >= 71) return 'text-status-compliant';
-  if (score >= 41) return 'text-status-partial';
-  return 'text-status-noncompliant';
-}
-
-// Helper: Get score progress bar color
-function getScoreProgressColor(score: number): string {
-  if (score >= 71) return 'bg-status-compliant';
-  if (score >= 41) return 'bg-status-partial';
-  return 'bg-status-noncompliant';
+// Helper: Get score color
+function getScoreColor(score: number): string {
+  if (score >= 71) return 'var(--status-success)';
+  if (score >= 41) return 'var(--status-warning)';
+  return 'var(--status-danger)';
 }
 
 export default function Dashboard() {
@@ -146,7 +184,11 @@ export default function Dashboard() {
   };
 
   // Check if filters are active
-  const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all' || typeFilter !== 'all' || sortBy !== 'newest';
+  const hasActiveFilters =
+    searchQuery !== '' ||
+    statusFilter !== 'all' ||
+    typeFilter !== 'all' ||
+    sortBy !== 'newest';
 
   // Clear all filters
   const clearFilters = () => {
@@ -159,17 +201,13 @@ export default function Dashboard() {
   // Filtered and sorted assessments
   const filteredAssessments = useMemo(() => {
     let filtered = assessments.filter((assessment) => {
-      // Search filter
       const matchesSearch =
         assessment.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         assessment.vendor?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      // Status filter
-      const matchesStatus = statusFilter === 'all' || assessment.status === statusFilter;
-
-      // Type filter
-      const matchesType = typeFilter === 'all' || assessment.assessment_type === typeFilter;
-
+      const matchesStatus =
+        statusFilter === 'all' || assessment.status === statusFilter;
+      const matchesType =
+        typeFilter === 'all' || assessment.assessment_type === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
     });
 
@@ -208,12 +246,16 @@ export default function Dashboard() {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, typeFilter, sortBy]);
 
-  const inProgressAssessments = assessments.filter((a) => a.status === 'in_progress');
+  const inProgressAssessments = assessments.filter(
+    (a) => a.status === 'in_progress'
+  );
   const completedAssessments = assessments.filter((a) => a.status === 'completed');
   const draftAssessments = assessments.filter((a) => a.status === 'draft');
-  const criticalVendors = vendors.filter((v) => v.criticality_level === 'critical');
+  const criticalVendors = vendors.filter(
+    (v) => v.criticality_level === 'critical'
+  );
 
-  // Mock trend data (would come from backend in real app)
+  // Mock trend data
   const trends = {
     total: { value: 3, direction: 'up' as const },
     draft: { value: 0, direction: 'neutral' as const },
@@ -223,62 +265,135 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-text-secondary">Loading dashboard...</div>
+      <div className="space-y-6">
+        {/* Page Header Skeleton */}
+        <div>
+          <div className="skeleton h-8 w-48 mb-2" />
+          <div className="skeleton h-4 w-64" />
+        </div>
+
+        {/* Stats Grid Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="rounded-xl p-5 border"
+              style={{
+                backgroundColor: 'var(--surface-base)',
+                borderColor: 'var(--border-subtle)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <div className="skeleton h-3 w-32 mb-3" />
+              <div className="skeleton h-9 w-16 mb-3" />
+              <div className="skeleton h-3 w-24" />
+            </div>
+          ))}
+        </div>
+
+        {/* Recent Assessments Skeleton */}
+        <div
+          className="rounded-lg border"
+          style={{
+            backgroundColor: 'var(--surface-raised)',
+            borderColor: 'var(--border-default)',
+          }}
+        >
+          <div
+            className="px-6 py-4 flex items-center justify-between border-b"
+            style={{ borderBottomColor: 'var(--border-default)' }}
+          >
+            <div className="skeleton h-5 w-40" />
+            <div className="skeleton h-4 w-16" />
+          </div>
+          <div className="p-6 space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4 py-3">
+                <div className="skeleton h-2 w-2 rounded-full" />
+                <div className="flex-1">
+                  <div className="skeleton h-4 w-48 mb-2" />
+                  <div className="skeleton h-3 w-64" />
+                </div>
+                <div className="skeleton h-4 w-16" />
+                <div className="skeleton h-6 w-24 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-status-noncompliant-bg border border-status-noncompliant-border rounded-lg p-4">
-        <p className="text-status-noncompliant-text">{error}</p>
+      <div
+        className="rounded-lg p-4 border"
+        style={{
+          backgroundColor: 'var(--status-danger-muted)',
+          borderColor: 'var(--status-danger-border)',
+        }}
+      >
+        <p style={{ color: 'var(--status-danger-text)' }}>{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-text-primary">Dashboard</h1>
-        <p className="text-text-secondary mt-1">Overview of your cybersecurity assessments</p>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          Dashboard
+        </h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          Overview of your cybersecurity assessments
+        </p>
       </div>
 
-      {/* Stats Grid - Enhanced Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Assessments */}
         <Link
           to="/assessments"
-          className="bg-card-bg border border-card-border border-l-4 border-l-primary rounded-lg p-6 shadow-card hover:shadow-card-hover transition-shadow duration-200 cursor-pointer"
+          className="rounded-xl p-5 border transition-all cursor-pointer relative overflow-hidden fade-in-stagger"
+          style={{
+            backgroundColor: 'var(--surface-base)',
+            borderColor: 'var(--border-subtle)',
+            boxShadow: 'var(--shadow-sm)',
+            transitionDuration: 'var(--transition-slow)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
-          <div className="flex items-start justify-between mb-3">
-            <div
-              className="w-11 h-11 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--stat-total-icon-bg)' }}
-            >
-              <ClipboardList className="w-5 h-5" style={{ color: 'var(--stat-total-icon)' }} />
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-text-secondary mb-1">Total Assessments</p>
-              <p className="text-3xl font-bold text-text-primary">{assessments.length}</p>
-            </div>
+          <div className="text-[11px] font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>
+            Total Assessments
           </div>
-          <div className="flex items-center text-xs text-text-secondary">
+          <div className="font-mono text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+            {assessments.length}
+          </div>
+          <div className="font-mono text-xs">
             {trends.total.direction === 'up' ? (
-              <>
-                <ArrowUp className="w-3 h-3 text-status-compliant mr-1" />
-                <span className="text-status-compliant">↑{trends.total.value} this month</span>
-              </>
+              <span style={{ color: 'var(--status-up-text)' }}>
+                ↑ {((trends.total.value / Math.max(1, assessments.length - trends.total.value)) * 100).toFixed(1)}%{' '}
+                <span style={{ color: 'var(--text-tertiary)' }}>
+                  From {assessments.length - trends.total.value}
+                </span>
+              </span>
             ) : trends.total.direction === 'down' ? (
-              <>
-                <ArrowDown className="w-3 h-3 text-status-noncompliant mr-1" />
-                <span className="text-status-noncompliant">↓{trends.total.value} this month</span>
-              </>
+              <span style={{ color: 'var(--status-down-text)' }}>
+                ↓ {((trends.total.value / Math.max(1, assessments.length + trends.total.value)) * 100).toFixed(1)}%{' '}
+                <span style={{ color: 'var(--text-tertiary)' }}>
+                  From {assessments.length + trends.total.value}
+                </span>
+              </span>
             ) : (
-              <>
-                <Minus className="w-3 h-3 text-text-muted mr-1" />
-                <span>No change</span>
-              </>
+              <span style={{ color: 'var(--text-muted)' }}>— —</span>
             )}
           </div>
         </Link>
@@ -286,100 +401,178 @@ export default function Dashboard() {
         {/* Draft */}
         <div
           onClick={() => navigate('/assessments?status=draft')}
-          className="bg-card-bg border border-card-border border-l-4 border-l-status-draft rounded-lg p-6 shadow-card hover:shadow-card-hover transition-shadow duration-200 cursor-pointer"
+          className="rounded-xl p-5 border transition-all cursor-pointer relative overflow-hidden fade-in-stagger"
+          style={{
+            backgroundColor: 'var(--surface-base)',
+            borderColor: 'var(--border-subtle)',
+            boxShadow: 'var(--shadow-sm)',
+            transitionDuration: 'var(--transition-slow)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
-          <div className="flex items-start justify-between mb-3">
-            <div
-              className="w-11 h-11 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--stat-draft-icon-bg)' }}
-            >
-              <ClipboardList className="w-5 h-5" style={{ color: 'var(--stat-draft-icon)' }} />
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-text-secondary mb-1">Draft</p>
-              <p className="text-3xl font-bold text-text-primary">{draftAssessments.length}</p>
-            </div>
+          <div className="text-[11px] font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>
+            Draft
           </div>
-          <div className="flex items-center text-xs text-text-muted">
-            <Minus className="w-3 h-3 mr-1" />
-            <span>—</span>
+          <div className="font-mono text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+            {draftAssessments.length}
+          </div>
+          <div className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
+            — —
           </div>
         </div>
 
         {/* In Progress */}
         <div
           onClick={() => navigate('/assessments?status=in_progress')}
-          className="bg-card-bg border border-card-border border-l-4 border-l-status-inprogress rounded-lg p-6 shadow-card hover:shadow-card-hover transition-shadow duration-200 cursor-pointer"
+          className="rounded-xl p-5 border transition-all cursor-pointer relative overflow-hidden fade-in-stagger"
+          style={{
+            backgroundColor: 'var(--surface-base)',
+            borderColor: 'var(--border-subtle)',
+            boxShadow: 'var(--shadow-sm)',
+            transitionDuration: 'var(--transition-slow)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
-          <div className="flex items-start justify-between mb-3">
-            <div
-              className="w-11 h-11 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--stat-progress-icon-bg)' }}
-            >
-              <TrendingUp className="w-5 h-5" style={{ color: 'var(--stat-progress-icon)' }} />
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-text-secondary mb-1">In Progress</p>
-              <p className="text-3xl font-bold text-text-primary">{inProgressAssessments.length}</p>
-            </div>
+          <div className="text-[11px] font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>
+            In Progress
           </div>
-          <div className="flex items-center text-xs text-text-secondary">
-            <ArrowUp className="w-3 h-3 text-status-compliant mr-1" />
-            <span className="text-status-compliant">↑{trends.inProgress.value} this month</span>
+          <div className="font-mono text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+            {inProgressAssessments.length}
+          </div>
+          <div className="font-mono text-xs">
+            <span style={{ color: 'var(--status-up-text)' }}>
+              ↑ {((trends.inProgress.value / Math.max(1, inProgressAssessments.length - trends.inProgress.value)) * 100).toFixed(1)}%{' '}
+              <span style={{ color: 'var(--text-tertiary)' }}>
+                From {inProgressAssessments.length - trends.inProgress.value}
+              </span>
+            </span>
           </div>
         </div>
 
         {/* Completed */}
         <div
           onClick={() => navigate('/assessments?status=completed')}
-          className="bg-card-bg border border-card-border border-l-4 border-l-status-compliant rounded-lg p-6 shadow-card hover:shadow-card-hover transition-shadow duration-200 cursor-pointer"
+          className="rounded-xl p-5 border transition-all cursor-pointer relative overflow-hidden fade-in-stagger"
+          style={{
+            backgroundColor: 'var(--surface-base)',
+            borderColor: 'var(--border-subtle)',
+            boxShadow: 'var(--shadow-sm)',
+            transitionDuration: 'var(--transition-slow)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
-          <div className="flex items-start justify-between mb-3">
-            <div
-              className="w-11 h-11 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--stat-completed-icon-bg)' }}
-            >
-              <ClipboardList className="w-5 h-5" style={{ color: 'var(--stat-completed-icon)' }} />
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-text-secondary mb-1">Completed</p>
-              <p className="text-3xl font-bold text-text-primary">{completedAssessments.length}</p>
-            </div>
+          <div className="text-[11px] font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>
+            Completed
           </div>
-          {completedAssessments.length === 0 ? (
-            <div className="text-xs text-text-secondary">
-              Complete your first assessment →
-            </div>
-          ) : (
-            <div className="flex items-center text-xs text-text-secondary">
-              <ArrowDown className="w-3 h-3 text-status-noncompliant mr-1" />
-              <span className="text-status-noncompliant">↓{trends.completed.value} this month</span>
-            </div>
-          )}
+          <div className="font-mono text-3xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+            {completedAssessments.length}
+          </div>
+          <div className="font-mono text-xs">
+            {completedAssessments.length === 0 ? (
+              <span style={{ color: 'var(--text-muted)' }}>— —</span>
+            ) : (
+              <span style={{ color: 'var(--status-down-text)' }}>
+                ↓ {((trends.completed.value / Math.max(1, completedAssessments.length + trends.completed.value)) * 100).toFixed(1)}%{' '}
+                <span style={{ color: 'var(--text-tertiary)' }}>
+                  From {completedAssessments.length + trends.completed.value}
+                </span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Recent Assessments */}
-      <div className="bg-card-bg rounded-lg shadow-card border border-card-border">
-        <div className="px-6 py-4 border-b border-card-border flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-text-primary">Recent Assessments</h2>
-          <Link to="/assessments" className="text-sm text-link hover:text-link-hover transition-colors">
+      <div
+        className="rounded-xl border"
+        style={{
+          backgroundColor: 'var(--surface-base)',
+          borderColor: 'var(--border-subtle)',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="px-6 py-4 flex items-center justify-between border-b"
+          style={{ borderBottomColor: 'var(--border-default)' }}
+        >
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Recent Assessments
+          </h2>
+          <Link
+            to="/assessments"
+            className="text-sm transition-colors"
+            style={{
+              color: 'var(--text-link)',
+              transitionDuration: 'var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-link-hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-link)';
+            }}
+          >
             View all
           </Link>
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="px-6 py-4 border-b border-card-border bg-page-bg">
+        <div
+          className="px-6 py-4 border-b"
+          style={{
+            borderBottomColor: 'var(--border-subtle)',
+            backgroundColor: 'var(--surface-base)',
+          }}
+        >
           <div className="flex flex-wrap items-center gap-3">
             {/* Search Input */}
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-input-placeholder" />
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+                style={{ color: 'var(--input-placeholder)' }}
+              />
               <input
                 type="text"
                 placeholder="Search assessments..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-input-bg text-input-text border border-input-border rounded-md focus:ring-2 focus:ring-secondary-light focus:border-input-border-focus transition-colors"
+                className="w-full pl-10 pr-4 py-2.5 text-sm rounded-[10px] border transition-all"
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--input-text)',
+                  borderColor: 'var(--input-border)',
+                  transitionDuration: 'var(--transition-base)',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--input-focus-border)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px var(--input-focus-ring)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--input-border)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
             </div>
 
@@ -387,7 +580,13 @@ export default function Dashboard() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm bg-input-bg text-input-text border border-input-border rounded-md focus:ring-2 focus:ring-secondary-light focus:border-input-border-focus transition-colors"
+              className="px-3 py-2 text-sm rounded-md border transition-colors"
+              style={{
+                backgroundColor: 'var(--input-bg)',
+                color: 'var(--input-text)',
+                borderColor: 'var(--input-border)',
+                transitionDuration: 'var(--transition-fast)',
+              }}
             >
               <option value="all">All Statuses</option>
               <option value="draft">Draft</option>
@@ -399,7 +598,13 @@ export default function Dashboard() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 text-sm bg-input-bg text-input-text border border-input-border rounded-md focus:ring-2 focus:ring-secondary-light focus:border-input-border-focus transition-colors"
+              className="px-3 py-2 text-sm rounded-md border transition-colors"
+              style={{
+                backgroundColor: 'var(--input-bg)',
+                color: 'var(--input-text)',
+                borderColor: 'var(--input-border)',
+                transitionDuration: 'var(--transition-fast)',
+              }}
             >
               <option value="all">All Types</option>
               <option value="organization">Self-Assessment</option>
@@ -410,7 +615,13 @@ export default function Dashboard() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 text-sm bg-input-bg text-input-text border border-input-border rounded-md focus:ring-2 focus:ring-secondary-light focus:border-input-border-focus transition-colors"
+              className="px-3 py-2 text-sm rounded-md border transition-colors"
+              style={{
+                backgroundColor: 'var(--input-bg)',
+                color: 'var(--input-text)',
+                borderColor: 'var(--input-border)',
+                transitionDuration: 'var(--transition-fast)',
+              }}
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
@@ -423,7 +634,20 @@ export default function Dashboard() {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="px-3 py-2 text-sm text-text-secondary hover:text-text-primary border border-border-default rounded-md hover:bg-page-bg transition-colors flex items-center space-x-1"
+                className="px-3 py-2 text-sm rounded-md border flex items-center gap-1 transition-colors"
+                style={{
+                  color: 'var(--text-secondary)',
+                  borderColor: 'var(--border-default)',
+                  transitionDuration: 'var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--surface-highlight)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }}
               >
                 <X className="w-4 h-4" />
                 <span>Clear</span>
@@ -432,26 +656,60 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Assessment List */}
         <div className="p-6">
           {paginatedAssessments.length === 0 ? (
             <div className="text-center py-12">
-              <ClipboardList className="w-12 h-12 text-text-muted mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-text-primary mb-2">
-                {assessments.length === 0 ? 'No assessments yet' : 'No assessments match your filters'}
+              <ClipboardList
+                className="w-12 h-12 mx-auto mb-4"
+                style={{ color: 'var(--text-muted)' }}
+              />
+              <h3
+                className="text-base font-semibold mb-2"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {assessments.length === 0
+                  ? 'No assessments yet'
+                  : 'No assessments match your filters'}
               </h3>
-              <p className="text-sm text-text-secondary mb-4">
+              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
                 {assessments.length === 0
                   ? 'Create your first assessment to get started'
                   : 'Try adjusting your search or filters'}
               </p>
               {assessments.length === 0 ? (
-                <Link to="/assessments/new" className="inline-flex items-center px-4 py-2 bg-primary text-text-inverse rounded-md hover:bg-primary-hover transition-colors">
+                <Link
+                  to="/assessments/new"
+                  className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: 'var(--accent-primary)',
+                    color: 'var(--text-inverse)',
+                    transitionDuration: 'var(--transition-fast)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--accent-primary-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--accent-primary)';
+                  }}
+                >
                   Create First Assessment
                 </Link>
               ) : (
                 <button
                   onClick={clearFilters}
-                  className="inline-flex items-center px-4 py-2 border border-border-default rounded-md hover:bg-page-bg transition-colors"
+                  className="inline-flex items-center px-4 py-2 rounded-md border text-sm transition-colors"
+                  style={{
+                    borderColor: 'var(--border-default)',
+                    color: 'var(--text-primary)',
+                    transitionDuration: 'var(--transition-fast)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--surface-highlight)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
                   Clear Filters
                 </button>
@@ -460,135 +718,184 @@ export default function Dashboard() {
           ) : (
             <>
               <div className="space-y-0">
-                {paginatedAssessments.map((assessment) => {
+                {paginatedAssessments.map((assessment, index) => {
                   const typeBadge = getAssessmentTypeBadge(assessment.assessment_type);
+                  const statusStyle = getStatusStyle(assessment.status);
+                  const isHovered = hoveredRow === assessment.id;
+
                   return (
-                    <div
+                    <Link
                       key={assessment.id}
+                      to={`/assessments/${assessment.id}`}
                       onMouseEnter={() => setHoveredRow(assessment.id)}
                       onMouseLeave={() => setHoveredRow(null)}
-                      className="relative py-4 transition-colors cursor-pointer group border-b"
+                      className={`block px-4 py-3.5 border-b transition-colors ${index < 6 ? 'fade-in-stagger' : 'fade-in'}`}
                       style={{
-                        borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-                        backgroundColor: hoveredRow === assessment.id ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                        borderBottomColor: 'var(--border-subtle)',
+                        backgroundColor: isHovered
+                          ? 'var(--surface-highlight)'
+                          : 'transparent',
+                        transitionDuration: 'var(--transition-base)',
                       }}
                     >
-                      <Link to={`/assessments/${assessment.id}`} className="block">
-                        <div className="flex items-start gap-4">
-                          {/* Status Dot */}
-                          <div className="pt-1.5">
-                            <div className={`w-2 h-2 rounded-full ${getStatusDotColor(assessment.status)}`}></div>
+                      <div className="flex items-center gap-4">
+                        {/* Status Dot */}
+                        <div className="flex-shrink-0">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              assessment.status === 'in_progress' ? 'status-dot-active' : ''
+                            }`}
+                            style={{ backgroundColor: getStatusDotColor(assessment.status) }}
+                          />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <h3
+                            className="font-medium text-sm mb-1.5"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            {assessment.name}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            {/* Type Badge */}
+                            <span
+                              className="px-2 py-0.5 rounded-md font-medium text-[11px]"
+                              style={{
+                                backgroundColor: typeBadge.bg,
+                                color: typeBadge.text,
+                              }}
+                            >
+                              {typeBadge.label}
+                            </span>
+                            {/* Date */}
+                            <span
+                              className="font-mono"
+                              style={{ color: 'var(--text-tertiary)' }}
+                            >
+                              {new Date(assessment.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
+                            {/* Relative time */}
+                            <span style={{ color: 'var(--text-tertiary)' }}>•</span>
+                            <span
+                              className="font-mono"
+                              style={{ color: 'var(--text-tertiary)' }}
+                            >
+                              {formatRelativeTime(assessment.updated_at)}
+                            </span>
                           </div>
+                        </div>
 
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            {/* Title — Fix 8: use card-title */}
-                            <h3 className="font-semibold text-card-title mb-2">{assessment.name}</h3>
-
-                            {/* Metadata — Fix 8: use card-metadata */}
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-card-metadata">
-                              <span className={`px-2 py-0.5 rounded-full border ${typeBadge.bg} ${typeBadge.text} ${typeBadge.border} font-medium`}>
-                                {typeBadge.label}
-                              </span>
-                              <span className="text-card-metadata">Created {formatDate(assessment.created_at)}</span>
-                              <span>•</span>
-                              <span className="text-card-metadata">Updated {formatRelativeTime(assessment.updated_at)}</span>
-                            </div>
-                          </div>
-
-                          {/* Score Section — Fix 3: better progress bar */}
-                          {assessment.overall_score !== null && assessment.overall_score !== undefined && (
-                            <div className="flex items-center gap-3">
-                              <div className="text-right">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <div className="w-16 h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
-                                    <div
-                                      className={`h-full ${getScoreProgressColor(assessment.overall_score)}`}
-                                      style={{ width: `${Math.max(2, assessment.overall_score)}%`, minWidth: assessment.overall_score > 0 ? '4px' : '0' }}
-                                    />
-                                  </div>
-                                  <span className={`font-mono font-bold text-sm ${getScoreColorClass(assessment.overall_score)}`}>
-                                    {assessment.overall_score.toFixed(1)}%
-                                  </span>
-                                </div>
+                        {/* Score */}
+                        {assessment.overall_score !== null &&
+                          assessment.overall_score !== undefined && (
+                            <div className="flex-shrink-0 flex items-center gap-2">
+                              <div
+                                className="w-16 h-1 rounded-full overflow-hidden"
+                                style={{
+                                  backgroundColor: 'var(--border-subtle)',
+                                }}
+                              >
+                                <div
+                                  className="h-full"
+                                  style={{
+                                    width: `${Math.max(2, assessment.overall_score)}%`,
+                                    backgroundColor: getScoreColor(assessment.overall_score),
+                                  }}
+                                />
+                              </div>
+                              <div
+                                className="font-mono text-sm font-semibold"
+                                style={{ color: getScoreColor(assessment.overall_score) }}
+                              >
+                                {assessment.overall_score.toFixed(1)}%
                               </div>
                             </div>
                           )}
 
-                          {/* Status Badge */}
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${getStatusBadgeClass(assessment.status)}`}>
-                              {assessment.status.replace('_', ' ')}
-                            </span>
-                            {/* Chevron indicator */}
-                            <ChevronRight className="w-4 h-4 text-card-metadata group-hover:text-text-secondary transition-colors" />
-                          </div>
-                        </div>
-                      </Link>
+                        {/* Status Badge */}
+                        <span
+                          className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-md"
+                          style={{
+                            backgroundColor: statusStyle.bg,
+                            color: statusStyle.text,
+                          }}
+                        >
+                          {assessment.status.replace('_', ' ')}
+                        </span>
 
-                      {/* Quick Actions (on hover) */}
-                      {hoveredRow === assessment.id && (
-                        <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2 bg-card-bg px-2">
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              navigate(`/assessments/${assessment.id}`);
-                            }}
-                            className="p-2 rounded-md hover:bg-secondary-light text-text-secondary hover:text-secondary transition-colors"
-                            title="View"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              navigate(`/assessments/${assessment.id}`);
-                            }}
-                            className="p-2 rounded-md hover:bg-secondary-light text-text-secondary hover:text-secondary transition-colors"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          {assessment.assessment_type === 'vendor' && (
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                navigate(`/assessments/${assessment.id}`);
-                              }}
-                              className="p-2 rounded-md hover:bg-secondary-light text-text-secondary hover:text-secondary transition-colors"
-                              title="Send to Vendor"
-                            >
-                              <Send className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                        {/* Chevron */}
+                        <ChevronRight
+                          className="w-4 h-4 flex-shrink-0 transition-opacity"
+                          style={{
+                            color: 'var(--text-muted)',
+                            opacity: isHovered ? 1 : 0,
+                          }}
+                        />
+                      </div>
+                    </Link>
                   );
                 })}
               </div>
 
-              {/* Pagination Controls */}
+              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-card-border">
-                  <p className="text-sm text-text-secondary">
-                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAssessments.length)} of {filteredAssessments.length} assessments
+                <div
+                  className="flex items-center justify-between mt-6 pt-4 border-t"
+                  style={{ borderTopColor: 'var(--border-default)' }}
+                >
+                  <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+                    Showing {(currentPage - 1) * itemsPerPage + 1}–
+                    {Math.min(currentPage * itemsPerPage, filteredAssessments.length)} of{' '}
+                    {filteredAssessments.length}
                   </p>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-1.5 text-sm border border-border-default rounded-md hover:bg-page-bg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 text-sm border rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        borderColor: 'var(--border-default)',
+                        color: 'var(--text-primary)',
+                        transitionDuration: 'var(--transition-fast)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== 1) {
+                          e.currentTarget.style.backgroundColor = 'var(--surface-highlight)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <span className="text-sm text-text-primary font-medium">
-                      Page {currentPage} of {totalPages}
+                    <span
+                      className="text-sm font-mono font-medium px-3"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {currentPage} / {totalPages}
                     </span>
                     <button
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1.5 text-sm border border-border-default rounded-md hover:bg-page-bg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 text-sm border rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        borderColor: 'var(--border-default)',
+                        color: 'var(--text-primary)',
+                        transitionDuration: 'var(--transition-fast)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== totalPages) {
+                          e.currentTarget.style.backgroundColor = 'var(--surface-highlight)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -602,13 +909,37 @@ export default function Dashboard() {
 
       {/* Critical Vendors */}
       {criticalVendors.length > 0 && (
-        <div className="bg-card-bg rounded-lg shadow-card border border-card-border">
-          <div className="px-6 py-4 border-b border-card-border flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-status-critical" />
-              <h2 className="text-lg font-semibold text-text-primary">Critical Vendors</h2>
+        <div
+          className="rounded-lg border"
+          style={{
+            backgroundColor: 'var(--surface-raised)',
+            borderColor: 'var(--border-default)',
+          }}
+        >
+          <div
+            className="px-6 py-4 flex items-center justify-between border-b"
+            style={{ borderBottomColor: 'var(--border-default)' }}
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" style={{ color: 'var(--status-danger)' }} />
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Critical Vendors
+              </h2>
             </div>
-            <Link to="/vendors" className="text-sm text-link hover:text-link-hover transition-colors">
+            <Link
+              to="/vendors"
+              className="text-sm transition-colors"
+              style={{
+                color: 'var(--text-link)',
+                transitionDuration: 'var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-link-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-link)';
+              }}
+            >
               View all vendors
             </Link>
           </div>
@@ -618,14 +949,36 @@ export default function Dashboard() {
                 <Link
                   key={vendor.id}
                   to={`/vendors/${vendor.id}`}
-                  className="block p-4 border border-status-critical-border bg-status-critical-bg rounded-lg hover:bg-status-noncompliant-bg transition-colors"
+                  className="block p-4 border rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: 'var(--status-danger-muted)',
+                    borderColor: 'var(--status-danger-border)',
+                    transitionDuration: 'var(--transition-base)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--surface-overlay)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--status-danger-muted)';
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-medium text-text-primary">{vendor.name}</h3>
-                      <p className="text-sm text-text-secondary mt-1">{vendor.industry}</p>
+                      <h3 className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+                        {vendor.name}
+                      </h3>
+                      <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                        {vendor.industry}
+                      </p>
                     </div>
-                    <span className="px-2.5 py-1 bg-status-critical text-text-inverse text-xs font-medium rounded-md">
+                    <span
+                      className="px-2.5 py-1 text-xs font-medium rounded border"
+                      style={{
+                        backgroundColor: 'var(--status-danger)',
+                        color: 'var(--text-inverse)',
+                        borderColor: 'var(--status-danger)',
+                      }}
+                    >
                       Critical
                     </span>
                   </div>

@@ -28,6 +28,7 @@ export default function VendorDetail() {
     contact_name: '',
     description: '',
     risk_level: 'medium' as 'low' | 'medium' | 'high',
+    risk_tier: 'medium' as 'low' | 'medium' | 'high' | 'critical',
   });
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function VendorDetail() {
         contact_name: vendorData.contact_name || '',
         description: vendorData.description || '',
         risk_level: vendorData.risk_level || 'medium',
+        risk_tier: vendorData.risk_tier || 'medium',
       });
     } catch (err) {
       setError(getErrorMessage(err));
@@ -94,16 +96,18 @@ export default function VendorDetail() {
     }
   };
 
-  const getRiskColor = (risk: string | undefined) => {
-    switch (risk) {
+  const getRiskTierColor = (tier: string | undefined) => {
+    switch (tier) {
+      case 'critical':
+        return 'bg-red-100 text-red-800 border-red-300';
       case 'high':
-        return 'badge-red';
+        return 'bg-amber-100 text-amber-800 border-amber-300';
       case 'medium':
-        return 'badge-yellow';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'low':
-        return 'badge-green';
+        return 'bg-green-100 text-green-800 border-green-300';
       default:
-        return 'badge-gray';
+        return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
@@ -153,8 +157,8 @@ export default function VendorDetail() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <span className={`badge ${getRiskColor(vendor.risk_level)}`}>
-            {vendor.risk_level || 'unknown'} risk
+          <span className={`badge border ${getRiskTierColor(vendor.risk_tier)}`}>
+            {vendor.risk_tier || 'medium'} risk
           </span>
           {!editing && (
             <>
@@ -188,7 +192,21 @@ export default function VendorDetail() {
             </div>
 
             <div>
-              <label className="form-label">Risk Level</label>
+              <label className="form-label">Risk Tier (Business Impact)</label>
+              <select
+                value={editForm.risk_tier}
+                onChange={(e) => setEditForm({ ...editForm, risk_tier: e.target.value as any })}
+                className="form-select"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="form-label">Risk Level (Technical)</label>
               <select
                 value={editForm.risk_level}
                 onChange={(e) => setEditForm({ ...editForm, risk_level: e.target.value as any })}
@@ -260,6 +278,7 @@ export default function VendorDetail() {
                   contact_name: vendor.contact_name || '',
                   description: vendor.description || '',
                   risk_level: vendor.risk_level || 'medium',
+                  risk_tier: vendor.risk_tier || 'medium',
                 });
               }}
               className="btn btn-secondary"
