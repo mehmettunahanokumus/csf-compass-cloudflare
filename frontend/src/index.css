@@ -216,18 +216,27 @@
   --topnav-text-secondary: #9CA3AF;
   --topnav-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 
-  /* Content */
-  --page-bg: #111827;
-  --card-bg: #1F2937;
-  --card-border: #374151;
-  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
+  /* Content — Fix 1: Card vs Background Contrast */
+  --page-bg: #0B1120;                    /* DARKER page background */
+  --card-bg: #1A2332;                    /* LIGHTER card background — more distinct */
+  --card-border: #2D3B4E;                /* Visible border — slightly lighter */
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
 
-  /* Text */
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-  --text-muted: #6B7280;
+  /* Text — Fix 2: Text Contrast in Cards */
+  --text-primary: #F1F5F9;               /* Bright white for titles */
+  --text-secondary: #CBD5E1;             /* Slate 300 — clearly readable */
+  --text-muted: #8B95A9;                 /* Bumped up significantly */
   --text-inverse: #111827;
+
+  /* Card-specific text variables — Fix 2 */
+  --card-title: #F1F5F9;                 /* Ensure titles bright white */
+  --card-description: #A8B5C8;           /* Descriptions clearly visible */
+  --card-metadata: #8B95A9;              /* Dates, score labels readable */
+
+  /* Link colors — Fix 4 */
+  --link-color: #818CF8;                 /* Indigo 400 — bright enough */
+  --link-hover: #A5B4FC;                 /* Indigo 300 — brighter on hover */
 
   /* Brand */
   --brand-primary: #818CF8;          /* Indigo 400 — lighter for dark bg */
@@ -274,13 +283,13 @@
   --color-vendor-text: #C4B5FD;
   --color-vendor-border: rgba(124, 58, 237, 0.3);
 
-  /* Inputs */
-  --input-bg: #1F2937;
-  --input-border: #4B5563;
-  --input-border-focus: #818CF8;
+  /* Inputs — Fix 9: Search Input */
+  --input-bg: #1A2332;                   /* Match card-bg */
+  --input-border: #3D4B5E;               /* Visible border */
+  --input-border-focus: #818CF8;         /* Indigo focus */
   --input-ring-focus: rgba(129, 140, 248, 0.2);
-  --input-placeholder: #6B7280;
-  --input-text: #F9FAFB;
+  --input-placeholder: #6B7889;          /* Readable placeholder */
+  --input-text: #F1F5F9;                 /* Bright text */
 
   /* Stat Cards */
   --stat-total-icon-bg: rgba(99, 102, 241, 0.15);
@@ -351,17 +360,26 @@
     --topnav-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 
     /* Content */
-    --page-bg: #111827;
-    --card-bg: #1F2937;
-    --card-border: #374151;
-    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --page-bg: #0B1120;
+    --card-bg: #1A2332;
+    --card-border: #2D3B4E;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
 
     /* Text */
-    --text-primary: #F9FAFB;
-    --text-secondary: #D1D5DB;
-    --text-muted: #6B7280;
+    --text-primary: #F1F5F9;
+    --text-secondary: #CBD5E1;
+    --text-muted: #8B95A9;
     --text-inverse: #111827;
+
+    /* Card-specific text */
+    --card-title: #F1F5F9;
+    --card-description: #A8B5C8;
+    --card-metadata: #8B95A9;
+
+    /* Link colors */
+    --link-color: #818CF8;
+    --link-hover: #A5B4FC;
 
     /* Brand */
     --brand-primary: #818CF8;
@@ -409,12 +427,12 @@
     --color-vendor-border: rgba(124, 58, 237, 0.3);
 
     /* Inputs */
-    --input-bg: #1F2937;
-    --input-border: #4B5563;
+    --input-bg: #1A2332;
+    --input-border: #3D4B5E;
     --input-border-focus: #818CF8;
     --input-ring-focus: rgba(129, 140, 248, 0.2);
-    --input-placeholder: #6B7280;
-    --input-text: #F9FAFB;
+    --input-placeholder: #6B7889;
+    --input-text: #F1F5F9;
 
     /* Stat Cards */
     --stat-total-icon-bg: rgba(99, 102, 241, 0.15);

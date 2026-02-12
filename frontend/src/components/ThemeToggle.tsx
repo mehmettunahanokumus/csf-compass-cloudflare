@@ -18,17 +18,21 @@ export default function ThemeToggle() {
 
   return (
     <div
-      className="flex items-center gap-1 rounded-lg p-1"
-      style={{ backgroundColor: 'var(--sidebar-bg-hover)' }}
+      className="flex items-center gap-0.5 rounded-lg p-0.5 border"
+      style={{
+        backgroundColor: 'var(--sidebar-bg)',
+        borderColor: 'var(--sidebar-border)'
+      }}
     >
       {options.map(({ mode, icon: Icon, label }) => (
         <button
           key={mode}
           onClick={() => setTheme(mode)}
-          className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all duration-150"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-all duration-150 whitespace-nowrap overflow-hidden"
           style={{
             backgroundColor: theme === mode ? 'var(--sidebar-bg-active)' : 'transparent',
             color: theme === mode ? 'var(--sidebar-text-active)' : 'var(--sidebar-text)',
+            cursor: 'pointer',
           }}
           onMouseEnter={(e) => {
             if (theme !== mode) {
@@ -45,12 +49,13 @@ export default function ThemeToggle() {
           aria-label={`Switch to ${label} theme`}
           title={`${label} theme`}
         >
-          <Icon
-            className="w-4 h-4"
+          <span
             style={{
               color: theme === mode ? 'var(--sidebar-icon-active)' : 'var(--sidebar-icon)',
             }}
-          />
+          >
+            <Icon className="w-3.5 h-3.5" />
+          </span>
           <span className="hidden sm:inline">{label}</span>
         </button>
       ))}

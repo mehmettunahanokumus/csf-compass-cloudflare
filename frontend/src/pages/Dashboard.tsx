@@ -363,7 +363,7 @@ export default function Dashboard() {
       <div className="bg-card-bg rounded-lg shadow-card border border-card-border">
         <div className="px-6 py-4 border-b border-card-border flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text-primary">Recent Assessments</h2>
-          <Link to="/assessments" className="text-sm text-secondary hover:text-secondary-hover transition-colors">
+          <Link to="/assessments" className="text-sm text-link hover:text-link-hover transition-colors">
             View all
           </Link>
         </div>
@@ -459,7 +459,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
-              <div className="divide-y divide-card-border">
+              <div className="space-y-0">
                 {paginatedAssessments.map((assessment) => {
                   const typeBadge = getAssessmentTypeBadge(assessment.assessment_type);
                   return (
@@ -467,7 +467,11 @@ export default function Dashboard() {
                       key={assessment.id}
                       onMouseEnter={() => setHoveredRow(assessment.id)}
                       onMouseLeave={() => setHoveredRow(null)}
-                      className="relative py-4 hover:bg-page-bg transition-colors cursor-pointer group"
+                      className="relative py-4 transition-colors cursor-pointer group border-b"
+                      style={{
+                        borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+                        backgroundColor: hoveredRow === assessment.id ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                      }}
                     >
                       <Link to={`/assessments/${assessment.id}`} className="block">
                         <div className="flex items-start gap-4">
@@ -478,29 +482,29 @@ export default function Dashboard() {
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
-                            {/* Title */}
-                            <h3 className="font-medium text-text-primary mb-2">{assessment.name}</h3>
+                            {/* Title — Fix 8: use card-title */}
+                            <h3 className="font-semibold text-card-title mb-2">{assessment.name}</h3>
 
-                            {/* Metadata */}
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+                            {/* Metadata — Fix 8: use card-metadata */}
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-card-metadata">
                               <span className={`px-2 py-0.5 rounded-full border ${typeBadge.bg} ${typeBadge.text} ${typeBadge.border} font-medium`}>
                                 {typeBadge.label}
                               </span>
-                              <span>Created {formatDate(assessment.created_at)}</span>
+                              <span className="text-card-metadata">Created {formatDate(assessment.created_at)}</span>
                               <span>•</span>
-                              <span>Updated {formatRelativeTime(assessment.updated_at)}</span>
+                              <span className="text-card-metadata">Updated {formatRelativeTime(assessment.updated_at)}</span>
                             </div>
                           </div>
 
-                          {/* Score Section */}
+                          {/* Score Section — Fix 3: better progress bar */}
                           {assessment.overall_score !== null && assessment.overall_score !== undefined && (
                             <div className="flex items-center gap-3">
                               <div className="text-right">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <div className="w-16 h-1.5 bg-border-default rounded-full overflow-hidden">
+                                  <div className="w-16 h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
                                     <div
                                       className={`h-full ${getScoreProgressColor(assessment.overall_score)}`}
-                                      style={{ width: `${Math.max(2, assessment.overall_score)}%`, minWidth: '2px' }}
+                                      style={{ width: `${Math.max(2, assessment.overall_score)}%`, minWidth: assessment.overall_score > 0 ? '4px' : '0' }}
                                     />
                                   </div>
                                   <span className={`font-mono font-bold text-sm ${getScoreColorClass(assessment.overall_score)}`}>
@@ -517,7 +521,7 @@ export default function Dashboard() {
                               {assessment.status.replace('_', ' ')}
                             </span>
                             {/* Chevron indicator */}
-                            <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-text-secondary transition-colors" />
+                            <ChevronRight className="w-4 h-4 text-card-metadata group-hover:text-text-secondary transition-colors" />
                           </div>
                         </div>
                       </Link>
@@ -604,7 +608,7 @@ export default function Dashboard() {
               <AlertCircle className="w-5 h-5 text-status-critical" />
               <h2 className="text-lg font-semibold text-text-primary">Critical Vendors</h2>
             </div>
-            <Link to="/vendors" className="text-sm text-secondary hover:text-secondary-hover transition-colors">
+            <Link to="/vendors" className="text-sm text-link hover:text-link-hover transition-colors">
               View all vendors
             </Link>
           </div>
