@@ -17,38 +17,8 @@ import InviteVendorDialog from '../components/InviteVendorDialog';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import ComplianceChart from '../components/charts/ComplianceChart';
 import FunctionScoreChart from '../components/charts/FunctionScoreChart';
-
-// ── Design tokens ─────────────────────────────────────────────
-const T = {
-  card: '#FFFFFF',
-  border: '#E2E8F0',
-  bg: '#F8FAFC',
-  textPrimary: '#1E293B',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  accent: '#4F46E5',
-  accentLight: 'rgba(99,102,241,0.08)',
-  accentBorder: 'rgba(99,102,241,0.2)',
-  success: '#16A34A',
-  successLight: 'rgba(22,163,74,0.08)',
-  successBorder: 'rgba(22,163,74,0.2)',
-  warning: '#D97706',
-  warningLight: 'rgba(217,119,6,0.08)',
-  warningBorder: 'rgba(217,119,6,0.2)',
-  danger: '#DC2626',
-  dangerLight: 'rgba(220,38,38,0.08)',
-  dangerBorder: 'rgba(220,38,38,0.2)',
-  fontSans: 'Manrope, sans-serif',
-  fontMono: 'JetBrains Mono, monospace',
-  fontDisplay: 'Barlow Condensed, sans-serif',
-};
-
-const cardStyle: React.CSSProperties = {
-  background: T.card,
-  border: `1px solid ${T.border}`,
-  borderRadius: 12,
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-};
+import { T, card, sectionLabel } from '../tokens';
+const cardStyle = card;
 
 function statusBadgeStyle(status: string): React.CSSProperties {
   const map: Record<string, React.CSSProperties> = {
@@ -93,14 +63,6 @@ function scoreColor(score: number) {
   return T.danger;
 }
 
-const sectionLabel: React.CSSProperties = {
-  fontFamily: T.fontSans,
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  color: T.textMuted,
-};
 
 export default function AssessmentDetail() {
   const { id } = useParams<{ id: string }>();

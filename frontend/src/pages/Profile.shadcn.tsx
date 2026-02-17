@@ -1,40 +1,6 @@
 import { User, Mail, Building2, Hash, Shield, Bell, Key, Monitor, Palette } from 'lucide-react';
 
-// ── Design tokens ─────────────────────────────────────────────
-const T = {
-  card: '#FFFFFF',
-  border: '#E2E8F0',
-  textPrimary: '#1E293B',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  accent: '#4F46E5',
-  accentLight: 'rgba(99,102,241,0.08)',
-  accentBorder: 'rgba(99,102,241,0.2)',
-  warning: '#D97706',
-  warningLight: 'rgba(217,119,6,0.08)',
-  warningBorder: 'rgba(217,119,6,0.2)',
-  success: '#16A34A',
-  successLight: 'rgba(22,163,74,0.08)',
-  fontSans: 'Manrope, sans-serif',
-  fontMono: 'JetBrains Mono, monospace',
-  fontDisplay: 'Barlow Condensed, sans-serif',
-};
-
-const card: React.CSSProperties = {
-  background: T.card,
-  border: `1px solid ${T.border}`,
-  borderRadius: 12,
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-};
-
-const sectionLabel: React.CSSProperties = {
-  fontFamily: T.fontSans,
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  color: T.textMuted,
-};
+import { T, card, sectionLabel } from '../tokens';
 
 const upcomingFeatures = [
   { icon: Palette, label: 'Theme & display preferences', color: '#8B5CF6' },

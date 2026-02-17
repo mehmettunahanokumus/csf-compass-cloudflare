@@ -11,48 +11,7 @@ import { assessmentsApi } from '../api/assessments';
 import { vendorsApi } from '../api/vendors';
 import type { Assessment, Vendor } from '../types';
 import { getErrorMessage } from '../api/client';
-
-// ── Design tokens ─────────────────────────────────────────────
-const T = {
-  bg:           '#F1F5F9',
-  card:         '#FFFFFF',
-  border:       '#E2E8F0',
-  borderLight:  '#F1F5F9',
-  textPrimary:  '#0F172A',
-  textSecondary:'#64748B',
-  textMuted:    '#94A3B8',
-  textFaint:    '#CBD5E1',
-  accent:       '#4F46E5',
-  accentLight:  'rgba(79,70,229,0.08)',
-  accentBorder: 'rgba(79,70,229,0.2)',
-  success:      '#16A34A',
-  successLight: 'rgba(22,163,74,0.08)',
-  warning:      '#D97706',
-  warningLight: 'rgba(217,119,6,0.08)',
-  danger:       '#DC2626',
-  dangerLight:  'rgba(220,38,38,0.08)',
-  sky:          '#0EA5E9',
-  skyLight:     'rgba(14,165,233,0.08)',
-  fontSans:     'Manrope, sans-serif',
-  fontMono:     'JetBrains Mono, monospace',
-  fontDisplay:  'Barlow Condensed, sans-serif',
-};
-
-const card: React.CSSProperties = {
-  background:   T.card,
-  border:       `1px solid ${T.border}`,
-  borderRadius: 12,
-  boxShadow:    '0 1px 3px rgba(15,23,42,0.06)',
-};
-
-const sectionLabel: React.CSSProperties = {
-  fontFamily:    T.fontSans,
-  fontSize:      10,
-  fontWeight:    700,
-  letterSpacing: '0.09em',
-  textTransform: 'uppercase',
-  color:         T.textMuted,
-};
+import { T, card, sectionLabel } from '../tokens';
 
 // ── Static data ───────────────────────────────────────────────
 const csfData = [

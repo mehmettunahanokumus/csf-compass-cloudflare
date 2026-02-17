@@ -96,6 +96,75 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
+
+  /* ── T Token System (Light) ──────────────── */
+  --t-card:           #FFFFFF;
+  --t-bg:             #F8FAFC;
+  --t-border:         #E2E8F0;
+  --t-border-light:   #F1F5F9;
+  --t-text-primary:   #0F172A;
+  --t-text-secondary: #64748B;
+  --t-text-muted:     #94A3B8;
+  --t-text-faint:     #CBD5E1;
+  --t-accent:         #4F46E5;
+  --t-accent-light:   rgba(79, 70, 229, 0.08);
+  --t-accent-border:  rgba(79, 70, 229, 0.2);
+  --t-success:        #16A34A;
+  --t-success-light:  rgba(22, 163, 74, 0.08);
+  --t-success-border: rgba(22, 163, 74, 0.2);
+  --t-warning:        #D97706;
+  --t-warning-light:  rgba(217, 119, 6, 0.08);
+  --t-warning-border: rgba(217, 119, 6, 0.2);
+  --t-danger:         #DC2626;
+  --t-danger-light:   rgba(220, 38, 38, 0.08);
+  --t-danger-border:  rgba(220, 38, 38, 0.2);
+  --t-sky:            #0EA5E9;
+  --t-sky-light:      rgba(14, 165, 233, 0.08);
+  --t-shadow:         0 1px 3px rgba(15, 23, 42, 0.06);
+  --t-shadow-md:      0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+/* ── Dark Mode ─────────────────────────────── */
+
+html[data-theme="dark"] {
+  --ground:        #13151F;
+  --surface-1:     #1A1D2E;
+  --surface-2:     #242740;
+  --card:          #1A1D2E;
+  --card-elevated: #1E2236;
+  --sidebar:       #0D0F1A;
+  --topnav-bg:     #1A1D2E;
+  --border:        #2D3250;
+  --border-muted:  #242740;
+  --text-1:        #F1F5F9;
+  --text-2:        #94A3B8;
+  --text-3:        #64748B;
+
+  /* ── T Token System (Dark) ───────────────── */
+  --t-card:           #1A1D2E;
+  --t-bg:             #13151F;
+  --t-border:         #2D3250;
+  --t-border-light:   #242740;
+  --t-text-primary:   #F1F5F9;
+  --t-text-secondary: #94A3B8;
+  --t-text-muted:     #64748B;
+  --t-text-faint:     #475569;
+  --t-accent:         #818CF8;
+  --t-accent-light:   rgba(129, 140, 248, 0.12);
+  --t-accent-border:  rgba(129, 140, 248, 0.25);
+  --t-success:        #4ADE80;
+  --t-success-light:  rgba(74, 222, 128, 0.12);
+  --t-success-border: rgba(74, 222, 128, 0.25);
+  --t-warning:        #FBBF24;
+  --t-warning-light:  rgba(251, 191, 36, 0.12);
+  --t-warning-border: rgba(251, 191, 36, 0.25);
+  --t-danger:         #F87171;
+  --t-danger-light:   rgba(248, 113, 113, 0.12);
+  --t-danger-border:  rgba(248, 113, 113, 0.25);
+  --t-sky:            #38BDF8;
+  --t-sky-light:      rgba(56, 189, 248, 0.12);
+  --t-shadow:         0 1px 3px rgba(0, 0, 0, 0.3);
+  --t-shadow-md:      0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 /* ── Base ──────────────────────────────────── */

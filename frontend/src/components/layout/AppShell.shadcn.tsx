@@ -7,7 +7,7 @@ export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F1F5F9' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--t-bg)' }}>
       {/* ── Sidebar ── */}
       <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

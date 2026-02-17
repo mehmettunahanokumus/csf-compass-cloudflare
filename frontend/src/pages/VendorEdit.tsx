@@ -4,37 +4,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { vendorsApi, type UpdateVendorData } from '../api/vendors';
 import { getErrorMessage } from '../api/client';
 
-// ── Design tokens ─────────────────────────────────────────────
-const T = {
-  card:         '#FFFFFF',
-  border:       '#E2E8F0',
-  borderLight:  '#F1F5F9',
-  textPrimary:  '#0F172A',
-  textSecondary:'#64748B',
-  textMuted:    '#94A3B8',
-  accent:       '#4F46E5',
-  danger:       '#DC2626',
-  dangerLight:  'rgba(220,38,38,0.08)',
-  fontSans:     'Manrope, sans-serif',
-};
-
-const card: React.CSSProperties = {
-  background: T.card, border: `1px solid ${T.border}`,
-  borderRadius: 12, boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
-};
-
-const fieldLabel: React.CSSProperties = {
-  fontFamily: T.fontSans, fontSize: 11, fontWeight: 700,
-  color: T.textSecondary, display: 'block', marginBottom: 6,
-};
-
-const inputStyle = (hasError = false): React.CSSProperties => ({
-  width: '100%', padding: '9px 12px', borderRadius: 8,
-  border: `1px solid ${hasError ? 'rgba(220,38,38,0.4)' : T.border}`,
-  outline: 'none', fontFamily: T.fontSans, fontSize: 13,
-  color: T.textPrimary, background: T.card,
-  transition: 'border-color 0.15s', boxSizing: 'border-box',
-});
+import { T, card, fieldLabel, inputStyle } from '../tokens';
 
 const industries = [
   'Technology', 'Healthcare', 'Finance', 'Manufacturing',
