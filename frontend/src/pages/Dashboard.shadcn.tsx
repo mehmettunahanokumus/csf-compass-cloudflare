@@ -1,66 +1,137 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Shield,
-  Building2,
-  AlertTriangle,
-  TrendingUp,
-  Plus,
-  Target,
+  Shield, Building2, AlertTriangle, TrendingUp, Plus,
+  Target, CheckCircle2, Clock, ArrowRight, FileText, Activity,
 } from 'lucide-react';
 import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import { assessmentsApi } from '../api/assessments';
 import { vendorsApi } from '../api/vendors';
 import type { Assessment, Vendor } from '../types';
 import { getErrorMessage } from '../api/client';
 
-// ── Static chart data (will be replaced with real data when available) ──
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  bg:           '#F1F5F9',
+  card:         '#FFFFFF',
+  border:       '#E2E8F0',
+  borderLight:  '#F1F5F9',
+  textPrimary:  '#0F172A',
+  textSecondary:'#64748B',
+  textMuted:    '#94A3B8',
+  textFaint:    '#CBD5E1',
+  accent:       '#4F46E5',
+  accentLight:  'rgba(79,70,229,0.08)',
+  accentBorder: 'rgba(79,70,229,0.2)',
+  success:      '#16A34A',
+  successLight: 'rgba(22,163,74,0.08)',
+  warning:      '#D97706',
+  warningLight: 'rgba(217,119,6,0.08)',
+  danger:       '#DC2626',
+  dangerLight:  'rgba(220,38,38,0.08)',
+  sky:          '#0EA5E9',
+  skyLight:     'rgba(14,165,233,0.08)',
+  fontSans:     'Manrope, sans-serif',
+  fontMono:     'JetBrains Mono, monospace',
+  fontDisplay:  'Barlow Condensed, sans-serif',
+};
 
-const assessmentProgressData = [
-  { category: 'Govern', progress: 85 },
-  { category: 'Identify', progress: 72 },
-  { category: 'Protect', progress: 68 },
-  { category: 'Detect', progress: 55 },
-  { category: 'Respond', progress: 48 },
-  { category: 'Recover', progress: 40 },
+const card: React.CSSProperties = {
+  background:   T.card,
+  border:       `1px solid ${T.border}`,
+  borderRadius: 12,
+  boxShadow:    '0 1px 3px rgba(15,23,42,0.06)',
+};
+
+const sectionLabel: React.CSSProperties = {
+  fontFamily:    T.fontSans,
+  fontSize:      10,
+  fontWeight:    700,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+  color:         T.textMuted,
+};
+
+// ── Static data ───────────────────────────────────────────────
+const csfData = [
+  { label: 'GV', full: 'Govern',   score: 85 },
+  { label: 'ID', full: 'Identify', score: 72 },
+  { label: 'PR', full: 'Protect',  score: 68 },
+  { label: 'DE', full: 'Detect',   score: 55 },
+  { label: 'RS', full: 'Respond',  score: 48 },
+  { label: 'RC', full: 'Recover',  score: 40 },
 ];
 
-const recentActivityStatic = [
-  { id: 1, action: 'Assessment completed', vendor: 'TechCorp Solutions', timestamp: '2 hours ago', type: 'success' as const },
-  { id: 2, action: 'High-risk finding identified', vendor: 'DataFlow Inc', timestamp: '5 hours ago', type: 'warning' as const },
-  { id: 3, action: 'Vendor invited to assessment', vendor: 'CloudSec Systems', timestamp: '1 day ago', type: 'info' as const },
-  { id: 4, action: 'Evidence uploaded', vendor: 'Internal Assessment', timestamp: '2 days ago', type: 'success' as const },
+const recentActivity = [
+  { id: 1, text: 'Assessment completed',         sub: 'TechCorp Solutions',  time: '2h ago',  dot: T.success  },
+  { id: 2, text: 'High-risk finding identified', sub: 'DataFlow Inc',        time: '5h ago',  dot: T.warning  },
+  { id: 3, text: 'Vendor invited to assessment', sub: 'CloudSec Systems',    time: '1d ago',  dot: T.accent   },
+  { id: 4, text: 'Evidence uploaded',            sub: 'Internal Assessment', time: '2d ago',  dot: T.success  },
 ];
 
-// ── Component ────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────
+function scoreColor(s: number | null | undefined) {
+  if (s == null) return T.textFaint;
+  if (s >= 70)   return T.success;
+  if (s >= 50)   return T.warning;
+  return T.danger;
+}
 
-export default function DashboardShadcn() {
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{
+      background: T.card, border: `1px solid ${T.border}`, borderRadius: 8,
+      padding: '8px 12px', boxShadow: '0 4px 12px rgba(15,23,42,0.1)',
+      fontFamily: T.fontSans,
+    }}>
+      <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: T.accent, fontFamily: T.fontDisplay }}>
+        {payload[0].value}%
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: string }) {
+  const cfg: Record<string, { bg: string; color: string; label: string }> = {
+    completed:   { bg: T.successLight, color: T.success, label: 'Completed'   },
+    in_progress: { bg: T.accentLight,  color: T.accent,  label: 'In Progress' },
+    draft:       { bg: 'rgba(148,163,184,0.1)', color: T.textSecondary, label: 'Draft' },
+  };
+  const c = cfg[status] ?? cfg.draft;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center',
+      padding: '3px 9px', borderRadius: 100,
+      fontFamily: T.fontSans, fontSize: 11, fontWeight: 700,
+      background: c.bg, color: c.color,
+    }}>
+      {c.label}
+    </span>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────
+export default function Dashboard() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [vendors,     setVendors]     = useState<Vendor[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [assessmentData, vendorData] = await Promise.all([
+      const [aData, vData] = await Promise.all([
         assessmentsApi.list(),
         vendorsApi.list().catch(() => [] as Vendor[]),
       ]);
-      setAssessments(assessmentData);
-      setVendors(vendorData);
+      setAssessments(aData);
+      setVendors(vData);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -68,246 +139,330 @@ export default function DashboardShadcn() {
     }
   };
 
-  // Calculate metrics
-  const completedAssessments = assessments.filter((a) => a.status === 'completed');
-  const avgScore = completedAssessments.length > 0
-    ? Math.round(
-        completedAssessments.reduce((sum, a) => sum + (a.overall_score ?? 0), 0) /
-          completedAssessments.length
-      )
+  const completed  = assessments.filter(a => a.status === 'completed');
+  const inProgress = assessments.filter(a => a.status === 'in_progress');
+  const drafts     = assessments.filter(a => a.status === 'draft');
+  const highRisk   = vendors.filter(v => (v.latest_assessment_score ?? 100) < 50);
+  const avgScore   = completed.length > 0
+    ? Math.round(completed.reduce((s, a) => s + (a.overall_score ?? 0), 0) / completed.length)
     : 0;
-  const highRiskVendors = vendors.filter(
-    (v) => (v.latest_assessment_score ?? 100) < 50
-  );
-
-  // ── Loading state ──
 
   if (loading) {
     return (
-      <div className="space-y-8 animate-pulse">
-        <div className="h-12 bg-white/[0.04] rounded-xl w-48" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-28 bg-white/[0.04] rounded-xl" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ height: 34, borderRadius: 8, background: T.border, width: 200 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{ height: 108, borderRadius: 12, background: T.border, opacity: 0.5 }} />
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="h-64 bg-white/[0.04] rounded-xl" />
-          <div className="h-64 bg-white/[0.04] rounded-xl" />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ height: 228, borderRadius: 12, background: T.border, opacity: 0.4 }} />
+          <div style={{ height: 228, borderRadius: 12, background: T.border, opacity: 0.4 }} />
         </div>
       </div>
     );
   }
-
-  // ── Error state ──
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-          <p className="font-sans text-sm text-[#8E8FA8]">{error}</p>
-        </div>
+      <div style={{ ...card, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 12,
+        background: T.dangerLight, borderColor: 'rgba(220,38,38,0.2)' }}>
+        <AlertTriangle size={18} style={{ color: T.danger, flexShrink: 0 }} />
+        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.danger, margin: 0 }}>{error}</p>
       </div>
     );
   }
 
-  // ── Main render ──
+  const kpis = [
+    {
+      icon: <Shield size={18} />,
+      value: assessments.length,
+      label: 'Total Assessments',
+      color: T.accent,
+      sub: `${completed.length} completed`,
+    },
+    {
+      icon: <Building2 size={18} />,
+      value: vendors.length,
+      label: 'Active Vendors',
+      color: T.sky,
+      sub: `${highRisk.length} high risk`,
+    },
+    {
+      icon: <Target size={18} />,
+      value: `${avgScore}%`,
+      label: 'Avg Compliance',
+      color: scoreColor(avgScore),
+      sub: completed.length > 0
+        ? <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: T.success }}><TrendingUp size={10} /> Up this period</span>
+        : 'No data yet',
+    },
+    {
+      icon: <AlertTriangle size={18} />,
+      value: highRisk.length,
+      label: 'Critical Findings',
+      color: highRisk.length > 0 ? T.danger : T.success,
+      sub: highRisk.length > 0 ? 'Require attention' : 'All vendors OK',
+    },
+  ];
 
   return (
-    <div className="animate-fade-in-up space-y-8">
-      {/* Page header */}
-      <div className="flex items-start justify-between">
+    <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── Header ──────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Security Overview</h1>
-          <p className="font-sans text-sm text-[#8E8FA8] mt-1">NIST CSF 2.0 compliance dashboard</p>
+          <h1 style={{ fontFamily: T.fontSans, fontSize: 22, fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.02em', margin: 0 }}>
+            Security Overview
+          </h1>
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, marginTop: 3 }}>
+            NIST CSF 2.0 compliance dashboard
+          </p>
         </div>
-        <Link to="/assessments/new">
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
-            <Plus className="w-4 h-4" />
-            New Assessment
+        <Link to="/assessments/new" style={{ textDecoration: 'none' }}>
+          <button
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '9px 18px', borderRadius: 9,
+              background: T.accent, color: '#fff',
+              fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+              border: 'none', cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(79,70,229,0.3), 0 0 0 1px rgba(79,70,229,0.1)',
+              transition: 'background 0.15s, box-shadow 0.15s',
+            }}
+            onMouseEnter={e => { const b = e.currentTarget; b.style.background = '#4338CA'; b.style.boxShadow = '0 4px 12px rgba(79,70,229,0.35)'; }}
+            onMouseLeave={e => { const b = e.currentTarget; b.style.background = T.accent; b.style.boxShadow = '0 1px 3px rgba(79,70,229,0.3), 0 0 0 1px rgba(79,70,229,0.1)'; }}
+          >
+            <Plus size={15} /> New Assessment
           </button>
         </Link>
       </div>
 
-      {/* KPI Cards - 4 column grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Assessments */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all group">
-          <div className="flex items-start justify-between mb-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
-              <Shield className="w-[18px] h-[18px] text-amber-500/70" />
+      {/* ── KPI Cards ────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+        {kpis.map((k, i) => (
+          <div
+            key={i}
+            className="animate-fade-in-up"
+            style={{
+              ...card,
+              animationDelay: `${i * 60}ms`,
+              padding: '18px 20px',
+              transition: 'box-shadow 0.2s, transform 0.2s',
+              cursor: 'default',
+            }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = '0 6px 20px rgba(15,23,42,0.1)'; el.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = '0 1px 3px rgba(15,23,42,0.06)'; el.style.transform = 'translateY(0)'; }}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: 9,
+              background: `${k.color}12`, border: `1px solid ${k.color}22`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: k.color, marginBottom: 14,
+            }}>
+              {k.icon}
+            </div>
+            <div style={{ fontFamily: T.fontDisplay, fontSize: 36, fontWeight: 700, color: k.color, lineHeight: 1, letterSpacing: '-0.01em', marginBottom: 4 }}>
+              {k.value}
+            </div>
+            <div style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.textMuted, marginBottom: 4 }}>
+              {k.label}
+            </div>
+            <div style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textFaint }}>
+              {k.sub}
             </div>
           </div>
-          <div className="font-display text-3xl font-bold text-amber-400 mb-1 tabular-nums">
-            {assessments.length}
-          </div>
-          <div className="font-sans text-xs text-[#8E8FA8] font-medium">Total Assessments</div>
-        </div>
-
-        {/* Active Vendors */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all group">
-          <div className="flex items-start justify-between mb-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
-              <Building2 className="w-[18px] h-[18px] text-amber-500/70" />
-            </div>
-          </div>
-          <div className="font-display text-3xl font-bold text-amber-400 mb-1 tabular-nums">
-            {vendors.length}
-          </div>
-          <div className="font-sans text-xs text-[#8E8FA8] font-medium">Active Vendors</div>
-        </div>
-
-        {/* Avg Compliance Score */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all group">
-          <div className="flex items-start justify-between mb-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
-              <Target className="w-[18px] h-[18px] text-amber-500/70" />
-            </div>
-            {completedAssessments.length > 0 && (
-              <div className="flex items-center gap-1 text-emerald-400 text-xs font-sans">
-                <TrendingUp className="w-3 h-3" />
-                <span>+5%</span>
-              </div>
-            )}
-          </div>
-          <div className={`font-display text-3xl font-bold mb-1 tabular-nums ${avgScore > 70 ? 'text-emerald-400' : 'text-amber-400'}`}>
-            {avgScore}%
-          </div>
-          <div className="font-sans text-xs text-[#8E8FA8] font-medium">Avg Compliance Score</div>
-        </div>
-
-        {/* Critical Findings */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all group">
-          <div className="flex items-start justify-between mb-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
-              <AlertTriangle className="w-[18px] h-[18px] text-amber-500/70" />
-            </div>
-          </div>
-          <div className={`font-display text-3xl font-bold mb-1 tabular-nums ${highRiskVendors.length > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-            {highRiskVendors.length}
-          </div>
-          <div className="font-sans text-xs text-[#8E8FA8] font-medium">Critical Findings</div>
-        </div>
+        ))}
       </div>
 
-      {/* Charts + Activity - 2 column grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Bar chart card */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              CSF Framework Coverage
-            </h2>
+      {/* ── Charts row ───────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+
+        {/* Bar chart */}
+        <div style={{ ...card, padding: '20px 20px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+            <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+            <span style={sectionLabel}>CSF Framework Coverage</span>
           </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={assessmentProgressData} barSize={32}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-              <XAxis
-                dataKey="category"
-                tick={{ fill: '#55576A', fontSize: 10, fontFamily: 'DM Sans' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: '#55576A', fontSize: 10, fontFamily: 'DM Sans' }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `${v}%`}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: '#13151F',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px',
-                  fontFamily: 'DM Sans',
-                  fontSize: 12,
-                }}
-                cursor={{ fill: 'rgba(245,158,11,0.04)' }}
-              />
-              <Bar dataKey="progress" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+          <ResponsiveContainer width="100%" height={172}>
+            <BarChart data={csfData} barSize={22} margin={{ left: -10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.borderLight} vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: T.textMuted, fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fill: T.textMuted, fontSize: 10, fontFamily: 'Manrope' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: T.accentLight }} />
+              <Bar dataKey="score" fill={T.accent} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Recent activity card */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              Recent Activity
-            </h2>
+        {/* Activity feed */}
+        <div style={{ ...card, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+            <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+            <span style={sectionLabel}>Recent Activity</span>
+            <div style={{ marginLeft: 'auto' }}>
+              <Activity size={13} style={{ color: T.textFaint }} />
+            </div>
           </div>
-          <div>
-            {recentActivityStatic.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 py-3 border-b border-white/[0.04] last:border-0">
-                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                  item.type === 'success' ? 'bg-emerald-500' :
-                  item.type === 'warning' ? 'bg-amber-500' :
-                  'bg-indigo-400'
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-sans text-sm text-[#F0F0F5] font-medium">{item.action}</p>
-                  <p className="font-sans text-xs text-[#55576A] mt-0.5">{item.vendor}</p>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {recentActivity.map((item, idx) => (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 12,
+                  padding: '10px 0',
+                  borderBottom: idx < recentActivity.length - 1 ? `1px solid ${T.borderLight}` : 'none',
+                }}
+              >
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: item.dot, marginTop: 5, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary, lineHeight: 1.4 }}>
+                    {item.text}
+                  </div>
+                  <div style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+                    {item.sub}
+                  </div>
                 </div>
-                <span className="font-mono text-[10px] text-[#55576A] flex-shrink-0">{item.timestamp}</span>
+                <div style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textFaint, flexShrink: 0, paddingTop: 2 }}>
+                  {item.time}
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Recent assessments */}
-      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-          <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-            Recent Assessments
-          </h2>
+      {/* ── Assessment status strip ──────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+        {[
+          { icon: <CheckCircle2 size={16} />, label: 'Completed',   count: completed.length,  color: T.success },
+          { icon: <Clock size={16} />,        label: 'In Progress', count: inProgress.length, color: T.accent  },
+          { icon: <FileText size={16} />,     label: 'Draft',       count: drafts.length,     color: T.textMuted },
+        ].map(s => (
+          <div key={s.label} style={{
+            ...card, padding: '14px 18px',
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+              background: `${s.color}10`, border: `1px solid ${s.color}20`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color,
+            }}>
+              {s.icon}
+            </div>
+            <div>
+              <div style={{ fontFamily: T.fontDisplay, fontSize: 28, fontWeight: 700, color: s.color, lineHeight: 1 }}>
+                {s.count}
+              </div>
+              <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.textMuted, marginTop: 2 }}>
+                {s.label}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Recent assessments ───────────────────── */}
+      <div style={{ ...card, overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', borderBottom: `1px solid ${T.borderLight}`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+            <span style={sectionLabel}>Recent Assessments</span>
+          </div>
+          <Link to="/assessments" style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.accent, textDecoration: 'none',
+          }}>
+            View all <ArrowRight size={12} />
+          </Link>
         </div>
+
         {assessments.length > 0 ? (
-          <table className="w-full">
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="text-left py-2.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Assessment</th>
-                <th className="text-left py-2.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Type</th>
-                <th className="text-left py-2.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Score</th>
-                <th className="text-left py-2.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Status</th>
+              <tr style={{ background: '#F8FAFC' }}>
+                {['Assessment', 'Type', 'Score', 'Status'].map(h => (
+                  <th key={h} style={{
+                    textAlign: 'left', padding: '9px 20px',
+                    fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    color: T.textMuted, borderBottom: `1px solid ${T.borderLight}`,
+                  }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {assessments.slice(0, 5).map((a) => (
-                <tr key={a.id} className="border-b border-white/[0.03] hover:bg-amber-500/[0.03] transition-colors cursor-pointer">
-                  <td className="py-3 font-sans text-sm text-[#F0F0F5] font-medium">{a.name}</td>
-                  <td className="py-3">
-                    <span className="font-mono text-[11px] text-[#8E8FA8] bg-white/[0.04] px-2 py-0.5 rounded">
-                      {a.assessment_type}
-                    </span>
-                  </td>
-                  <td className="py-3 font-display text-sm font-semibold text-amber-400 tabular-nums">
-                    {a.overall_score != null ? `${a.overall_score.toFixed(0)}%` : '—'}
-                  </td>
-                  <td className="py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-sans font-medium ${
-                      a.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
-                      a.status === 'in_progress' ? 'bg-indigo-500/10 text-indigo-400' :
-                      'bg-white/[0.06] text-[#8E8FA8]'
-                    }`}>
-                      {a.status}
-                    </span>
-                  </td>
-                </tr>
+              {assessments.slice(0, 6).map((a, idx) => (
+                <Link
+                  key={a.id}
+                  to={`/assessments/${a.id}`}
+                  style={{ textDecoration: 'none', display: 'contents' }}
+                >
+                  <tr
+                    style={{
+                      borderBottom: idx < Math.min(assessments.length, 6) - 1 ? `1px solid ${T.borderLight}` : 'none',
+                      cursor: 'pointer', transition: 'background 0.12s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = '#F8FAFC'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
+                  >
+                    <td style={{ padding: '13px 20px' }}>
+                      <span style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary }}>
+                        {a.name}
+                      </span>
+                    </td>
+                    <td style={{ padding: '13px 20px' }}>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: 5,
+                        fontFamily: T.fontMono, fontSize: 10, color: T.textSecondary,
+                        background: '#F1F5F9', border: `1px solid ${T.border}`,
+                        letterSpacing: '0.03em',
+                      }}>
+                        {a.assessment_type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '13px 20px' }}>
+                      <span style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: scoreColor(a.overall_score) }}>
+                        {a.overall_score != null ? `${a.overall_score.toFixed(0)}%` : '—'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '13px 20px' }}>
+                      <StatusPill status={a.status} />
+                    </td>
+                  </tr>
+                </Link>
               ))}
             </tbody>
           </table>
         ) : (
-          <div className="text-center py-8">
-            <p className="font-sans text-sm text-[#55576A]">No assessments yet</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px', gap: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Shield size={22} style={{ color: T.textFaint }} />
+            </div>
+            <p style={{ fontFamily: T.fontSans, fontSize: 14, fontWeight: 600, color: T.textMuted, margin: 0 }}>No assessments yet</p>
+            <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textFaint, margin: 0 }}>Create your first assessment to get started</p>
+            <Link to="/assessments/new" style={{ textDecoration: 'none', marginTop: 4 }}>
+              <button style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '8px 16px', borderRadius: 8,
+                background: T.accent, color: '#fff',
+                fontFamily: T.fontSans, fontSize: 12, fontWeight: 700,
+                border: 'none', cursor: 'pointer',
+              }}>
+                <Plus size={14} /> Create Assessment
+              </button>
+            </Link>
           </div>
         )}
       </div>
+
     </div>
   );
 }

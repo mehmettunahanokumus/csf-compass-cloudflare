@@ -6,26 +6,56 @@ import { csfApi } from '../api/csf';
 import { getErrorMessage } from '../api/client';
 import type { Assessment, AssessmentItem, CsfFunction } from '../types';
 
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  card: '#FFFFFF',
+  border: '#E2E8F0',
+  bg: '#F8FAFC',
+  textPrimary: '#1E293B',
+  textSecondary: '#64748B',
+  textMuted: '#94A3B8',
+  accent: '#4F46E5',
+  accentLight: 'rgba(99,102,241,0.08)',
+  accentBorder: 'rgba(99,102,241,0.2)',
+  success: '#16A34A',
+  successLight: 'rgba(22,163,74,0.08)',
+  successBorder: 'rgba(22,163,74,0.2)',
+  warning: '#D97706',
+  warningLight: 'rgba(217,119,6,0.08)',
+  warningBorder: 'rgba(217,119,6,0.2)',
+  danger: '#DC2626',
+  dangerLight: 'rgba(220,38,38,0.08)',
+  dangerBorder: 'rgba(220,38,38,0.2)',
+  fontSans: 'Manrope, sans-serif',
+  fontMono: 'JetBrains Mono, monospace',
+  fontDisplay: 'Barlow Condensed, sans-serif',
+};
+
+const cardStyle: React.CSSProperties = {
+  background: T.card,
+  border: `1px solid ${T.border}`,
+  borderRadius: 12,
+  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+};
+
 const FUNCTION_TABS = ['All', 'GV', 'ID', 'PR', 'DE', 'RS', 'RC'];
 
-function statusBadgeClass(status: string) {
-  const map: Record<string, string> = {
-    compliant: 'bg-emerald-500/10 text-emerald-400',
-    partial: 'bg-amber-500/10 text-amber-400',
-    non_compliant: 'bg-red-500/10 text-red-400',
-    not_assessed: 'bg-white/[0.06] text-[#55576A]',
-    not_applicable: 'bg-white/[0.06] text-[#55576A]',
+function statusBadgeStyle(status: string): React.CSSProperties {
+  const base: React.CSSProperties = { fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20 };
+  const map: Record<string, React.CSSProperties> = {
+    compliant:     { ...base, background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` },
+    partial:       { ...base, background: T.warningLight, color: T.warning, border: `1px solid ${T.warningBorder}` },
+    non_compliant: { ...base, background: T.dangerLight, color: T.danger, border: `1px solid ${T.dangerBorder}` },
+    not_assessed:  { ...base, background: '#F1F5F9', color: T.textMuted, border: `1px solid ${T.border}` },
+    not_applicable:{ ...base, background: '#F1F5F9', color: T.textMuted, border: `1px solid ${T.border}` },
   };
-  return map[status] || 'bg-white/[0.06] text-[#55576A]';
+  return map[status] || { ...base, background: '#F1F5F9', color: T.textMuted, border: `1px solid ${T.border}` };
 }
 
 function statusLabel(status: string) {
   const map: Record<string, string> = {
-    compliant: 'Compliant',
-    partial: 'Partial',
-    non_compliant: 'Non-Compliant',
-    not_assessed: 'Not Assessed',
-    not_applicable: 'N/A',
+    compliant: 'Compliant', partial: 'Partial', non_compliant: 'Non-Compliant',
+    not_assessed: 'Not Assessed', not_applicable: 'N/A',
   };
   return map[status] || status.replace('_', ' ');
 }
@@ -41,15 +71,12 @@ export default function AssessmentChecklist() {
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+  useEffect(() => { loadData(); }, [id]);
 
   const loadData = async () => {
     if (!id) return;
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true); setError(null);
       const [assessmentData, functionsData, itemsData] = await Promise.all([
         assessmentsApi.get(id),
         csfApi.getFunctions(),
@@ -58,25 +85,18 @@ export default function AssessmentChecklist() {
       setAssessment(assessmentData);
       setFunctions(functionsData);
       setItems(itemsData);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(getErrorMessage(err)); } finally { setLoading(false); }
   };
 
   const distribution = useMemo(() => {
     const d = { compliant: 0, partial: 0, non_compliant: 0, not_assessed: 0, not_applicable: 0 };
-    items.forEach((item) => {
-      if (item.status in d) d[item.status as keyof typeof d]++;
-    });
+    items.forEach((item) => { if (item.status in d) d[item.status as keyof typeof d]++; });
     return d;
   }, [items]);
 
   const complianceScore = useMemo(() => {
     const assessed = items.filter((i) => i.status !== 'not_assessed' && i.status !== 'not_applicable').length;
-    if (assessed === 0) return 0;
-    return (distribution.compliant / assessed) * 100;
+    return assessed === 0 ? 0 : (distribution.compliant / assessed) * 100;
   }, [items, distribution]);
 
   const filteredItems = useMemo(() => {
@@ -85,20 +105,15 @@ export default function AssessmentChecklist() {
       filtered = filtered.filter((item) => {
         const funcName = item.function?.name || '';
         const catName = item.category?.name || '';
-        return (
-          funcName.startsWith(activeTab) ||
-          catName.startsWith(activeTab) ||
-          item.subcategory?.name?.startsWith(activeTab)
-        );
+        return funcName.startsWith(activeTab) || catName.startsWith(activeTab) || item.subcategory?.name?.startsWith(activeTab);
       });
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (item) =>
-          (item.subcategory?.name || '').toLowerCase().includes(q) ||
-          (item.subcategory?.description || '').toLowerCase().includes(q) ||
-          (item.category?.name || '').toLowerCase().includes(q)
+      filtered = filtered.filter((item) =>
+        (item.subcategory?.name || '').toLowerCase().includes(q) ||
+        (item.subcategory?.description || '').toLowerCase().includes(q) ||
+        (item.category?.name || '').toLowerCase().includes(q)
       );
     }
     return filtered;
@@ -109,12 +124,7 @@ export default function AssessmentChecklist() {
     filteredItems.forEach((item) => {
       const catId = item.category?.id || 'unknown';
       if (!groups[catId]) {
-        groups[catId] = {
-          categoryId: catId,
-          categoryName: item.category?.name || 'Unknown Category',
-          functionName: item.function?.name || '',
-          items: [],
-        };
+        groups[catId] = { categoryId: catId, categoryName: item.category?.name || 'Unknown Category', functionName: item.function?.name || '', items: [] };
       }
       groups[catId].items.push(item);
     });
@@ -126,66 +136,65 @@ export default function AssessmentChecklist() {
     try {
       const updated = await assessmentsApi.updateItem(id, itemId, { status: newStatus as AssessmentItem['status'] });
       setItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, ...updated } : item)));
-    } catch (err) {
-      console.error('Failed to update status:', getErrorMessage(err));
-    }
+    } catch (err) { console.error('Failed to update status:', getErrorMessage(err)); }
   };
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto space-y-4 animate-pulse">
-        <div className="h-5 w-32 bg-white/[0.06] rounded" />
-        <div className="h-7 w-48 bg-white/[0.06] rounded" />
-        <div className="h-40 w-full bg-white/[0.06] rounded-xl" />
-        <div className="h-10 w-full bg-white/[0.06] rounded-lg" />
-        <div className="h-64 w-full bg-white/[0.06] rounded-xl" />
+      <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {[1,2,3,4].map(i => <div key={i} style={{ height: i === 1 ? 40 : i === 2 ? 160 : 40, background: '#E2E8F0', borderRadius: 12 }} />)}
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-5xl mx-auto text-center py-10">
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4">
-          <p className="font-sans text-sm text-red-400">{error}</p>
+      <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center', padding: '40px 0' }}>
+        <div style={{ ...cardStyle, padding: 16, background: T.dangerLight, borderColor: T.dangerBorder, marginBottom: 16 }}>
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.danger, margin: 0 }}>{error}</p>
         </div>
-        <button
-          onClick={loadData}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
-        >
+        <button onClick={loadData} style={{
+          padding: '9px 20px', borderRadius: 8, background: T.accent, border: 'none',
+          fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
+        }}>
           Retry
         </button>
       </div>
     );
   }
 
-  const scoreColor = complianceScore >= 80 ? '#10B981' : complianceScore >= 50 ? '#F59E0B' : '#EF4444';
+  const scoreColor = complianceScore >= 80 ? T.success : complianceScore >= 50 ? T.warning : T.danger;
   const circumference = 2 * Math.PI * 50;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up">
+    <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
       <div>
-        <Link
-          to={`/assessments/${id}`}
-          className="inline-flex items-center gap-1.5 font-sans text-xs text-[#55576A] hover:text-[#8E8FA8] transition-colors mb-3"
+        <Link to={`/assessments/${id}`} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12,
+          fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, textDecoration: 'none',
+        }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = T.textSecondary}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = T.textMuted}
         >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          Back to Assessment
+          <ChevronLeft size={14} /> Back to Assessment
         </Link>
-        <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Assessment Checklist</h1>
-        <p className="font-sans text-sm text-[#8E8FA8] mt-0.5">
-          <span className="font-mono text-[#55576A]">{items.length}</span> subcategories across <span className="font-mono text-[#55576A]">{functions.length}</span> functions
+        <h1 style={{ fontFamily: T.fontSans, fontSize: 24, fontWeight: 800, color: T.textPrimary, margin: '0 0 4px' }}>
+          Assessment Checklist
+        </h1>
+        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, margin: 0 }}>
+          <span style={{ fontFamily: T.fontMono, color: T.accent }}>{items.length}</span> subcategories across{' '}
+          <span style={{ fontFamily: T.fontMono, color: T.accent }}>{functions.length}</span> functions
         </p>
       </div>
 
       {/* Score Overview */}
-      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-        <div className="flex flex-col sm:flex-row gap-6 items-center">
+      <div style={{ ...cardStyle, padding: 24 }}>
+        <div style={{ display: 'flex', gap: 32, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Circle */}
-          <div className="relative flex-shrink-0 w-32 h-32">
-            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="14" />
+          <div style={{ position: 'relative', width: 128, height: 128, flexShrink: 0 }}>
+            <svg viewBox="0 0 120 120" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+              <circle cx="60" cy="60" r="50" fill="none" stroke={T.border} strokeWidth="14" />
               <circle
                 cx="60" cy="60" r="50" fill="none"
                 stroke={scoreColor}
@@ -196,34 +205,43 @@ export default function AssessmentChecklist() {
                 style={{ transition: 'stroke-dashoffset 0.6s ease' }}
               />
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-display text-2xl font-bold tabular-nums text-[#F0F0F5]">{Math.round(complianceScore)}</span>
-              <span className="font-sans text-[10px] text-[#55576A] uppercase tracking-wider">Score</span>
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontFamily: T.fontDisplay, fontSize: 28, fontWeight: 700, color: T.textPrimary }}>
+                {Math.round(complianceScore)}
+              </span>
+              <span style={{ fontFamily: T.fontSans, fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Score
+              </span>
             </div>
           </div>
 
-          {/* Distribution */}
-          <div className="flex-1 w-full space-y-3">
+          {/* Distribution bars */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { label: 'Compliant', count: distribution.compliant, color: '#10B981' },
-              { label: 'Partial', count: distribution.partial, color: '#F59E0B' },
-              { label: 'Non-Compliant', count: distribution.non_compliant, color: '#EF4444' },
-              { label: 'Not Assessed', count: distribution.not_assessed, color: '#55576A' },
-              { label: 'N/A', count: distribution.not_applicable, color: '#3A3C4E' },
+              { label: 'Compliant',    count: distribution.compliant,     color: T.success },
+              { label: 'Partial',      count: distribution.partial,       color: T.warning },
+              { label: 'Non-Compliant',count: distribution.non_compliant, color: T.danger  },
+              { label: 'Not Assessed', count: distribution.not_assessed,  color: T.textMuted },
+              { label: 'N/A',          count: distribution.not_applicable,color: T.border  },
             ].map((item) => (
-              <div key={item.label} className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                <span className="font-sans text-xs text-[#8E8FA8] w-28">{item.label}</span>
-                <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: items.length > 0 ? `${(item.count / items.length) * 100}%` : '0%',
-                      backgroundColor: item.color,
-                    }}
-                  />
+              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: item.color }} />
+                <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, width: 110 }}>
+                  {item.label}
+                </span>
+                <div style={{ flex: 1, height: 6, background: T.bg, borderRadius: 3, overflow: 'hidden', border: `1px solid ${T.border}` }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3, background: item.color,
+                    width: items.length > 0 ? `${(item.count / items.length) * 100}%` : '0%',
+                    transition: 'width 0.5s ease',
+                  }} />
                 </div>
-                <span className="font-mono text-xs font-medium text-[#F0F0F5] w-8 text-right tabular-nums">{item.count}</span>
+                <span style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 600, color: T.textPrimary, width: 28, textAlign: 'right' }}>
+                  {item.count}
+                </span>
               </div>
             ))}
           </div>
@@ -231,85 +249,122 @@ export default function AssessmentChecklist() {
       </div>
 
       {/* Function Tabs + Search */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {FUNCTION_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-lg font-sans text-sm font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab
-                  ? 'bg-amber-500 text-[#08090E]'
-                  : 'bg-white/[0.04] text-[#8E8FA8] hover:bg-white/[0.07] hover:text-[#F0F0F5]'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+          {FUNCTION_TABS.map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, whiteSpace: 'nowrap',
+                  background: isActive ? T.accent : T.card,
+                  border: isActive ? 'none' : `1px solid ${T.border}`,
+                  fontFamily: T.fontSans, fontSize: 13, fontWeight: isActive ? 600 : 500,
+                  color: isActive ? '#FFF' : T.textSecondary,
+                  cursor: 'pointer', transition: 'all 0.14s',
+                }}
+              >
+                {tab}
+              </button>
+            );
+          })}
         </div>
-        <div className="relative flex-1 sm:max-w-xs ml-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#55576A]" />
+        <div style={{ position: 'relative', flex: 1, maxWidth: 280, marginLeft: 'auto' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
           <input
             type="text"
             placeholder="Search subcategories..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white/[0.03] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder:text-[#55576A] focus:outline-none focus:border-amber-500/30 transition-colors"
+            style={{
+              width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
+              boxSizing: 'border-box', borderRadius: 8,
+              background: T.card, border: `1px solid ${T.border}`,
+              fontFamily: T.fontSans, fontSize: 13, color: T.textPrimary, outline: 'none',
+            }}
           />
         </div>
       </div>
 
       {/* Results count */}
       {searchQuery && (
-        <p className="font-sans text-sm text-[#8E8FA8]">
-          Showing <span className="font-mono text-amber-400">{filteredItems.length}</span> of {items.length} subcategories
+        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, margin: 0 }}>
+          Showing <span style={{ fontFamily: T.fontMono, color: T.accent }}>{filteredItems.length}</span> of {items.length} subcategories
         </p>
       )}
 
       {/* Grouped Items */}
       {groupedItems.length === 0 ? (
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl py-12 text-center">
-          <p className="font-sans text-sm text-[#55576A]">No items found matching your filters.</p>
+        <div style={{ ...cardStyle, padding: '48px 20px', textAlign: 'center' }}>
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, margin: 0 }}>
+            No items found matching your filters.
+          </p>
         </div>
       ) : (
         groupedItems.map((group) => (
-          <div key={group.categoryId} className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
+          <div key={group.categoryId} style={{ ...cardStyle, overflow: 'hidden' }}>
             {/* Category header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02]">
-              <div className="flex items-center gap-3">
-                <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-                <h3 className="font-display text-sm font-semibold text-[#F0F0F5]">{group.categoryName}</h3>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 20px', borderBottom: `1px solid ${T.border}`,
+              background: T.bg,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
+                <h3 style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: T.textPrimary, margin: 0 }}>
+                  {group.categoryName}
+                </h3>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-[10px] bg-white/[0.05] text-[#8E8FA8] px-2 py-0.5 rounded uppercase tracking-wide">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  fontFamily: T.fontMono, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em',
+                  padding: '2px 8px', borderRadius: 6, background: T.accentLight, color: T.accent,
+                  border: `1px solid ${T.accentBorder}`,
+                }}>
                   {group.functionName}
                 </span>
-                <span className="font-mono text-[10px] text-[#55576A]">{group.items.length} items</span>
+                <span style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted }}>
+                  {group.items.length} items
+                </span>
               </div>
             </div>
 
             {/* Items */}
-            <div className="divide-y divide-white/[0.04]">
-              {group.items.map((item) => (
-                <div key={item.id} className="px-5 py-3.5 flex items-start gap-4 hover:bg-white/[0.02] transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs font-semibold text-amber-400">
+            <div>
+              {group.items.map((item, idx) => (
+                <div key={item.id} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 16, padding: '14px 20px',
+                  borderBottom: idx < group.items.length - 1 ? `1px solid ${T.border}` : 'none',
+                  transition: 'background 0.1s',
+                }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.bg}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = T.card}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 600, color: T.accent }}>
                         {item.subcategory?.id}
                       </span>
-                      <span className={`font-sans text-[11px] font-medium px-2 py-0.5 rounded-full ${statusBadgeClass(item.status || 'not_assessed')}`}>
+                      <span style={statusBadgeStyle(item.status || 'not_assessed')}>
                         {statusLabel(item.status || 'not_assessed')}
                       </span>
                     </div>
-                    <p className="font-sans text-xs text-[#8E8FA8] leading-relaxed">
+                    <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.6 }}>
                       {item.subcategory?.description}
                     </p>
                   </div>
-                  <div className="flex-shrink-0 w-44">
+                  <div style={{ flexShrink: 0, width: 180 }}>
                     <select
                       value={item.status || 'not_assessed'}
                       onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                      className="w-full px-3 py-1.5 bg-white/[0.03] border border-white/[0.07] rounded-lg font-sans text-xs text-[#F0F0F5] focus:outline-none focus:border-amber-500/30 transition-colors appearance-none cursor-pointer"
+                      style={{
+                        width: '100%', padding: '6px 10px', borderRadius: 8,
+                        background: T.bg, border: `1px solid ${T.border}`,
+                        fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
+                        outline: 'none', cursor: 'pointer',
+                      }}
                     >
                       <option value="not_assessed">Not Assessed</option>
                       <option value="compliant">Compliant</option>

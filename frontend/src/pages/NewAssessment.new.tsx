@@ -1,87 +1,74 @@
-/**
- * NewAssessment - Multi-step wizard for creating organization or vendor assessments
- * CIPHER design system
- */
-
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Building2, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building2, ClipboardCheck, Check } from 'lucide-react';
 import { assessmentsApi } from '../api/assessments';
 import { vendorsApi } from '../api/vendors';
 import type { Vendor } from '../types';
 import { getErrorMessage } from '../api/client';
 
-type AssessmentType = 'organization' | 'vendor';
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  card:         '#FFFFFF',
+  border:       '#E2E8F0',
+  borderLight:  '#F1F5F9',
+  textPrimary:  '#0F172A',
+  textSecondary:'#64748B',
+  textMuted:    '#94A3B8',
+  textFaint:    '#CBD5E1',
+  accent:       '#4F46E5',
+  accentLight:  'rgba(79,70,229,0.08)',
+  accentBorder: 'rgba(79,70,229,0.2)',
+  success:      '#16A34A',
+  successLight: 'rgba(22,163,74,0.08)',
+  danger:       '#DC2626',
+  fontSans:     'Manrope, sans-serif',
+  fontMono:     'JetBrains Mono, monospace',
+  fontDisplay:  'Barlow Condensed, sans-serif',
+};
 
-interface FormData {
-  type: AssessmentType;
-  vendorId: string;
-  name: string;
-  description: string;
-}
+const card: React.CSSProperties = {
+  background: T.card, border: `1px solid ${T.border}`,
+  borderRadius: 12, boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '9px 12px', borderRadius: 8,
+  border: `1px solid ${T.border}`, outline: 'none',
+  fontFamily: T.fontSans, fontSize: 13, color: T.textPrimary,
+  background: T.card, transition: 'border-color 0.15s', boxSizing: 'border-box',
+};
+
+type AssessmentType = 'organization' | 'vendor';
+interface FormData { type: AssessmentType; vendorId: string; name: string; description: string; }
+
+const stepLabels = ['Assessment Type', 'Vendor Selection', 'Assessment Details'];
 
 export default function NewAssessmentNew() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [step,           setStep]           = useState(1);
+  const [vendors,        setVendors]        = useState<Vendor[]>([]);
+  const [loading,        setLoading]        = useState(false);
   const [loadingVendors, setLoadingVendors] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
-    type: 'organization',
-    vendorId: '',
-    name: '',
-    description: '',
-  });
+  const [formData, setFormData] = useState<FormData>({ type: 'organization', vendorId: '', name: '', description: '' });
 
-  useEffect(() => {
-    loadVendors();
-  }, []);
+  useEffect(() => { loadVendors(); }, []);
 
   const loadVendors = async () => {
     try {
       setLoadingVendors(true);
-      const vendorsData = await vendorsApi.list();
-      setVendors(vendorsData);
-    } catch (err) {
-      console.error('Failed to load vendors:', err);
-    } finally {
-      setLoadingVendors(false);
-    }
+      setVendors(await vendorsApi.list());
+    } catch { /* ignore */ }
+    finally { setLoadingVendors(false); }
   };
 
   const handleTypeSelect = (type: AssessmentType) => {
-    setFormData({ ...formData, type });
-    setStep(2);
+    setFormData(f => ({ ...f, type }));
+    setStep(type === 'vendor' ? 2 : 3);
   };
 
-  const handleVendorSelect = (vendorId: string) => {
-    setFormData({ ...formData, vendorId });
-  };
-
-  const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData({ ...formData, [field]: value });
-  };
-
-  const handleNext = () => {
-    if (step === 2 && formData.type === 'vendor' && !formData.vendorId) {
-      alert('Please select a vendor');
-      return;
-    }
-    setStep(step + 1);
-  };
-
-  const handleBack = () => {
-    setStep(step - 1);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.name.trim()) {
-      alert('Please enter an assessment name');
-      return;
-    }
-
+  const handleSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!formData.name.trim()) { alert('Please enter an assessment name'); return; }
     try {
       setLoading(true);
       const assessment = await assessmentsApi.create({
@@ -90,83 +77,67 @@ export default function NewAssessmentNew() {
         name: formData.name,
         description: formData.description || undefined,
       });
-
       navigate(`/assessments/${assessment.id}`);
-    } catch (err) {
-      alert(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert(getErrorMessage(err)); }
+    finally { setLoading(false); }
   };
 
-  const canProceed = () => {
-    if (step === 2 && formData.type === 'vendor') {
-      return !!formData.vendorId;
-    }
-    return true;
-  };
+  const canProceed = () => step !== 2 || !!formData.vendorId;
 
-  const getRiskBadgeClass = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'high':
-        return 'bg-red-500/10 text-red-400';
-      case 'medium':
-        return 'bg-amber-500/10 text-amber-400';
-      case 'low':
-        return 'bg-emerald-500/10 text-emerald-400';
-      default:
-        return 'bg-white/[0.06] text-[#8E8FA8]';
-    }
-  };
+  const effectiveStep = step === 3 ? 3 : (step === 2 && formData.type === 'vendor') ? 2 : step;
 
   return (
-    <div className="max-w-[800px] mx-auto animate-fade-in-up">
+    <div className="animate-fade-in-up" style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
       {/* Header */}
-      <div className="flex gap-4 items-start mb-8">
-        <Link
-          to="/assessments"
-          className="bg-[#0E1018] border border-white/[0.07] rounded-lg p-2.5 flex items-center justify-center text-[#8E8FA8] hover:text-[#F0F0F5] hover:border-amber-500/20 transition-all"
-        >
-          <ArrowLeft className="w-5 h-5" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <Link to="/assessments" style={{ textDecoration: 'none' }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 9,
+            background: T.card, border: `1px solid ${T.border}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: T.textMuted, cursor: 'pointer',
+          }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = '#CBD5E1'; el.style.color = T.textPrimary; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = T.border; el.style.color = T.textMuted; }}
+          >
+            <ArrowLeft size={16} />
+          </div>
         </Link>
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#F0F0F5] mb-1">
+          <h1 style={{ fontFamily: T.fontSans, fontSize: 22, fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.02em', margin: 0 }}>
             Create New Assessment
           </h1>
-          <p className="font-sans text-sm text-[#8E8FA8]">
-            Step <span className="font-mono">{step}</span> of{' '}
-            <span className="font-mono">3</span> —{' '}
-            {step === 1
-              ? 'Assessment Type'
-              : step === 2
-              ? formData.type === 'vendor'
-                ? 'Select Vendor'
-                : 'Assessment Details'
-              : 'Assessment Details'}
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, marginTop: 2 }}>
+            Step <span style={{ fontFamily: T.fontMono }}>{effectiveStep}</span> of{' '}
+            <span style={{ fontFamily: T.fontMono }}>{formData.type === 'organization' ? 2 : 3}</span>
+            {' '}— {stepLabels[effectiveStep - 1]}
           </p>
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 mb-7">
-        <div className="flex items-center">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className={`flex items-center ${s < 3 ? 'flex-1' : ''}`}>
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-mono text-base font-semibold transition-all duration-300 ${
-                  s <= step
-                    ? 'bg-amber-500 text-[#08090E]'
-                    : 'bg-[#08090E] text-[#55576A]'
-                }`}
-              >
-                {s}
+      {/* Progress stepper */}
+      <div style={{ ...card, padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {[1, 2, 3].filter(s => formData.type === 'organization' ? s !== 2 : true).map((s, idx, arr) => (
+            <div key={s} style={{ display: 'flex', alignItems: 'center', flex: idx < arr.length - 1 ? 1 : 0 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: s <= step ? T.accent : '#F1F5F9',
+                color: s <= step ? '#fff' : T.textFaint,
+                transition: 'all 0.3s',
+              }}>
+                {s < step
+                  ? <Check size={16} />
+                  : <span style={{ fontFamily: T.fontMono, fontSize: 13, fontWeight: 700 }}>{idx + 1}</span>
+                }
               </div>
-              {s < 3 && (
-                <div
-                  className={`flex-1 h-1 mx-3 rounded-full transition-all duration-300 ${
-                    s < step ? 'bg-amber-500' : 'bg-white/[0.07]'
-                  }`}
-                />
+              {idx < arr.length - 1 && (
+                <div style={{
+                  flex: 1, height: 3, borderRadius: 2, margin: '0 10px',
+                  background: s < step ? T.accent : '#F1F5F9', transition: 'background 0.3s',
+                }} />
               )}
             </div>
           ))}
@@ -175,226 +146,240 @@ export default function NewAssessmentNew() {
 
       {/* Step 1: Assessment Type */}
       {step === 1 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Organization Assessment */}
-          <button
-            onClick={() => handleTypeSelect('organization')}
-            className="bg-[#0E1018] border-2 border-white/[0.07] rounded-xl p-9 text-center cursor-pointer transition-all hover:border-amber-500/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/5 group"
-          >
-            <Building2 className="w-16 h-16 text-amber-500/70 mx-auto mb-5 group-hover:text-amber-400 transition-colors" />
-            <h2 className="font-display text-lg font-semibold text-[#F0F0F5] mb-2.5">
-              Organization Assessment
-            </h2>
-            <p className="font-sans text-sm text-[#8E8FA8] leading-relaxed">
-              Assess your organization's cybersecurity posture against NIST CSF 2.0 framework
-            </p>
-          </button>
-
-          {/* Vendor Assessment */}
-          <button
-            onClick={() => handleTypeSelect('vendor')}
-            className="bg-[#0E1018] border-2 border-white/[0.07] rounded-xl p-9 text-center cursor-pointer transition-all hover:border-purple-500/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/5 group"
-          >
-            <ClipboardCheck className="w-16 h-16 text-purple-400/70 mx-auto mb-5 group-hover:text-purple-400 transition-colors" />
-            <h2 className="font-display text-lg font-semibold text-[#F0F0F5] mb-2.5">
-              Vendor Assessment
-            </h2>
-            <p className="font-sans text-sm text-[#8E8FA8] leading-relaxed">
-              Evaluate a third-party vendor's security controls and compliance posture
-            </p>
-          </button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {[
+            {
+              type: 'organization' as AssessmentType,
+              icon: <Building2 size={52} />,
+              color: T.accent,
+              colorLight: T.accentLight,
+              title: 'Organization Assessment',
+              desc: "Assess your organization's cybersecurity posture against NIST CSF 2.0 framework",
+            },
+            {
+              type: 'vendor' as AssessmentType,
+              icon: <ClipboardCheck size={52} />,
+              color: '#8B5CF6',
+              colorLight: 'rgba(139,92,246,0.08)',
+              title: 'Vendor Assessment',
+              desc: 'Evaluate a third-party vendor\'s security controls and compliance posture',
+            },
+          ].map(opt => (
+            <button
+              key={opt.type}
+              onClick={() => handleTypeSelect(opt.type)}
+              style={{
+                ...card, padding: '40px 32px',
+                textAlign: 'center', cursor: 'pointer',
+                border: `2px solid ${T.border}`, borderRadius: 12,
+                background: T.card, transition: 'all 0.18s',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+              }}
+              onMouseEnter={e => { const b = e.currentTarget; b.style.borderColor = opt.color; b.style.transform = 'translateY(-2px)'; b.style.boxShadow = `0 8px 24px ${opt.colorLight}`; }}
+              onMouseLeave={e => { const b = e.currentTarget; b.style.borderColor = T.border; b.style.transform = 'translateY(0)'; b.style.boxShadow = '0 1px 3px rgba(15,23,42,0.06)'; }}
+            >
+              <div style={{
+                width: 80, height: 80, borderRadius: 20, marginBottom: 20,
+                background: opt.colorLight, border: `1px solid ${opt.color}25`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: opt.color,
+              }}>
+                {opt.icon}
+              </div>
+              <h2 style={{ fontFamily: T.fontSans, fontSize: 16, fontWeight: 800, color: T.textPrimary, margin: '0 0 10px' }}>
+                {opt.title}
+              </h2>
+              <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, lineHeight: 1.6, margin: 0 }}>
+                {opt.desc}
+              </p>
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Step 2: Vendor Selection (only for vendor assessments) */}
+      {/* Step 2: Vendor Selection */}
       {step === 2 && formData.type === 'vendor' && (
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-7">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+        <div style={{ ...card, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+            <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textMuted }}>
               Select Vendor
-            </h2>
+            </span>
           </div>
 
           {loadingVendors ? (
-            <div className="space-y-3 animate-pulse">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-[72px] bg-white/[0.04] rounded-lg" />
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} className="animate-pulse">
+              {[1,2,3].map(i => <div key={i} style={{ height: 68, borderRadius: 10, background: T.borderLight }} />)}
             </div>
           ) : vendors.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="font-sans text-sm text-[#55576A] mb-5">
+            <div style={{ textAlign: 'center', padding: '40px 24px' }}>
+              <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, marginBottom: 16 }}>
                 No vendors found. Create a vendor first.
               </p>
-              <Link
-                to="/vendors"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
-              >
-                Go to Vendors
+              <Link to="/vendors" style={{ textDecoration: 'none' }}>
+                <button style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '9px 18px', borderRadius: 9,
+                  background: T.accent, color: '#fff',
+                  fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+                  border: 'none', cursor: 'pointer',
+                }}>
+                  Go to Vendors
+                </button>
               </Link>
             </div>
           ) : (
-            <div className="space-y-3 mb-6">
-              {vendors.map((vendor) => {
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {vendors.map(vendor => {
                 const isSelected = formData.vendorId === vendor.id;
                 return (
-                  <label
-                    key={vendor.id}
-                    className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-amber-500/60 bg-amber-500/[0.05]'
-                        : 'border-white/[0.07] bg-[#0E1018] hover:border-white/[0.12] hover:bg-[#13151F]'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="vendor"
-                      value={vendor.id}
-                      checked={isSelected}
-                      onChange={(e) => handleVendorSelect(e.target.value)}
-                      className="w-4 h-4 accent-amber-500 cursor-pointer"
-                    />
-                    <div className="flex-1 ml-4">
-                      <p className="font-sans text-sm font-semibold text-[#F0F0F5]">{vendor.name}</p>
-                      <p className="font-sans text-xs text-[#55576A] mt-0.5">
-                        {vendor.website || vendor.contact_email}
-                      </p>
+                  <label key={vendor.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    padding: '14px 18px', borderRadius: 10, cursor: 'pointer',
+                    border: `2px solid ${isSelected ? T.accent : T.border}`,
+                    background: isSelected ? T.accentLight : T.card,
+                    transition: 'all 0.15s',
+                  }}>
+                    <div style={{
+                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                      border: `2px solid ${isSelected ? T.accent : T.border}`,
+                      background: isSelected ? T.accent : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s',
+                    }}>
+                      {isSelected && <Check size={11} style={{ color: '#fff' }} />}
                     </div>
-                    {vendor.risk_level && (
-                      <span className={`font-mono text-[10px] font-medium px-2 py-0.5 rounded ${getRiskBadgeClass(vendor.risk_level)}`}>
-                        {vendor.risk_level} risk
-                      </span>
-                    )}
+                    <input type="radio" name="vendor" value={vendor.id} checked={isSelected}
+                      onChange={e => setFormData(f => ({ ...f, vendorId: e.target.value }))}
+                      style={{ display: 'none' }} />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: T.textPrimary, margin: 0 }}>
+                        {vendor.name}
+                      </p>
+                      {(vendor.website || vendor.contact_email) && (
+                        <p style={{ fontFamily: T.fontMono, fontSize: 11, color: T.textMuted, margin: '2px 0 0' }}>
+                          {vendor.website || vendor.contact_email}
+                        </p>
+                      )}
+                    </div>
                   </label>
                 );
               })}
             </div>
           )}
 
-          <div className="flex justify-between pt-6 border-t border-white/[0.06]">
-            <button
-              onClick={handleBack}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0E1018] text-[#8E8FA8] border border-white/[0.07] rounded-lg font-sans text-sm font-medium hover:text-[#F0F0F5] hover:border-white/[0.12] transition-all"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
+          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 20, borderTop: `1px solid ${T.borderLight}` }}>
+            <button onClick={() => setStep(1)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '8px 18px', borderRadius: 8,
+              background: T.card, color: T.textSecondary,
+              fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+              border: `1px solid ${T.border}`, cursor: 'pointer',
+            }}>
+              <ArrowLeft size={14} /> Back
             </button>
-            <button
-              onClick={handleNext}
-              disabled={!canProceed()}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-display text-sm font-semibold transition-all ${
-                canProceed()
-                  ? 'bg-amber-500 text-[#08090E] hover:bg-amber-400'
-                  : 'bg-white/[0.04] text-[#55576A] cursor-not-allowed'
-              }`}
-            >
-              Next
-              <ArrowRight className="w-4 h-4" />
+            <button onClick={() => { if (canProceed()) setStep(3); else alert('Please select a vendor'); }}
+              disabled={!canProceed()} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                padding: '8px 18px', borderRadius: 8,
+                background: canProceed() ? T.accent : '#E2E8F0',
+                color: canProceed() ? '#fff' : T.textMuted,
+                fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+                border: 'none', cursor: canProceed() ? 'pointer' : 'not-allowed',
+                boxShadow: canProceed() ? '0 1px 3px rgba(79,70,229,0.3)' : 'none',
+              }}>
+              Next <ArrowRight size={14} />
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 2 for organization assessments - auto-advance to step 3 */}
-      {step === 2 && formData.type === 'organization' && (
-        <div style={{ display: 'none' }}>{setTimeout(() => setStep(3), 0)}</div>
-      )}
-
       {/* Step 3: Assessment Details */}
       {step === 3 && (
-        <form onSubmit={handleSubmit} className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-7">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              Assessment Details
-            </h2>
-          </div>
-
-          <div className="space-y-6">
-            {/* Assessment Name */}
-            <div>
-              <label className="block font-display text-[10px] tracking-[0.12em] uppercase text-[#8E8FA8] font-semibold mb-2">
-                Assessment Name *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="e.g., Q1 2024 Security Assessment"
-                required
-                className="w-full px-3 py-2.5 font-sans text-sm text-[#F0F0F5] bg-white/[0.04] border border-white/[0.07] rounded-lg outline-none transition-all placeholder:text-[#55576A] focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20"
-              />
+        <form onSubmit={handleSubmit}>
+          <div style={{ ...card, padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+              <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textMuted }}>
+                Assessment Details
+              </span>
             </div>
 
-            {/* Description */}
-            <div>
-              <label className="block font-display text-[10px] tracking-[0.12em] uppercase text-[#8E8FA8] font-semibold mb-2">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Optional: Add notes about the scope and purpose of this assessment"
-                rows={4}
-                className="w-full px-3 py-2.5 font-sans text-sm text-[#F0F0F5] bg-white/[0.04] border border-white/[0.07] rounded-lg outline-none transition-all resize-y placeholder:text-[#55576A] focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20"
-              />
-            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Name */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 700, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
+                  Assessment Name <span style={{ color: T.danger }}>*</span>
+                </label>
+                <input type="text" value={formData.name}
+                  onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g., Q1 2025 Security Assessment" required style={inputStyle}
+                  onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
+                  onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
+                />
+              </div>
 
-            {/* Summary */}
-            <div className="bg-[#13151F] border border-white/[0.05] rounded-lg p-5">
-              <h3 className="font-display text-[10px] tracking-[0.12em] uppercase text-[#8E8FA8] font-semibold mb-4">
-                Assessment Summary
-              </h3>
-              <div className="space-y-3 font-sans text-sm">
-                <div className="flex justify-between">
-                  <span className="text-[#55576A]">Type</span>
-                  <span className="font-medium text-[#F0F0F5]">
-                    {formData.type === 'organization' ? 'Organization Assessment' : 'Vendor Assessment'}
-                  </span>
+              {/* Description */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 700, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
+                  Description
+                </label>
+                <textarea value={formData.description}
+                  onChange={e => setFormData(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Optional: Add notes about the scope and purpose of this assessment"
+                  rows={4} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
+                  onFocus={e => { (e.currentTarget as HTMLTextAreaElement).style.borderColor = '#A5B4FC'; }}
+                  onBlur={e => { (e.currentTarget as HTMLTextAreaElement).style.borderColor = T.border; }}
+                />
+              </div>
+
+              {/* Summary card */}
+              <div style={{
+                background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+                borderRadius: 10, padding: '16px 18px',
+              }}>
+                <div style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: T.accent, marginBottom: 14 }}>
+                  Assessment Summary
                 </div>
-                {formData.type === 'vendor' && formData.vendorId && (
-                  <div className="flex justify-between">
-                    <span className="text-[#55576A]">Vendor</span>
-                    <span className="font-medium text-[#F0F0F5]">
-                      {vendors.find((v) => v.id === formData.vendorId)?.name}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-[#55576A]">Framework</span>
-                  <span className="font-medium text-[#F0F0F5]">NIST CSF 2.0</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#55576A]">Subcategories</span>
-                  <span className="font-mono font-medium text-amber-400">
-                    120 <span className="text-[#55576A] font-sans font-normal">(across 6 functions)</span>
-                  </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[
+                    { label: 'Type', value: formData.type === 'organization' ? 'Organization Assessment' : 'Vendor Assessment' },
+                    ...(formData.type === 'vendor' && formData.vendorId
+                      ? [{ label: 'Vendor', value: vendors.find(v => v.id === formData.vendorId)?.name || '—' }]
+                      : []),
+                    { label: 'Framework', value: 'NIST CSF 2.0' },
+                    { label: 'Subcategories', value: '120 (across 6 functions)' },
+                  ].map(row => (
+                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>{row.label}</span>
+                      <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 700, color: T.textPrimary }}>{row.value}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-between pt-6 mt-6 border-t border-white/[0.06]">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0E1018] text-[#8E8FA8] border border-white/[0.07] rounded-lg font-sans text-sm font-medium hover:text-[#F0F0F5] hover:border-white/[0.12] transition-all"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-display text-sm font-semibold transition-all ${
-                loading
-                  ? 'bg-white/[0.04] text-[#55576A] cursor-not-allowed'
-                  : 'bg-amber-500 text-[#08090E] hover:bg-amber-400'
-              }`}
-            >
-              {loading ? 'Creating...' : 'Create Assessment'}
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 20, marginTop: 4, borderTop: `1px solid ${T.borderLight}` }}>
+              <button type="button" onClick={() => setStep(formData.type === 'vendor' ? 2 : 1)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                padding: '8px 18px', borderRadius: 8,
+                background: T.card, color: T.textSecondary,
+                fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+                border: `1px solid ${T.border}`, cursor: 'pointer',
+              }}>
+                <ArrowLeft size={14} /> Back
+              </button>
+              <button type="submit" disabled={loading} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                padding: '9px 24px', borderRadius: 8,
+                background: loading ? '#E2E8F0' : T.accent,
+                color: loading ? T.textMuted : '#fff',
+                fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+                border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: loading ? 'none' : '0 1px 3px rgba(79,70,229,0.3)',
+              }}>
+                {loading ? 'Creating…' : 'Create Assessment'}
+              </button>
+            </div>
           </div>
         </form>
       )}

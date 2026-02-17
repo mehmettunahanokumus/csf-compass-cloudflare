@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -7,101 +8,368 @@ import {
   FileDown,
   Settings,
   User,
-  Shield,
+  ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-} from '../ui/sidebar';
 
 const navSections = [
   {
-    label: 'Operations',
+    label: 'Core',
     items: [
-      { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-      { name: 'Assessments', path: '/assessments', icon: FileCheck },
-      { name: 'Vendors', path: '/vendors', icon: Building2 },
+      { name: 'Dashboard',   path: '/dashboard',   icon: LayoutDashboard },
+      { name: 'Assessments', path: '/assessments',  icon: FileCheck       },
+      { name: 'Vendors',     path: '/vendors',      icon: Building2       },
     ],
   },
   {
     label: 'Intelligence',
     items: [
       { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-      { name: 'Exports', path: '/exports', icon: FileDown },
+      { name: 'Exports',   path: '/exports',   icon: FileDown  },
     ],
   },
   {
-    label: 'Configuration',
+    label: 'Settings',
     items: [
       { name: 'Organization', path: '/organization', icon: Settings },
-      { name: 'Profile', path: '/profile', icon: User },
+      { name: 'Profile',      path: '/profile',      icon: User     },
     ],
   },
 ];
 
-export default function AppSidebar() {
+// Tooltip for icon-only mode
+function NavTooltip({ label, visible }: { label: string; visible: boolean }) {
+  if (!visible) return null;
   return (
-    <Sidebar className="!bg-[#07080D] !border-r !border-white/[0.06]">
-      {/* Brand header */}
-      <SidebarHeader className="!p-0">
-        <div className="px-4 py-5 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-amber-500" />
+    <div style={{
+      position: 'absolute',
+      left: 'calc(100% + 8px)',
+      top: '50%',
+      transform: 'translateY(-50%)',
+      background: '#1E293B',
+      color: '#F1F5F9',
+      fontFamily: 'Manrope, sans-serif',
+      fontSize: 12,
+      fontWeight: 600,
+      padding: '5px 10px',
+      borderRadius: 6,
+      whiteSpace: 'nowrap',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+      zIndex: 100,
+      pointerEvents: 'none',
+    }}>
+      {label}
+      <div style={{
+        position: 'absolute',
+        right: '100%',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        width: 0,
+        height: 0,
+        borderTop: '4px solid transparent',
+        borderBottom: '4px solid transparent',
+        borderRight: '4px solid #1E293B',
+      }} />
+    </div>
+  );
+}
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function AppSidebar({ open, onClose }: Props) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [tooltip, setTooltip] = useState<string | null>(null);
+
+  const w = collapsed ? 64 : 256;
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div
+          onClick={onClose}
+          style={{
+            display: 'none',
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            zIndex: 25,
+          }}
+          className="mobile-overlay"
+        />
+      )}
+
+      <aside
+        style={{
+          width: w,
+          minWidth: w,
+          background: '#0F172A',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1), min-width 0.22s cubic-bezier(0.4,0,0.2,1)',
+          position: 'relative',
+          zIndex: 10,
+          flexShrink: 0,
+        }}
+      >
+        {/* ── Brand ──────────────────────────────── */}
+        <div style={{
+          padding: collapsed ? '18px 0' : '18px 16px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between',
+          gap: 10,
+          overflow: 'hidden',
+          transition: 'padding 0.22s',
+        }}>
+          {/* Logo icon */}
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: 'rgba(99,102,241,0.18)',
+            border: '1px solid rgba(99,102,241,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <ShieldCheck size={18} style={{ color: '#818CF8' }} />
+          </div>
+
+          {/* Brand name — hidden when collapsed */}
+          {!collapsed && (
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <div style={{
+                fontFamily: 'Manrope, sans-serif',
+                fontWeight: 800,
+                fontSize: 14,
+                color: '#F8FAFC',
+                letterSpacing: '-0.01em',
+                whiteSpace: 'nowrap',
+              }}>
+                CSF Compass
+              </div>
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 9,
+                color: '#818CF8',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                opacity: 0.75,
+                marginTop: 1,
+              }}>
+                NIST CSF 2.0
+              </div>
             </div>
-            <div>
-              <div className="font-display text-sm font-bold text-[#F0F0F5] tracking-wide">CSF Compass</div>
-              <div className="font-mono text-[9px] text-amber-500/60 tracking-[0.2em] uppercase">CIPHER v2.0</div>
+          )}
+
+          {/* Mobile close */}
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#475569',
+              padding: 2,
+              display: 'none',
+            }}
+            className="mobile-close-btn"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* ── Navigation ─────────────────────────── */}
+        <nav style={{ flex: 1, padding: collapsed ? '8px 6px' : '8px 10px', overflow: 'hidden' }}>
+          {navSections.map((section) => (
+            <div key={section.label} style={{ marginBottom: 2 }}>
+              {/* Section label — hidden when collapsed */}
+              {!collapsed && (
+                <div style={{
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.11em',
+                  textTransform: 'uppercase',
+                  color: '#334155',
+                  padding: '13px 8px 5px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {section.label}
+                </div>
+              )}
+              {/* Separator when collapsed */}
+              {collapsed && (
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '8px 0' }} />
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {section.items.map((item) => (
+                  <div
+                    key={item.path}
+                    style={{ position: 'relative' }}
+                    onMouseEnter={() => collapsed && setTooltip(item.name)}
+                    onMouseLeave={() => setTooltip(null)}
+                  >
+                    <NavLink
+                      to={item.path}
+                      title={collapsed ? item.name : undefined}
+                      style={({ isActive }) => ({
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: collapsed ? 0 : 10,
+                        padding: collapsed ? '9px 0' : '8px 10px',
+                        justifyContent: collapsed ? 'center' : 'flex-start',
+                        borderRadius: 8,
+                        textDecoration: 'none',
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: 13,
+                        fontWeight: isActive ? 600 : 500,
+                        color: isActive ? '#A5B4FC' : '#64748B',
+                        background: isActive ? 'rgba(99,102,241,0.14)' : 'transparent',
+                        transition: 'all 0.14s',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                      })}
+                      onMouseEnter={e => {
+                        const el = e.currentTarget;
+                        if (!el.style.background.includes('99,102,241')) {
+                          el.style.background = 'rgba(255,255,255,0.05)';
+                          el.style.color = '#CBD5E1';
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        const el = e.currentTarget;
+                        if (!el.style.background.includes('99,102,241')) {
+                          el.style.background = 'transparent';
+                          el.style.color = '#64748B';
+                        }
+                      }}
+                    >
+                      {({ isActive }) => (
+                        <>
+                          {/* Active bar */}
+                          {isActive && !collapsed && (
+                            <div style={{
+                              position: 'absolute',
+                              left: 0, top: '18%',
+                              width: 3, height: '64%',
+                              background: '#6366F1',
+                              borderRadius: '0 2px 2px 0',
+                            }} />
+                          )}
+                          <item.icon
+                            size={16}
+                            style={{
+                              flexShrink: 0,
+                              color: isActive ? '#A5B4FC' : 'inherit',
+                            }}
+                          />
+                          {!collapsed && <span>{item.name}</span>}
+                        </>
+                      )}
+                    </NavLink>
+                    {/* Tooltip */}
+                    {collapsed && <NavTooltip label={item.name} visible={tooltip === item.name} />}
+                  </div>
+                ))}
+              </div>
             </div>
+          ))}
+        </nav>
+
+        {/* ── Collapse toggle ─────────────────────── */}
+        <div style={{ padding: collapsed ? '12px 6px' : '12px 10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: collapsed ? '8px 0' : '8px 10px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              borderRadius: 8,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              color: '#475569',
+              fontFamily: 'Manrope, sans-serif',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.14s',
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLButtonElement;
+              el.style.background = 'rgba(255,255,255,0.08)';
+              el.style.color = '#94A3B8';
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLButtonElement;
+              el.style.background = 'rgba(255,255,255,0.04)';
+              el.style.color = '#475569';
+            }}
+          >
+            {collapsed
+              ? <ChevronRight size={15} />
+              : <><ChevronLeft size={15} /><span>Collapse</span></>
+            }
+          </button>
+        </div>
+
+        {/* ── User footer ─────────────────────────── */}
+        <div style={{
+          padding: collapsed ? '12px 6px' : '12px 10px',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: collapsed ? 0 : 10,
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            padding: collapsed ? '8px 0' : '8px 10px',
+            borderRadius: 8,
+            background: 'rgba(255,255,255,0.04)',
+            cursor: 'default',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: 'rgba(99,102,241,0.2)',
+              border: '1px solid rgba(99,102,241,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 800, color: '#A5B4FC' }}>D</span>
+            </div>
+            {!collapsed && (
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  Demo User
+                </div>
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#475569', marginTop: 1 }}>
+                  demo-org
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </SidebarHeader>
-
-      {/* Navigation groups */}
-      <SidebarContent className="!p-0 !py-2">
-        {navSections.map((section) => (
-          <div key={section.label} className="px-2">
-            <div className="px-3 pt-5 pb-1.5">
-              <span className="font-display text-[10px] font-semibold tracking-[0.15em] uppercase text-[#55576A]">
-                {section.label}
-              </span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    isActive
-                      ? 'flex items-center gap-2.5 px-[9px] py-2 rounded-lg text-sm font-sans bg-amber-500/[0.08] text-amber-400 border-l-[3px] border-amber-500 transition-colors'
-                      : 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-sans text-[#8E8FA8] hover:bg-white/[0.04] hover:text-[#F0F0F5] transition-colors'
-                  }
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </NavLink>
-              ))}
-            </div>
-          </div>
-        ))}
-      </SidebarContent>
-
-      {/* User footer */}
-      <SidebarFooter className="!p-0">
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/[0.03]">
-            <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center">
-              <span className="font-display text-[10px] font-bold text-amber-400">D</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-sans font-medium text-[#F0F0F5] truncate">Demo User</div>
-              <div className="text-[10px] font-mono text-[#55576A] truncate">demo-org-123</div>
-            </div>
-          </div>
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+      </aside>
+    </>
   );
 }

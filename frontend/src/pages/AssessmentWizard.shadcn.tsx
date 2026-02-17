@@ -31,6 +31,43 @@ import { assessmentsApi } from '../api/assessments';
 import { evidenceApi } from '../api/evidence';
 import type { Assessment, EvidenceFile } from '../types';
 
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  card:          '#FFFFFF',
+  bg:            '#F8FAFC',
+  border:        '#E2E8F0',
+  borderLight:   '#F1F5F9',
+  textPrimary:   '#0F172A',
+  textSecondary: '#64748B',
+  textMuted:     '#94A3B8',
+  textFaint:     '#CBD5E1',
+  accent:        '#4F46E5',
+  accentLight:   'rgba(79,70,229,0.08)',
+  accentBorder:  'rgba(79,70,229,0.2)',
+  success:       '#16A34A',
+  successLight:  'rgba(22,163,74,0.08)',
+  successBorder: 'rgba(22,163,74,0.2)',
+  warning:       '#D97706',
+  warningLight:  'rgba(217,119,6,0.08)',
+  danger:        '#DC2626',
+  dangerLight:   'rgba(220,38,38,0.08)',
+  fontSans:      'Manrope, sans-serif',
+  fontMono:      'JetBrains Mono, monospace',
+  fontDisplay:   'Barlow Condensed, sans-serif',
+};
+
+const card: React.CSSProperties = {
+  background: T.card,
+  border: `1px solid ${T.border}`,
+  borderRadius: 12,
+  boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
+};
+
+const sectionLabel: React.CSSProperties = {
+  fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+  letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textMuted,
+};
+
 // ── Constants ────────────────────────────────────────────
 
 const STEP_NAMES = [
@@ -96,11 +133,10 @@ export default function AssessmentWizardShadcn() {
   const [stepData, setStepData] = useState<Record<number, StepData>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Fetch assessment and evidence on mount
   useEffect(() => {
     if (!id) return;
-
     const loadData = async () => {
       setIsLoading(true);
       try {
@@ -109,27 +145,22 @@ export default function AssessmentWizardShadcn() {
           evidenceApi.getForAssessment(id),
         ]);
         setAssessment(assessmentData);
-
-        // Organize evidence by wizard_step
         const organized: Record<number, StepData> = {};
         for (let i = 0; i < TOTAL_STEPS; i++) {
           const stepFiles = allEvidence.filter((f) => f.wizard_step === i);
           organized[i] = { notes: '', files: stepFiles };
         }
         setStepData(organized);
-
-        // Mark steps with files as completed
         const stepsWithFiles = Object.entries(organized)
           .filter(([, data]) => data.files.length > 0)
           .map(([step]) => parseInt(step));
         setCompletedSteps(stepsWithFiles);
       } catch {
-        // Error loading - assessment may not exist
+        // Error loading
       } finally {
         setIsLoading(false);
       }
     };
-
     loadData();
   }, [id]);
 
@@ -193,10 +224,7 @@ export default function AssessmentWizardShadcn() {
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setStepData((prev) => ({
         ...prev,
-        [currentStep]: {
-          ...prev[currentStep],
-          notes: e.target.value,
-        },
+        [currentStep]: { ...prev[currentStep], notes: e.target.value },
       }));
     },
     [currentStep],
@@ -236,6 +264,13 @@ export default function AssessmentWizardShadcn() {
     }
   };
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) handleUpload(files);
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -249,21 +284,21 @@ export default function AssessmentWizardShadcn() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="flex items-center gap-4">
-          <div className="h-9 w-9 bg-white/[0.06] rounded-lg" />
-          <div className="space-y-2">
-            <div className="h-5 w-48 bg-white/[0.06] rounded" />
-            <div className="h-3 w-32 bg-white/[0.06] rounded" />
+      <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 9, background: T.borderLight }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ height: 18, width: 200, borderRadius: 6, background: T.borderLight }} />
+            <div style={{ height: 12, width: 120, borderRadius: 6, background: T.borderLight }} />
           </div>
         </div>
-        <div className="flex gap-6">
-          <div className="flex-[3] space-y-4">
-            <div className="h-24 w-full bg-white/[0.06] rounded-xl" />
-            <div className="h-48 w-full bg-white/[0.06] rounded-xl" />
-            <div className="h-32 w-full bg-white/[0.06] rounded-xl" />
+        <div style={{ display: 'flex', gap: 24 }}>
+          <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[96, 180, 120].map((h, i) => (
+              <div key={i} style={{ height: h, borderRadius: 12, background: T.borderLight }} />
+            ))}
           </div>
-          <div className="hidden lg:block w-[280px] h-[500px] bg-white/[0.06] rounded-xl" />
+          <div style={{ width: 260, height: 480, borderRadius: 12, background: T.borderLight, flexShrink: 0 }} />
         </div>
       </div>
     );
@@ -272,63 +307,116 @@ export default function AssessmentWizardShadcn() {
   // ── Main render ──
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] flex-col animate-fade-in-up">
+    <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 8rem)' }}>
+
       {/* Sticky Header */}
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-white/[0.06] bg-[#08090E]/95 backdrop-blur-sm px-6 py-4">
-        <div className="flex items-center gap-4">
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 20,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        borderBottom: `1px solid ${T.border}`,
+        background: 'rgba(248,250,252,0.95)',
+        backdropFilter: 'blur(8px)',
+        padding: '14px 0', marginBottom: 24,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button
             onClick={() => navigate(`/assessments/${id}`)}
-            className="flex items-center justify-center w-9 h-9 bg-white/[0.04] border border-white/[0.07] rounded-lg text-[#8E8FA8] hover:text-[#F0F0F5] hover:border-amber-500/30 transition-all"
+            style={{
+              width: 36, height: 36, borderRadius: 9,
+              background: T.card, border: `1px solid ${T.border}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: T.textMuted, cursor: 'pointer', transition: 'all 0.14s',
+            }}
+            onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = '#CBD5E1'; el.style.color = T.textPrimary; }}
+            onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = T.border; el.style.color = T.textMuted; }}
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft size={16} />
           </button>
           <div>
-            <h1 className="font-display text-lg font-semibold text-[#F0F0F5]">Data Collection Wizard</h1>
+            <h1 style={{ fontFamily: T.fontSans, fontSize: 18, fontWeight: 800, color: T.textPrimary, margin: 0, letterSpacing: '-0.02em' }}>
+              Data Collection Wizard
+            </h1>
             {assessment && (
-              <p className="font-sans text-xs text-[#55576A]">{assessment.name}</p>
+              <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, marginTop: 2 }}>
+                {assessment.name}
+              </p>
             )}
           </div>
         </div>
-        <span className="font-mono text-sm font-medium text-[#8E8FA8]">
-          Step <span className="text-amber-400">{currentStep + 1}</span> of {TOTAL_STEPS}
+        <span style={{ fontFamily: T.fontMono, fontSize: 13, color: T.textSecondary }}>
+          Step <span style={{ color: T.accent, fontWeight: 700 }}>{currentStep + 1}</span> of {TOTAL_STEPS}
         </span>
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-1 gap-6 p-6">
+      <div style={{ display: 'flex', flex: 1, gap: 24, paddingBottom: 24 }}>
+
         {/* Left: Main content area */}
-        <div className="flex min-w-0 flex-[3] flex-col gap-5">
+        <div style={{ flex: 3, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
           {/* Step Info Banner */}
-          <div className="flex items-start gap-4 bg-amber-500/[0.05] border-l-[3px] border-l-amber-500 border border-white/[0.07] rounded-xl p-5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/15">
-              <StepIcon className="h-5 w-5 text-amber-500/70" />
+          <div style={{
+            ...card,
+            display: 'flex', alignItems: 'flex-start', gap: 16,
+            padding: '18px 20px',
+            borderLeft: `3px solid ${T.accent}`,
+            background: T.accentLight,
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+              background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <StepIcon size={20} style={{ color: T.accent }} />
             </div>
             <div>
-              <h2 className="font-display text-base font-semibold text-[#F0F0F5]">{STEP_NAMES[currentStep]}</h2>
-              <p className="mt-1 font-sans text-sm text-[#8E8FA8] leading-relaxed">
+              <h2 style={{ fontFamily: T.fontDisplay, fontSize: 17, fontWeight: 700, color: T.textPrimary, margin: 0, letterSpacing: '0.01em' }}>
+                {STEP_NAMES[currentStep]}
+              </h2>
+              <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, marginTop: 4, lineHeight: 1.6 }}>
                 {STEP_DESCRIPTIONS[currentStep]}
               </p>
             </div>
           </div>
 
           {/* File Uploader */}
-          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl">
-            <div className="px-5 py-4 border-b border-white/[0.06]">
-              <h3 className="font-display text-xs font-semibold tracking-wide text-[#8E8FA8] uppercase">Upload Evidence</h3>
+          <div style={card}>
+            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.borderLight}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+              <span style={sectionLabel}>Upload Evidence</span>
             </div>
-            <div className="p-5">
-              <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/[0.1] p-8 transition-all hover:border-amber-500/30 hover:bg-amber-500/[0.03] group">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center mb-3 group-hover:bg-amber-500/15 transition-colors">
-                  <Upload className="h-5 w-5 text-amber-500/60 group-hover:text-amber-400 transition-colors" />
+            <div style={{ padding: 20 }}>
+              <label
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  padding: '32px 20px', borderRadius: 10,
+                  border: `2px dashed ${isDragging ? T.accent : T.border}`,
+                  background: isDragging ? T.accentLight : T.bg,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onMouseEnter={e => { (e.currentTarget as HTMLLabelElement).style.borderColor = T.accent; (e.currentTarget as HTMLLabelElement).style.background = T.accentLight; }}
+                onMouseLeave={e => { if (!isDragging) { (e.currentTarget as HTMLLabelElement).style.borderColor = T.border; (e.currentTarget as HTMLLabelElement).style.background = T.bg; } }}
+              >
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+                }}>
+                  <Upload size={20} style={{ color: T.accent }} />
                 </div>
-                <p className="font-sans text-sm font-medium text-[#F0F0F5]">Click to upload files</p>
-                <p className="mt-1 font-sans text-xs text-[#55576A]">
-                  PDF, DOCX, PNG, JPG up to 10MB
+                <p style={{ fontFamily: T.fontSans, fontSize: 14, fontWeight: 600, color: T.textPrimary, margin: 0 }}>
+                  Click to upload files
+                </p>
+                <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, marginTop: 4 }}>
+                  PDF, DOCX, PNG, JPG up to 10MB — or drag & drop
                 </p>
                 <input
                   type="file"
                   multiple
-                  className="hidden"
+                  style={{ display: 'none' }}
                   onChange={handleFileInputChange}
                   accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.csv"
                 />
@@ -337,45 +425,75 @@ export default function AssessmentWizardShadcn() {
           </div>
 
           {/* Evidence List */}
-          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl">
-            <div className="px-5 py-4 border-b border-white/[0.06]">
-              <h3 className="font-display text-xs font-semibold tracking-wide text-[#8E8FA8] uppercase">
-                Uploaded Files <span className="text-[#55576A]">({currentFiles.length})</span>
-              </h3>
+          <div style={card}>
+            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.borderLight}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+              <span style={sectionLabel}>
+                Uploaded Files
+              </span>
+              <span style={{ ...sectionLabel, color: T.textFaint, marginLeft: 4 }}>
+                ({currentFiles.length})
+              </span>
             </div>
-            <div className="p-5">
+            <div style={{ padding: 20 }}>
               {currentFiles.length === 0 ? (
-                <p className="py-4 text-center font-sans text-sm text-[#55576A]">
+                <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', padding: '16px 0' }}>
                   No files uploaded for this step yet
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {currentFiles.map((file) => (
                     <div
                       key={file.id}
-                      className="flex items-center gap-3 rounded-lg bg-white/[0.03] border border-white/[0.06] p-3 hover:border-white/[0.1] transition-colors"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 14px', borderRadius: 9,
+                        background: T.bg, border: `1px solid ${T.border}`,
+                      }}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                        <FileText className="h-3.5 w-3.5 text-amber-500/60" />
+                      <div style={{
+                        width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+                        background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <FileText size={14} style={{ color: T.accent }} />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-sans text-sm font-medium text-[#F0F0F5]">{file.fileName}</p>
-                        <p className="font-mono text-[10px] text-[#55576A]">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <p style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {file.fileName}
+                        </p>
+                        <p style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted, marginTop: 2 }}>
                           {formatFileSize(file.fileSize)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div style={{ display: 'flex', gap: 4 }}>
                         <button
                           onClick={() => handleDownload(file.id)}
-                          className="p-1.5 rounded-md text-[#55576A] hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                          style={{
+                            width: 30, height: 30, borderRadius: 7,
+                            background: 'none', border: 'none',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: T.textMuted, cursor: 'pointer', transition: 'all 0.12s',
+                          }}
+                          onMouseEnter={e => { const el = e.currentTarget; el.style.background = T.accentLight; el.style.color = T.accent; }}
+                          onMouseLeave={e => { const el = e.currentTarget; el.style.background = 'none'; el.style.color = T.textMuted; }}
+                          title="Download"
                         >
-                          <Download className="h-3.5 w-3.5" />
+                          <Download size={13} />
                         </button>
                         <button
                           onClick={() => handleDelete(file.id)}
-                          className="p-1.5 rounded-md text-[#55576A] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          style={{
+                            width: 30, height: 30, borderRadius: 7,
+                            background: 'none', border: 'none',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: T.textMuted, cursor: 'pointer', transition: 'all 0.12s',
+                          }}
+                          onMouseEnter={e => { const el = e.currentTarget; el.style.background = 'rgba(220,38,38,0.08)'; el.style.color = T.danger; }}
+                          onMouseLeave={e => { const el = e.currentTarget; el.style.background = 'none'; el.style.color = T.textMuted; }}
+                          title="Delete"
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X size={13} />
                         </button>
                       </div>
                     </div>
@@ -386,66 +504,77 @@ export default function AssessmentWizardShadcn() {
           </div>
 
           {/* Additional Notes */}
-          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl">
-            <div className="px-5 py-4 border-b border-white/[0.06]">
-              <h3 className="font-display text-xs font-semibold tracking-wide text-[#8E8FA8] uppercase">Additional Notes</h3>
+          <div style={card}>
+            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.borderLight}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+              <span style={sectionLabel}>Additional Notes</span>
             </div>
-            <div className="p-5">
+            <div style={{ padding: 20 }}>
               <textarea
                 rows={6}
                 value={currentStepData.notes}
                 onChange={handleNotesChange}
                 placeholder="Add any additional notes or context for this step..."
-                className="w-full min-h-[120px] resize-y bg-white/[0.03] border border-white/[0.07] rounded-lg px-4 py-3 font-sans text-sm text-[#F0F0F5] placeholder:text-[#55576A] focus:outline-none focus:border-amber-500/30 transition-colors"
+                style={{
+                  width: '100%', minHeight: 120, resize: 'vertical',
+                  background: T.bg, border: `1px solid ${T.border}`,
+                  borderRadius: 9, padding: '12px 16px',
+                  fontFamily: T.fontSans, fontSize: 13, color: T.textPrimary,
+                  outline: 'none', boxSizing: 'border-box', lineHeight: 1.6,
+                  transition: 'border-color 0.15s',
+                }}
+                onFocus={e => { (e.currentTarget as HTMLTextAreaElement).style.borderColor = T.accentBorder; }}
+                onBlur={e => { (e.currentTarget as HTMLTextAreaElement).style.borderColor = T.border; }}
               />
             </div>
           </div>
         </div>
 
         {/* Right: Wizard Stepper Sidebar */}
-        <div className="hidden min-w-[240px] max-w-[300px] flex-1 lg:block">
-          <div className="sticky top-24 bg-[#0E1018] border border-white/[0.07] rounded-xl flex max-h-[calc(100vh-10rem)] flex-col overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/[0.06]">
-              <h3 className="font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-[#55576A]">
-                Wizard Steps
-              </h3>
+        <div style={{ width: 260, flexShrink: 0 }}>
+          <div style={{
+            ...card, position: 'sticky', top: 80,
+            display: 'flex', flexDirection: 'column',
+            maxHeight: 'calc(100vh - 10rem)', overflow: 'hidden',
+          }}>
+            <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.borderLight}` }}>
+              <span style={sectionLabel}>Wizard Steps</span>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-1 scrollbar-thin">
+            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
               {STEP_NAMES.map((name, index) => {
                 const isCurrent = index === currentStep;
                 const isCompleted = completedSteps.includes(index);
-
                 return (
                   <button
                     key={index}
                     onClick={() => setCurrentStep(index)}
-                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all ${
-                      isCurrent
-                        ? 'bg-amber-500/[0.08] border-r-2 border-r-amber-500'
-                        : 'hover:bg-white/[0.03]'
-                    }`}
+                    style={{
+                      display: 'flex', width: '100%', alignItems: 'center', gap: 10,
+                      padding: '9px 16px', textAlign: 'left', border: 'none', cursor: 'pointer',
+                      background: isCurrent ? T.accentLight : 'transparent',
+                      borderRight: isCurrent ? `2px solid ${T.accent}` : '2px solid transparent',
+                      transition: 'all 0.12s',
+                    }}
+                    onMouseEnter={e => { if (!isCurrent) (e.currentTarget as HTMLButtonElement).style.background = T.borderLight; }}
+                    onMouseLeave={e => { if (!isCurrent) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                   >
-                    <div
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
-                        isCurrent
-                          ? 'bg-amber-500 text-[#08090E]'
-                          : isCompleted
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : 'bg-white/[0.06] text-[#55576A]'
-                      }`}
-                    >
-                      {isCompleted ? <Check className="h-3 w-3" strokeWidth={3} /> : index + 1}
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 700, fontFamily: T.fontSans,
+                      background: isCurrent ? T.accent : isCompleted ? T.successLight : T.borderLight,
+                      color: isCurrent ? '#fff' : isCompleted ? T.success : T.textMuted,
+                      border: isCompleted ? `1px solid ${T.successBorder}` : 'none',
+                      transition: 'all 0.12s',
+                    }}>
+                      {isCompleted ? <Check size={11} strokeWidth={3} /> : index + 1}
                     </div>
-                    <span
-                      className={`font-sans text-[12px] leading-tight ${
-                        isCurrent
-                          ? 'font-semibold text-amber-400'
-                          : isCompleted
-                            ? 'text-[#8E8FA8]'
-                            : 'text-[#55576A]'
-                      }`}
-                    >
+                    <span style={{
+                      fontFamily: T.fontSans, fontSize: 12, lineHeight: 1.3,
+                      color: isCurrent ? T.accent : isCompleted ? T.textSecondary : T.textMuted,
+                      fontWeight: isCurrent ? 700 : 400,
+                    }}>
                       {name}
                     </span>
                   </button>
@@ -453,84 +582,119 @@ export default function AssessmentWizardShadcn() {
               })}
             </div>
 
-            <div className="border-t border-white/[0.06] p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="font-sans text-[10px] font-medium text-[#55576A] uppercase tracking-wider">
-                  Progress
+            <div style={{ padding: 16, borderTop: `1px solid ${T.borderLight}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ ...sectionLabel, letterSpacing: '0.06em' }}>Progress</span>
+                <span style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 700, color: T.accent }}>
+                  {progress}%
                 </span>
-                <span className="font-mono text-xs font-bold text-amber-400">{progress}%</span>
               </div>
-              <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-amber-500 transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
+              <div style={{ height: 6, background: T.borderLight, borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 999,
+                  background: progress < 30 ? T.danger : progress < 70 ? T.warning : T.accent,
+                  width: `${progress}%`, transition: 'width 0.5s ease-out',
+                }} />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile Step Indicator (visible only on small screens) */}
-      <div className="border-t border-white/[0.06] px-6 py-3 lg:hidden">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="font-sans text-xs font-medium text-[#8E8FA8]">
+      {/* Mobile Step Indicator */}
+      <div style={{ borderTop: `1px solid ${T.border}`, padding: '12px 0', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>
             Step {currentStep + 1}: {STEP_NAMES[currentStep]}
           </span>
-          <span className="font-mono text-xs font-bold text-amber-400">{progress}%</span>
+          <span style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 700, color: T.accent }}>
+            {progress}%
+          </span>
         </div>
-        <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full bg-amber-500 transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
+        <div style={{ height: 5, background: T.borderLight, borderRadius: 999, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 999, background: T.accent,
+            width: `${progress}%`, transition: 'width 0.5s ease-out',
+          }} />
         </div>
       </div>
 
       {/* Sticky Bottom Navigation */}
-      <div className="sticky bottom-0 z-30 flex items-center justify-between border-t border-white/[0.06] bg-[#08090E]/95 backdrop-blur-sm px-6 py-4">
+      <div style={{
+        position: 'sticky', bottom: 0, zIndex: 30,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        borderTop: `1px solid ${T.border}`,
+        background: 'rgba(248,250,252,0.95)',
+        backdropFilter: 'blur(8px)',
+        padding: '14px 0',
+        marginTop: 8,
+      }}>
         {/* Previous */}
         <button
           onClick={handlePrevious}
           disabled={isFirstStep}
-          className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-white/[0.07] disabled:hover:text-[#8E8FA8]"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '8px 16px', borderRadius: 9,
+            background: T.card, border: `1px solid ${T.border}`,
+            fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+            color: isFirstStep ? T.textFaint : T.textSecondary,
+            cursor: isFirstStep ? 'not-allowed' : 'pointer',
+            opacity: isFirstStep ? 0.4 : 1,
+            transition: 'all 0.14s',
+          }}
+          onMouseEnter={e => { if (!isFirstStep) { const el = e.currentTarget; el.style.borderColor = '#CBD5E1'; el.style.color = T.textPrimary; } }}
+          onMouseLeave={e => { if (!isFirstStep) { const el = e.currentTarget; el.style.borderColor = T.border; el.style.color = T.textSecondary; } }}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft size={15} />
           Previous
         </button>
 
-        {/* Dot indicators - desktop only */}
-        <div className="hidden items-center gap-1.5 md:flex">
+        {/* Dot indicators */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrentStep(i)}
-              className={`rounded-full transition-all ${
-                i === currentStep
-                  ? 'h-2.5 w-2.5 bg-amber-500'
+              style={{
+                borderRadius: 999, border: 'none', cursor: 'pointer',
+                padding: 0, transition: 'all 0.15s',
+                width: i === currentStep ? 10 : 7,
+                height: i === currentStep ? 10 : 7,
+                background: i === currentStep
+                  ? T.accent
                   : completedSteps.includes(i)
-                    ? 'h-2 w-2 bg-emerald-500/60'
-                    : 'h-2 w-2 bg-white/[0.1]'
-              }`}
+                    ? T.success
+                    : T.borderLight,
+              }}
             />
           ))}
         </div>
 
         {/* Save + Next */}
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={handleSaveDraft}
             disabled={isSaving}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all disabled:opacity-50"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px', borderRadius: 9,
+              background: T.card, border: `1px solid ${T.border}`,
+              fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+              color: T.textSecondary, cursor: isSaving ? 'not-allowed' : 'pointer',
+              opacity: isSaving ? 0.6 : 1, transition: 'all 0.14s',
+            }}
+            onMouseEnter={e => { if (!isSaving) { const el = e.currentTarget; el.style.borderColor = '#CBD5E1'; el.style.color = T.textPrimary; } }}
+            onMouseLeave={e => { if (!isSaving) { const el = e.currentTarget; el.style.borderColor = T.border; el.style.color = T.textSecondary; } }}
           >
             {isSaving ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
                 Saving...
               </>
             ) : (
               <>
-                <Save className="w-3.5 h-3.5" />
+                <Save size={13} />
                 Save Draft
               </>
             )}
@@ -538,17 +702,27 @@ export default function AssessmentWizardShadcn() {
 
           <button
             onClick={handleNext}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '8px 20px', borderRadius: 9,
+              background: T.accent, color: '#fff', border: 'none',
+              fontFamily: T.fontDisplay, fontSize: 14, fontWeight: 700,
+              cursor: 'pointer', letterSpacing: '0.02em',
+              boxShadow: '0 1px 3px rgba(79,70,229,0.3)',
+              transition: 'all 0.14s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#4338CA'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = T.accent; }}
           >
             {isLastStep ? (
               <>
                 Complete Assessment
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle2 size={15} />
               </>
             ) : (
               <>
                 Next
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight size={15} />
               </>
             )}
           </button>

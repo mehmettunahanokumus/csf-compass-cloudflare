@@ -1,11 +1,88 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Edit2, Trash2, ClipboardList, Globe, Mail, User, Phone, Plus } from 'lucide-react';
+import { Edit2, Trash2, ClipboardList, Globe, Mail, User, Phone, Plus, X } from 'lucide-react';
 import { vendorsApi } from '../api/vendors';
 import { assessmentsApi } from '../api/assessments';
 import type { Vendor, Assessment, VendorStats } from '../types';
 import { getErrorMessage, formatDate } from '../api/client';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  card: '#FFFFFF',
+  border: '#E2E8F0',
+  bg: '#F8FAFC',
+  textPrimary: '#1E293B',
+  textSecondary: '#64748B',
+  textMuted: '#94A3B8',
+  accent: '#4F46E5',
+  accentLight: 'rgba(99,102,241,0.08)',
+  accentBorder: 'rgba(99,102,241,0.2)',
+  success: '#16A34A',
+  successLight: 'rgba(22,163,74,0.08)',
+  successBorder: 'rgba(22,163,74,0.2)',
+  warning: '#D97706',
+  warningLight: 'rgba(217,119,6,0.08)',
+  warningBorder: 'rgba(217,119,6,0.2)',
+  danger: '#DC2626',
+  dangerLight: 'rgba(220,38,38,0.08)',
+  dangerBorder: 'rgba(220,38,38,0.2)',
+  fontSans: 'Manrope, sans-serif',
+  fontMono: 'JetBrains Mono, monospace',
+  fontDisplay: 'Barlow Condensed, sans-serif',
+};
+
+const cardStyle: React.CSSProperties = {
+  background: T.card,
+  border: `1px solid ${T.border}`,
+  borderRadius: 12,
+  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+};
+
+const sectionLabel: React.CSSProperties = {
+  fontFamily: T.fontSans,
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: T.textMuted,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 12px',
+  borderRadius: 8,
+  background: T.bg,
+  border: `1px solid ${T.border}`,
+  fontFamily: T.fontSans,
+  fontSize: 13,
+  color: T.textPrimary,
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+function riskTierStyle(tier: string): React.CSSProperties {
+  const base: React.CSSProperties = {
+    fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
+    padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase' as const,
+    letterSpacing: '0.04em',
+  };
+  if (tier === 'critical') return { ...base, background: T.dangerLight, color: T.danger, border: `1px solid ${T.dangerBorder}` };
+  if (tier === 'high') return { ...base, background: T.warningLight, color: T.warning, border: `1px solid ${T.warningBorder}` };
+  if (tier === 'low') return { ...base, background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` };
+  return { ...base, background: T.accentLight, color: T.accent, border: `1px solid ${T.accentBorder}` }; // medium
+}
+
+function scoreColor(score: number) {
+  if (score >= 80) return T.success;
+  if (score >= 50) return T.warning;
+  return T.danger;
+}
+
+const avatarColors = ['#6366F1','#0EA5E9','#16A34A','#D97706','#EC4899','#8B5CF6','#14B8A6','#F97316'];
+function getAvatarColor(name: string) {
+  return avatarColors[name.charCodeAt(0) % avatarColors.length];
+}
 
 export default function VendorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -19,18 +96,12 @@ export default function VendorDetail() {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const [editForm, setEditForm] = useState({
-    name: '',
-    website: '',
-    contact_email: '',
-    contact_name: '',
-    description: '',
+    name: '', website: '', contact_email: '', contact_name: '', description: '',
     risk_level: 'medium' as 'low' | 'medium' | 'high',
     risk_tier: 'medium' as 'low' | 'medium' | 'high' | 'critical',
   });
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+  useEffect(() => { loadData(); }, [id]);
 
   const loadData = async () => {
     if (!id) return;
@@ -45,122 +116,105 @@ export default function VendorDetail() {
       setStats(statsData);
       setAssessments(assessmentsData.filter((a) => a.vendor_id === id));
       setEditForm({
-        name: vendorData.name,
-        website: vendorData.website || '',
-        contact_email: vendorData.contact_email || '',
-        contact_name: vendorData.contact_name || '',
+        name: vendorData.name, website: vendorData.website || '',
+        contact_email: vendorData.contact_email || '', contact_name: vendorData.contact_name || '',
         description: vendorData.description || '',
         risk_level: vendorData.risk_level || 'medium',
         risk_tier: vendorData.risk_tier || 'medium',
       });
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(getErrorMessage(err)); } finally { setLoading(false); }
   };
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
-    try {
-      await vendorsApi.update(id, editForm);
-      setEditing(false);
-      loadData();
-    } catch (err) {
-      alert(getErrorMessage(err));
-    }
+    try { await vendorsApi.update(id, editForm); setEditing(false); loadData(); } catch (err) { alert(getErrorMessage(err)); }
   };
 
   const handleDelete = async () => {
     if (!id) return;
-    try {
-      await vendorsApi.delete(id);
-      navigate('/vendors');
-    } catch (err) {
-      alert(getErrorMessage(err));
-    }
+    try { await vendorsApi.delete(id); navigate('/vendors'); } catch (err) { alert(getErrorMessage(err)); }
   };
 
+  // ── Loading ─────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="animate-fade-in-up space-y-6">
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-14 bg-white/[0.06] rounded animate-pulse" />
-          <span className="text-[#55576A] text-xs">/</span>
-          <div className="h-3 w-24 bg-white/[0.06] rounded animate-pulse" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ height: 10, width: 48, background: '#E2E8F0', borderRadius: 5 }} />
+          <span style={{ color: T.textMuted, fontSize: 12 }}>/</span>
+          <div style={{ height: 10, width: 100, background: '#E2E8F0', borderRadius: 5 }} />
         </div>
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 animate-pulse">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-white/[0.06]" />
-            <div className="space-y-2">
-              <div className="h-6 w-48 bg-white/[0.06] rounded" />
-              <div className="h-3 w-32 bg-white/[0.04] rounded" />
+        <div style={{ ...cardStyle, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#E2E8F0' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ height: 22, width: 200, background: '#E2E8F0', borderRadius: 6 }} />
+              <div style={{ height: 12, width: 130, background: '#E2E8F0', borderRadius: 5 }} />
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 animate-pulse">
-              <div className="h-8 w-16 bg-white/[0.06] rounded mb-1" />
-              <div className="h-3 w-24 bg-white/[0.04] rounded" />
-            </div>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
+          {[1,2,3,4].map(i => <div key={i} style={{ ...cardStyle, padding: 16, height: 80 }} />)}
         </div>
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 animate-pulse">
-          <div className="h-40 w-full bg-white/[0.04] rounded" />
-        </div>
+        <div style={{ ...cardStyle, padding: 24, height: 180 }} />
       </div>
     );
   }
 
   if (error || !vendor) {
     return (
-      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-        <p className="font-sans text-sm text-red-400">{error || 'Vendor not found'}</p>
+      <div style={{ ...cardStyle, padding: 16, background: T.dangerLight, borderColor: T.dangerBorder }}>
+        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.danger, margin: 0 }}>
+          {error || 'Vendor not found'}
+        </p>
       </div>
     );
   }
 
+  const tier = vendor.risk_tier || vendor.criticality_level || 'medium';
+  const latestScore = vendor.latest_assessment_score;
+  const avatarColor = getAvatarColor(vendor.name);
+
   return (
-    <div className="animate-fade-in-up space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5">
-        <Link to="/vendors" className="font-sans text-xs text-[#55576A] hover:text-[#8E8FA8] transition-colors">
-          Vendors
-        </Link>
-        <span className="text-[#55576A] text-xs">/</span>
-        <span className="font-sans text-xs text-[#8E8FA8]">{vendor.name}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Link to="/vendors" style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, textDecoration: 'none' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = T.textSecondary}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = T.textMuted}
+        >Vendors</Link>
+        <span style={{ color: T.textMuted, fontSize: 12 }}>/</span>
+        <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>{vendor.name}</span>
       </div>
 
-      {/* Vendor header card */}
-      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            {/* Large avatar */}
-            <div className="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
-              <span className="font-display text-xl font-bold text-amber-400">
+      {/* Header card */}
+      <div style={{ ...cardStyle, padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Avatar */}
+            <div style={{
+              width: 56, height: 56, borderRadius: 14, flexShrink: 0,
+              background: `${avatarColor}15`, border: `1px solid ${avatarColor}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontFamily: T.fontDisplay, fontSize: 26, fontWeight: 700, color: avatarColor }}>
                 {vendor.name.charAt(0).toUpperCase()}
               </span>
             </div>
             <div>
-              <h1 className="font-display text-xl font-bold text-[#F0F0F5] mb-1">{vendor.name}</h1>
-              <div className="flex items-center gap-2.5">
+              <h1 style={{ fontFamily: T.fontSans, fontSize: 20, fontWeight: 800, color: T.textPrimary, margin: '0 0 6px' }}>
+                {vendor.name}
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 {vendor.industry && (
-                  <span className="font-sans text-xs text-[#8E8FA8]">{vendor.industry}</span>
-                )}
-                {(vendor.risk_tier || vendor.criticality_level) && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-sans text-[10px] font-medium uppercase tracking-wide border ${
-                    (vendor.risk_tier || vendor.criticality_level) === 'critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                    (vendor.risk_tier || vendor.criticality_level) === 'high' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                    (vendor.risk_tier || vendor.criticality_level) === 'medium' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
-                    'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  }`}>
-                    {vendor.risk_tier || vendor.criticality_level || 'medium'}
+                  <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>
+                    {vendor.industry}
                   </span>
                 )}
+                <span style={riskTierStyle(tier)}>{tier}</span>
                 {vendor.last_assessment_date && (
-                  <span className="font-sans text-[11px] text-[#55576A]">
+                  <span style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted }}>
                     Last assessed {formatDate(vendor.last_assessment_date)}
                   </span>
                 )}
@@ -169,29 +223,38 @@ export default function VendorDetail() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {!editing && (
               <>
-                <button
-                  onClick={() => setEditing(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all"
+                <button onClick={() => setEditing(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8,
+                  background: T.card, border: `1px solid ${T.border}`,
+                  fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, cursor: 'pointer',
+                }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = T.accentBorder; el.style.color = T.accent; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = T.border; el.style.color = T.textSecondary; }}
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  Edit
+                  <Edit2 size={13} /> Edit
                 </button>
-                <button
-                  onClick={() => setDeleteOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#55576A] font-sans text-sm rounded-lg hover:border-red-500/30 hover:text-red-400 transition-all"
+                <button onClick={() => setDeleteOpen(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8,
+                  background: T.card, border: `1px solid ${T.border}`,
+                  fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, cursor: 'pointer',
+                }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = T.dangerBorder; el.style.color = T.danger; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = T.border; el.style.color = T.textSecondary; }}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
+                  <Trash2 size={13} /> Delete
                 </button>
               </>
             )}
             <Link to={`/assessments/new?vendor=${id}`}>
-              <button className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
-                <Plus className="w-3.5 h-3.5" />
-                New Assessment
+              <button style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8,
+                background: T.accent, border: 'none',
+                fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
+              }}>
+                <Plus size={14} /> New Assessment
               </button>
             </Link>
           </div>
@@ -200,112 +263,81 @@ export default function VendorDetail() {
 
       {/* Edit Form */}
       {editing && (
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              Edit Vendor
-            </h2>
+        <div style={{ ...cardStyle, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
+              <span style={sectionLabel}>Edit Vendor</span>
+            </div>
+            <button onClick={() => setEditing(false)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: T.textMuted,
+            }}>
+              <X size={16} />
+            </button>
           </div>
-          <form onSubmit={handleEdit} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Vendor Name *</label>
-                <input
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Risk Tier</label>
-                <select
-                  value={editForm.risk_tier}
-                  onChange={(e) => setEditForm({ ...editForm, risk_tier: e.target.value as any })}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] focus:outline-none focus:border-amber-500/40 transition-colors appearance-none"
-                >
-                  <option value="low" className="bg-[#0E1018]">Low</option>
-                  <option value="medium" className="bg-[#0E1018]">Medium</option>
-                  <option value="high" className="bg-[#0E1018]">High</option>
-                  <option value="critical" className="bg-[#0E1018]">Critical</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Risk Level (Technical)</label>
-                <select
-                  value={editForm.risk_level}
-                  onChange={(e) => setEditForm({ ...editForm, risk_level: e.target.value as any })}
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] focus:outline-none focus:border-amber-500/40 transition-colors appearance-none"
-                >
-                  <option value="low" className="bg-[#0E1018]">Low Risk</option>
-                  <option value="medium" className="bg-[#0E1018]">Medium Risk</option>
-                  <option value="high" className="bg-[#0E1018]">High Risk</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Website</label>
-                <input
-                  type="url"
-                  value={editForm.website}
-                  onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
-                  placeholder="https://example.com"
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Contact Email</label>
-                <input
-                  type="email"
-                  value={editForm.contact_email}
-                  onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
-                  placeholder="contact@vendor.com"
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Contact Name</label>
-                <input
-                  value={editForm.contact_name}
-                  onChange={(e) => setEditForm({ ...editForm, contact_name: e.target.value })}
-                  placeholder="John Doe"
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
-                />
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Description</label>
+          <form onSubmit={handleEdit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {[
+                { key: 'name', label: 'Vendor Name *', placeholder: '', required: true },
+                { key: 'website', label: 'Website', placeholder: 'https://example.com', type: 'url' },
+                { key: 'contact_email', label: 'Contact Email', placeholder: 'contact@vendor.com', type: 'email' },
+                { key: 'contact_name', label: 'Contact Name', placeholder: 'John Doe' },
+              ].map((field) => (
+                <div key={field.key}>
+                  <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                    {field.label}
+                  </label>
+                  <input
+                    type={field.type || 'text'}
+                    value={(editForm as any)[field.key]}
+                    onChange={(e) => setEditForm({ ...editForm, [field.key]: e.target.value })}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                    style={inputStyle}
+                  />
+                </div>
+              ))}
+              {[
+                { key: 'risk_tier', label: 'Risk Tier', opts: [['low','Low'],['medium','Medium'],['high','High'],['critical','Critical']] },
+                { key: 'risk_level', label: 'Risk Level', opts: [['low','Low Risk'],['medium','Medium Risk'],['high','High Risk']] },
+              ].map((field) => (
+                <div key={field.key}>
+                  <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                    {field.label}
+                  </label>
+                  <select
+                    value={(editForm as any)[field.key]}
+                    onChange={(e) => setEditForm({ ...editForm, [field.key]: e.target.value as any })}
+                    style={{ ...inputStyle, cursor: 'pointer' }}
+                  >
+                    {field.opts.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
+                  </select>
+                </div>
+              ))}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Description
+                </label>
                 <textarea
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                   rows={3}
                   placeholder="Brief description of the vendor's services..."
-                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors resize-none"
+                  style={{ ...inputStyle, resize: 'none' }}
                 />
               </div>
             </div>
-            <div className="flex gap-3 pt-4 border-t border-white/[0.06]">
-              <button
-                type="submit"
-                className="inline-flex items-center px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
-              >
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+              <button type="submit" style={{
+                padding: '9px 20px', borderRadius: 8, background: T.accent, border: 'none',
+                fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
+              }}>
                 Save Changes
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(false);
-                  setEditForm({
-                    name: vendor.name,
-                    website: vendor.website || '',
-                    contact_email: vendor.contact_email || '',
-                    contact_name: vendor.contact_name || '',
-                    description: vendor.description || '',
-                    risk_level: vendor.risk_level || 'medium',
-                    risk_tier: vendor.risk_tier || 'medium',
-                  });
-                }}
-                className="inline-flex items-center px-4 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-white/[0.15] hover:text-[#F0F0F5] transition-all"
-              >
+              <button type="button" onClick={() => setEditing(false)} style={{
+                padding: '9px 20px', borderRadius: 8, background: T.card, border: `1px solid ${T.border}`,
+                fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, cursor: 'pointer',
+              }}>
                 Cancel
               </button>
             </div>
@@ -313,105 +345,87 @@ export default function VendorDetail() {
         </div>
       )}
 
-      {/* Contact & Risk Info - shown when not editing */}
+      {/* Contact + Risk info (not editing) */}
       {!editing && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
           {/* Contact Information */}
-          <div className="lg:col-span-2 bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-              <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-                Contact Information
-              </h2>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
+              <span style={sectionLabel}>Contact Information</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
-                  <Mail className="w-3.5 h-3.5 text-[#55576A]" />
-                </div>
-                <div>
-                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Email</p>
-                  {vendor.contact_email ? (
-                    <a href={`mailto:${vendor.contact_email}`} className="font-sans text-sm text-amber-400 hover:text-amber-300 transition-colors">
-                      {vendor.contact_email}
-                    </a>
-                  ) : (
-                    <p className="font-sans text-sm text-[#55576A]">Not provided</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
-                  <Globe className="w-3.5 h-3.5 text-[#55576A]" />
-                </div>
-                <div>
-                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Website</p>
-                  {vendor.website ? (
-                    <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="font-sans text-sm text-amber-400 hover:text-amber-300 transition-colors">
-                      {vendor.website}
-                    </a>
-                  ) : (
-                    <p className="font-sans text-sm text-[#55576A]">Not provided</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
-                  <Phone className="w-3.5 h-3.5 text-[#55576A]" />
-                </div>
-                <div>
-                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Phone</p>
-                  {vendor.contact_phone ? (
-                    <a href={`tel:${vendor.contact_phone}`} className="font-sans text-sm text-amber-400 hover:text-amber-300 transition-colors">
-                      {vendor.contact_phone}
-                    </a>
-                  ) : (
-                    <p className="font-sans text-sm text-[#55576A]">Not provided</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
-                  <User className="w-3.5 h-3.5 text-[#55576A]" />
-                </div>
-                <div>
-                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Contact Name</p>
-                  <p className="font-sans text-sm text-[#F0F0F5]">{vendor.contact_name || 'Not provided'}</p>
-                </div>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              {[
+                { icon: Mail, label: 'Email', value: vendor.contact_email, href: vendor.contact_email ? `mailto:${vendor.contact_email}` : undefined },
+                { icon: Globe, label: 'Website', value: vendor.website, href: vendor.website, target: '_blank' },
+                { icon: Phone, label: 'Phone', value: vendor.contact_phone, href: vendor.contact_phone ? `tel:${vendor.contact_phone}` : undefined },
+                { icon: User, label: 'Contact Name', value: vendor.contact_name },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} style={{ display: 'flex', gap: 12 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                      background: T.bg, border: `1px solid ${T.border}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Icon size={13} style={{ color: T.textMuted }} />
+                    </div>
+                    <div>
+                      <p style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, margin: '0 0 4px' }}>
+                        {item.label}
+                      </p>
+                      {item.value ? (
+                        item.href ? (
+                          <a href={item.href} target={(item as any).target} rel="noopener noreferrer"
+                            style={{ fontFamily: T.fontSans, fontSize: 13, color: T.accent, textDecoration: 'none' }}>
+                            {item.value}
+                          </a>
+                        ) : (
+                          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textPrimary, margin: 0 }}>
+                            {item.value}
+                          </p>
+                        )
+                      ) : (
+                        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, margin: 0 }}>
+                          Not provided
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
               {vendor.description && (
-                <div className="sm:col-span-2">
-                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Description</p>
-                  <p className="font-sans text-sm text-[#8E8FA8] leading-relaxed">{vendor.description}</p>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, margin: '0 0 6px' }}>
+                    Description
+                  </p>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, margin: 0, lineHeight: 1.6 }}>
+                    {vendor.description}
+                  </p>
                 </div>
               )}
             </div>
           </div>
 
           {/* Risk Score card */}
-          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 flex flex-col items-center justify-center gap-3">
-            <div className="flex items-center gap-3 w-full mb-2">
-              <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-              <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-                Risk Score
-              </h2>
+          <div style={{
+            ...cardStyle, padding: 24,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+              <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
+              <span style={sectionLabel}>Risk Score</span>
             </div>
-            <div className={`font-display text-5xl font-bold tabular-nums ${
-              (vendor.latest_assessment_score ?? 0) >= 80 ? 'text-emerald-400' :
-              (vendor.latest_assessment_score ?? 0) >= 50 ? 'text-amber-400' : 'text-red-400'
-            }`}>
-              {vendor.latest_assessment_score != null ? `${vendor.latest_assessment_score}%` : '—'}
+            <div style={{
+              fontFamily: T.fontDisplay, fontSize: 56, fontWeight: 700, lineHeight: 1,
+              color: latestScore != null ? scoreColor(latestScore) : T.textMuted,
+            }}>
+              {latestScore != null ? `${latestScore}%` : '—'}
             </div>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-wide border ${
-              (vendor.risk_tier || vendor.criticality_level || 'medium') === 'critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-              (vendor.risk_tier || vendor.criticality_level || 'medium') === 'high' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-              (vendor.risk_tier || vendor.criticality_level || 'medium') === 'medium' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
-              'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-            }`}>
-              {vendor.risk_tier || vendor.criticality_level || 'medium'} risk
-            </span>
+            <span style={riskTierStyle(tier)}>{tier} risk</span>
             {vendor.last_assessment_date && (
-              <p className="font-sans text-[11px] text-[#55576A]">
+              <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, margin: 0, textAlign: 'center' }}>
                 Last assessed: {formatDate(vendor.last_assessment_date)}
               </p>
             )}
@@ -419,108 +433,130 @@ export default function VendorDetail() {
         </div>
       )}
 
-      {/* Stats row - 4 cards */}
+      {/* Stats row */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
-            <div className="font-display text-2xl font-bold text-amber-400 tabular-nums mb-1">
-              {stats.totalAssessments ?? 0}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
+          {[
+            { value: stats.totalAssessments ?? 0, label: 'Total Assessments', color: T.accent },
+            { value: stats.completedAssessments ?? 0, label: 'Completed', color: T.success },
+            { value: stats.inProgressAssessments ?? 0, label: 'In Progress', color: '#0EA5E9' },
+            {
+              value: stats.averageScore != null ? `${stats.averageScore.toFixed(1)}%` : '—',
+              label: 'Avg Score',
+              color: stats.averageScore != null ? scoreColor(stats.averageScore) : T.textMuted,
+            },
+          ].map((stat) => (
+            <div key={stat.label} style={{ ...cardStyle, padding: 16 }}>
+              <div style={{ fontFamily: T.fontDisplay, fontSize: 30, fontWeight: 700, color: stat.color, lineHeight: 1, marginBottom: 4 }}>
+                {stat.value}
+              </div>
+              <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>
+                {stat.label}
+              </div>
             </div>
-            <div className="font-sans text-xs text-[#8E8FA8]">Total Assessments</div>
-          </div>
-          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
-            <div className="font-display text-2xl font-bold text-emerald-400 tabular-nums mb-1">
-              {stats.completedAssessments ?? 0}
-            </div>
-            <div className="font-sans text-xs text-[#8E8FA8]">Completed</div>
-          </div>
-          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
-            <div className="font-display text-2xl font-bold text-indigo-400 tabular-nums mb-1">
-              {stats.inProgressAssessments ?? 0}
-            </div>
-            <div className="font-sans text-xs text-[#8E8FA8]">In Progress</div>
-          </div>
-          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
-            <div className={`font-display text-2xl font-bold tabular-nums mb-1 ${
-              (stats.averageScore ?? 0) >= 80 ? 'text-emerald-400' :
-              (stats.averageScore ?? 0) >= 50 ? 'text-amber-400' : 'text-red-400'
-            }`}>
-              {stats.averageScore != null ? `${stats.averageScore.toFixed(1)}%` : '—'}
-            </div>
-            <div className="font-sans text-xs text-[#8E8FA8]">Avg Score</div>
-          </div>
+          ))}
         </div>
       )}
 
       {/* Assessment History */}
-      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              Assessment History
-            </h2>
+      <div style={{ ...cardStyle, padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
+            <span style={sectionLabel}>Assessment History</span>
           </div>
-          <Link to={`/assessments/new?vendor=${id}`}>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-xs rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all">
-              <ClipboardList className="w-3 h-3" />
-              New Assessment
+          <Link to={`/assessments/new?vendor=${id}`} style={{ textDecoration: 'none' }}>
+            <button style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+              background: T.card, border: `1px solid ${T.border}`,
+              fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, cursor: 'pointer',
+            }}>
+              <ClipboardList size={12} /> New Assessment
             </button>
           </Link>
         </div>
 
         {assessments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center mb-3">
-              <ClipboardList className="w-5 h-5 text-amber-500/50" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0' }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 14, background: T.accentLight,
+              border: `1px solid ${T.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+            }}>
+              <ClipboardList size={20} style={{ color: T.accent }} />
             </div>
-            <p className="font-display text-sm font-semibold text-[#F0F0F5] mb-1">No assessments yet</p>
-            <p className="font-sans text-xs text-[#8E8FA8] mb-4">Create the first assessment for this vendor</p>
-            <Link to={`/assessments/new?vendor=${id}`}>
-              <button className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
+            <p style={{ fontFamily: T.fontSans, fontSize: 14, fontWeight: 700, color: T.textPrimary, margin: '0 0 4px' }}>
+              No assessments yet
+            </p>
+            <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, margin: '0 0 20px' }}>
+              Create the first assessment for this vendor
+            </p>
+            <Link to={`/assessments/new?vendor=${id}`} style={{ textDecoration: 'none' }}>
+              <button style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '9px 20px', borderRadius: 8,
+                background: T.accent, border: 'none',
+                fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
+              }}>
                 Create First Assessment
               </button>
             </Link>
           </div>
         ) : (
-          <div className="space-y-2">
-            {assessments.map((assessment) => (
-              <Link key={assessment.id} to={`/assessments/${assessment.id}`} className="block group">
-                <div className="flex justify-between items-center gap-4 p-4 rounded-lg border border-white/[0.04] hover:border-amber-500/20 hover:bg-amber-500/[0.02] transition-all">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-sans text-sm font-medium text-[#F0F0F5] group-hover:text-amber-400 transition-colors">
-                      {assessment.name}
-                    </h3>
-                    {assessment.description && (
-                      <p className="font-sans text-xs text-[#55576A] mt-0.5 truncate">{assessment.description}</p>
-                    )}
-                    <p className="font-mono text-[10px] text-[#55576A] mt-1">
-                      Started {formatDate(assessment.created_at)}
-                      {assessment.completed_at && ` \u00B7 Completed ${formatDate(assessment.completed_at)}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium border ${
-                      assessment.status === 'completed'
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        : assessment.status === 'in_progress'
-                        ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                        : 'bg-white/[0.04] text-[#8E8FA8] border-white/[0.07]'
-                    }`}>
-                      {assessment.status === 'in_progress' ? 'In Progress' : assessment.status}
-                    </span>
-                    {assessment.overall_score != null && (
-                      <span className={`font-display text-lg font-bold tabular-nums ${
-                        assessment.overall_score >= 80 ? 'text-emerald-400' :
-                        assessment.overall_score >= 50 ? 'text-amber-400' : 'text-red-400'
-                      }`}>
-                        {assessment.overall_score.toFixed(1)}%
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {assessments.map((assessment) => {
+              const aScore = assessment.overall_score;
+              return (
+                <Link key={assessment.id} to={`/assessments/${assessment.id}`} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    gap: 16, padding: '14px 16px', borderRadius: 10,
+                    background: T.bg, border: `1px solid ${T.border}`, transition: 'all 0.14s',
+                  }}
+                    onMouseEnter={e => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.borderColor = T.accentBorder;
+                      el.style.background = T.accentLight;
+                    }}
+                    onMouseLeave={e => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.borderColor = T.border;
+                      el.style.background = T.bg;
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary, margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {assessment.name}
+                      </h3>
+                      {assessment.description && (
+                        <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {assessment.description}
+                        </p>
+                      )}
+                      <p style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted, margin: 0 }}>
+                        Started {formatDate(assessment.created_at)}
+                        {assessment.completed_at && ` · Completed ${formatDate(assessment.completed_at)}`}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                      <span style={{
+                        fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+                        ...(assessment.status === 'completed'
+                          ? { background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` }
+                          : assessment.status === 'in_progress'
+                          ? { background: T.accentLight, color: T.accent, border: `1px solid ${T.accentBorder}` }
+                          : { background: '#F1F5F9', color: T.textSecondary, border: `1px solid ${T.border}` }),
+                      }}>
+                        {assessment.status === 'in_progress' ? 'In Progress' : assessment.status}
                       </span>
-                    )}
+                      {aScore != null && (
+                        <span style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: scoreColor(aScore) }}>
+                          {aScore.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

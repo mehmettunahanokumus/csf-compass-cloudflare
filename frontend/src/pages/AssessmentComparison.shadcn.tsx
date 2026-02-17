@@ -5,36 +5,65 @@ import { vendorInvitationsApi } from '../api/vendor-invitations';
 import type { ComparisonData } from '../types';
 import { getErrorMessage, formatDate } from '../api/client';
 
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  card: '#FFFFFF',
+  border: '#E2E8F0',
+  bg: '#F8FAFC',
+  textPrimary: '#1E293B',
+  textSecondary: '#64748B',
+  textMuted: '#94A3B8',
+  accent: '#4F46E5',
+  accentLight: 'rgba(99,102,241,0.08)',
+  accentBorder: 'rgba(99,102,241,0.2)',
+  success: '#16A34A',
+  successLight: 'rgba(22,163,74,0.08)',
+  successBorder: 'rgba(22,163,74,0.2)',
+  warning: '#D97706',
+  warningLight: 'rgba(217,119,6,0.08)',
+  warningBorder: 'rgba(217,119,6,0.2)',
+  danger: '#DC2626',
+  dangerLight: 'rgba(220,38,38,0.08)',
+  dangerBorder: 'rgba(220,38,38,0.2)',
+  fontSans: 'Manrope, sans-serif',
+  fontMono: 'JetBrains Mono, monospace',
+  fontDisplay: 'Barlow Condensed, sans-serif',
+};
+
+const cardStyle: React.CSSProperties = {
+  background: T.card,
+  border: `1px solid ${T.border}`,
+  borderRadius: 12,
+  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+};
+
 type FilterType = 'all' | 'matches' | 'differences';
 
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
-    case 'compliant':
-      return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-    case 'partial':
-      return <AlertCircle className="h-4 w-4 text-amber-400" />;
-    case 'non_compliant':
-      return <XCircle className="h-4 w-4 text-red-400" />;
-    default:
-      return <Circle className="h-4 w-4 text-[#55576A]" />;
+    case 'compliant':    return <CheckCircle size={14} style={{ color: T.success }} />;
+    case 'partial':      return <AlertCircle  size={14} style={{ color: T.warning }} />;
+    case 'non_compliant':return <XCircle      size={14} style={{ color: T.danger  }} />;
+    default:             return <Circle       size={14} style={{ color: T.textMuted }} />;
   }
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const variants: Record<string, string> = {
-    compliant: 'bg-emerald-500/10 text-emerald-400',
-    partial: 'bg-amber-500/10 text-amber-400',
-    non_compliant: 'bg-red-500/10 text-red-400',
-    not_applicable: 'bg-white/[0.06] text-[#55576A]',
+  const styles: Record<string, React.CSSProperties> = {
+    compliant:     { background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` },
+    partial:       { background: T.warningLight,  color: T.warning, border: `1px solid ${T.warningBorder}` },
+    non_compliant: { background: T.dangerLight,   color: T.danger,  border: `1px solid ${T.dangerBorder}`  },
+    not_applicable:{ background: '#F1F5F9', color: T.textMuted, border: `1px solid ${T.border}` },
   };
   const labels: Record<string, string> = {
-    compliant: 'Compliant',
-    partial: 'Partial',
-    non_compliant: 'Non-Compliant',
-    not_applicable: 'N/A',
+    compliant: 'Compliant', partial: 'Partial', non_compliant: 'Non-Compliant', not_applicable: 'N/A',
   };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-sans font-medium ${variants[status] || 'bg-white/[0.06] text-[#55576A]'}`}>
+    <span style={{
+      fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
+      padding: '2px 8px', borderRadius: 20,
+      ...(styles[status] || { background: '#F1F5F9', color: T.textMuted, border: `1px solid ${T.border}` }),
+    }}>
       {labels[status] || 'Not Assessed'}
     </span>
   );
@@ -48,9 +77,7 @@ export default function AssessmentComparison() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedFunction, setSelectedFunction] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (id) loadComparison();
-  }, [id]);
+  useEffect(() => { if (id) loadComparison(); }, [id]);
 
   const loadComparison = async () => {
     if (!id) return;
@@ -62,33 +89,27 @@ export default function AssessmentComparison() {
         const firstFunction = comparisonData.comparison_items[0]?.function?.id;
         if (firstFunction) setSelectedFunction(firstFunction);
       }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(getErrorMessage(err)); } finally { setLoading(false); }
   };
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-20 bg-white/[0.04] rounded-xl" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 bg-white/[0.04] rounded-xl" />
-          ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ height: 80, background: '#E2E8F0', borderRadius: 12 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
+          {[1,2,3,4].map(i => <div key={i} style={{ height: 96, background: '#E2E8F0', borderRadius: 12 }} />)}
         </div>
-        <div className="h-96 bg-white/[0.04] rounded-xl" />
+        <div style={{ height: 384, background: '#E2E8F0', borderRadius: 12 }} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-          <p className="font-sans text-sm text-[#8E8FA8]">{error}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 256 }}>
+        <div style={{ textAlign: 'center' }}>
+          <AlertCircle size={32} style={{ color: T.danger, margin: '0 auto 12px' }} />
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary }}>{error}</p>
         </div>
       </div>
     );
@@ -96,29 +117,20 @@ export default function AssessmentComparison() {
 
   if (!data || !data.organization_assessment) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="font-sans text-sm text-[#55576A]">Comparison data not available</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 256 }}>
+        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted }}>Comparison data not available</p>
       </div>
     );
   }
 
   const functions = Array.from(
-    new Map(
-      data.comparison_items
-        .filter((item) => item.function)
-        .map((item) => [item.function!.id, item.function!])
-    ).values()
+    new Map(data.comparison_items.filter((item) => item.function).map((item) => [item.function!.id, item.function!])).values()
   );
 
   let filteredItems = data.comparison_items;
-  if (selectedFunction) {
-    filteredItems = filteredItems.filter((item) => item.function?.id === selectedFunction);
-  }
-  if (filter === 'matches') {
-    filteredItems = filteredItems.filter((item) => item.matches && item.vendor_item);
-  } else if (filter === 'differences') {
-    filteredItems = filteredItems.filter((item) => !item.matches || !item.vendor_item);
-  }
+  if (selectedFunction) filteredItems = filteredItems.filter((item) => item.function?.id === selectedFunction);
+  if (filter === 'matches') filteredItems = filteredItems.filter((item) => item.matches && item.vendor_item);
+  else if (filter === 'differences') filteredItems = filteredItems.filter((item) => !item.matches || !item.vendor_item);
 
   const totalItems = data.comparison_items.length;
   const assessedByVendor = data.comparison_items.filter((item) => item.vendor_item).length;
@@ -127,72 +139,91 @@ export default function AssessmentComparison() {
   const notAssessed = totalItems - assessedByVendor;
 
   return (
-    <div className="animate-fade-in-up space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
       <div>
-        <Link
-          to={`/assessments/${id}`}
-          className="inline-flex items-center gap-1.5 font-sans text-sm text-[#8E8FA8] hover:text-[#F0F0F5] transition-colors mb-3"
+        <Link to={`/assessments/${id}`} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12,
+          fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, textDecoration: 'none',
+        }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = T.textSecondary}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = T.textMuted}
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Assessment
+          <ArrowLeft size={14} /> Back to Assessment
         </Link>
-        <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Assessment Comparison</h1>
-        <p className="font-sans text-sm text-[#8E8FA8] mt-1">{data.organization_assessment.name}</p>
+        <h1 style={{ fontFamily: T.fontSans, fontSize: 24, fontWeight: 800, color: T.textPrimary, margin: '0 0 4px' }}>
+          Assessment Comparison
+        </h1>
+        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, margin: 0 }}>
+          {data.organization_assessment.name}
+        </p>
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
         {[
-          { label: 'Total Items', value: totalItems, color: 'text-amber-400' },
-          { label: 'Matches', value: matches, color: 'text-emerald-400' },
-          { label: 'Differences', value: differences, color: 'text-amber-400' },
-          { label: 'Not Assessed', value: notAssessed, color: 'text-[#55576A]' },
+          { label: 'Total Items',   value: totalItems,   color: T.accent  },
+          { label: 'Matches',       value: matches,      color: T.success },
+          { label: 'Differences',   value: differences,  color: T.warning },
+          { label: 'Not Assessed',  value: notAssessed,  color: T.textMuted },
         ].map((stat) => (
-          <div key={stat.label} className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all">
-            <p className="font-sans text-xs text-[#8E8FA8] font-medium">{stat.label}</p>
-            <p className={`font-display text-3xl font-bold tabular-nums mt-1 ${stat.color}`}>{stat.value}</p>
+          <div key={stat.label} style={{ ...cardStyle, padding: 20 }}>
+            <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: '0 0 6px' }}>
+              {stat.label}
+            </p>
+            <p style={{ fontFamily: T.fontDisplay, fontSize: 36, fontWeight: 700, color: stat.color, margin: 0, lineHeight: 1 }}>
+              {stat.value}
+            </p>
           </div>
         ))}
       </div>
 
       {/* Invitation Status */}
       {data.invitation && (
-        <div className="relative bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500 rounded-l-xl" />
-          <div className="flex justify-between items-center flex-wrap gap-3 pl-3">
-            <div>
-              <p className="font-display text-sm font-semibold text-[#F0F0F5]">Vendor Self-Assessment Status</p>
-              <p className="font-sans text-sm text-[#8E8FA8] mt-0.5">
-                Invitation sent to {data.invitation.vendor_contact_email} on {formatDate(data.invitation.sent_at)}
-              </p>
-            </div>
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-sans font-medium ${
-              data.invitation.invitation_status === 'completed'
-                ? 'bg-emerald-500/10 text-emerald-400'
-                : data.invitation.invitation_status === 'accessed'
-                ? 'bg-amber-500/10 text-amber-400'
-                : 'bg-white/[0.06] text-[#8E8FA8]'
-            }`}>
-              {data.invitation.invitation_status === 'completed'
-                ? 'Completed'
-                : data.invitation.invitation_status === 'accessed'
-                ? 'In Progress'
-                : data.invitation.invitation_status}
-            </span>
+        <div style={{
+          ...cardStyle, padding: '14px 20px',
+          borderLeft: `4px solid ${T.accent}`,
+          background: T.accentLight, borderColor: T.accentBorder, borderLeftWidth: 4,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+        }}>
+          <div>
+            <p style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: T.textPrimary, margin: '0 0 2px' }}>
+              Vendor Self-Assessment Status
+            </p>
+            <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0 }}>
+              Invitation sent to {data.invitation.vendor_contact_email} on {formatDate(data.invitation.sent_at)}
+            </p>
           </div>
+          <span style={{
+            fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
+            padding: '4px 12px', borderRadius: 20,
+            ...(data.invitation.invitation_status === 'completed'
+              ? { background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` }
+              : data.invitation.invitation_status === 'accessed'
+              ? { background: T.warningLight, color: T.warning, border: `1px solid ${T.warningBorder}` }
+              : { background: '#F1F5F9', color: T.textSecondary, border: `1px solid ${T.border}` }),
+          }}>
+            {data.invitation.invitation_status === 'completed' ? 'Completed'
+              : data.invitation.invitation_status === 'accessed' ? 'In Progress'
+              : data.invitation.invitation_status}
+          </span>
         </div>
       )}
 
       {/* Comparison Table */}
-      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
+      <div style={{ ...cardStyle, overflow: 'hidden' }}>
         {/* Filter Bar */}
-        <div className="flex items-center gap-4 p-4 border-b border-white/[0.06] flex-wrap">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-[#55576A]" />
-            <span className="font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Filter</span>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px',
+          borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap', background: T.bg,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Filter size={14} style={{ color: T.textMuted }} />
+            <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textMuted }}>
+              Filter
+            </span>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[
               { value: 'all' as FilterType, label: `All (${totalItems})` },
               { value: 'matches' as FilterType, label: `Matches (${matches})` },
@@ -201,11 +232,14 @@ export default function AssessmentComparison() {
               <button
                 key={value}
                 onClick={() => setFilter(value)}
-                className={`px-3 py-1.5 rounded-lg font-sans text-xs font-medium transition-all ${
-                  filter === value
-                    ? 'bg-amber-500 text-[#08090E]'
-                    : 'bg-white/[0.04] text-[#8E8FA8] border border-white/[0.06] hover:border-amber-500/20'
-                }`}
+                style={{
+                  padding: '5px 12px', borderRadius: 8,
+                  background: filter === value ? T.accent : T.card,
+                  border: filter === value ? 'none' : `1px solid ${T.border}`,
+                  fontFamily: T.fontSans, fontSize: 12, fontWeight: filter === value ? 600 : 500,
+                  color: filter === value ? '#FFF' : T.textSecondary,
+                  cursor: 'pointer', transition: 'all 0.14s',
+                }}
               >
                 {label}
               </button>
@@ -214,37 +248,51 @@ export default function AssessmentComparison() {
         </div>
 
         {/* Function Tabs */}
-        <div className="flex gap-0 px-4 border-b border-white/[0.06] overflow-x-auto">
-          {functions.map((func) => (
-            <button
-              key={func.id}
-              onClick={() => setSelectedFunction(func.id)}
-              className={`py-3 px-4 font-display text-[11px] tracking-[0.06em] uppercase font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                selectedFunction === func.id
-                  ? 'border-amber-500 text-amber-400'
-                  : 'border-transparent text-[#55576A] hover:text-[#8E8FA8]'
-              }`}
-            >
-              {func.name}
-            </button>
-          ))}
+        <div style={{
+          display: 'flex', gap: 0, padding: '0 20px',
+          borderBottom: `1px solid ${T.border}`, overflowX: 'auto',
+        }}>
+          {functions.map((func) => {
+            const isActive = selectedFunction === func.id;
+            return (
+              <button
+                key={func.id}
+                onClick={() => setSelectedFunction(func.id)}
+                style={{
+                  padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer',
+                  fontFamily: T.fontSans, fontSize: 11, fontWeight: isActive ? 700 : 500,
+                  color: isActive ? T.accent : T.textMuted,
+                  borderBottom: isActive ? `2px solid ${T.accent}` : '2px solid transparent',
+                  whiteSpace: 'nowrap', transition: 'all 0.14s',
+                }}
+              >
+                {func.name}
+              </button>
+            );
+          })}
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="text-left py-2.5 px-4 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold w-1/4">Subcategory</th>
-                <th className="text-left py-2.5 px-4 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold w-1/4">Your Assessment</th>
-                <th className="text-left py-2.5 px-4 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold w-1/4">Vendor Self-Assessment</th>
-                <th className="text-left py-2.5 px-4 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold w-1/4">Status</th>
+              <tr style={{ borderBottom: `1px solid ${T.border}`, background: T.bg }}>
+                {['Subcategory', 'Your Assessment', 'Vendor Self-Assessment', 'Status'].map((h) => (
+                  <th key={h} style={{
+                    textAlign: 'left', padding: '10px 16px',
+                    fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted,
+                    width: '25%',
+                  }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 font-sans text-sm text-[#55576A]">
+                  <td colSpan={4} style={{ padding: '48px 16px', textAlign: 'center', fontFamily: T.fontSans, fontSize: 13, color: T.textMuted }}>
                     No items to display
                   </td>
                 </tr>
@@ -254,49 +302,63 @@ export default function AssessmentComparison() {
                   return (
                     <tr
                       key={item.subcategory_id}
-                      className={`border-b border-white/[0.03] transition-colors ${
-                        hasWarning ? 'bg-amber-500/[0.03]' : 'hover:bg-amber-500/[0.02]'
-                      }`}
+                      style={{
+                        borderBottom: `1px solid ${T.border}`,
+                        background: hasWarning ? T.warningLight : T.card,
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={e => { if (!hasWarning) (e.currentTarget as HTMLElement).style.background = T.bg; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = hasWarning ? T.warningLight : T.card; }}
                     >
-                      <td className="py-3 px-4">
-                        <div className="font-mono text-[11px] font-semibold text-amber-400">{item.subcategory?.id}</div>
-                        <div className="font-sans text-xs text-[#8E8FA8] mt-0.5">{item.subcategory?.name}</div>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontFamily: T.fontMono, fontSize: 11, fontWeight: 600, color: T.accent, marginBottom: 2 }}>
+                          {item.subcategory?.id}
+                        </div>
+                        <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>
+                          {item.subcategory?.name}
+                        </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2 mb-1">
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                           <StatusIcon status={item.org_item.status} />
                           <StatusBadge status={item.org_item.status} />
                         </div>
                         {item.org_item.notes && (
-                          <p className="font-sans text-xs text-[#55576A] mt-1">{item.org_item.notes}</p>
+                          <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, margin: 0 }}>
+                            {item.org_item.notes}
+                          </p>
                         )}
                       </td>
-                      <td className="py-3 px-4">
+                      <td style={{ padding: '12px 16px' }}>
                         {item.vendor_item ? (
                           <>
-                            <div className="flex items-center gap-2 mb-1">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                               <StatusIcon status={item.vendor_item.status} />
                               <StatusBadge status={item.vendor_item.status} />
                             </div>
                             {item.vendor_item.notes && (
-                              <p className="font-sans text-xs text-[#55576A] mt-1">{item.vendor_item.notes}</p>
+                              <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, margin: 0 }}>
+                                {item.vendor_item.notes}
+                              </p>
                             )}
                           </>
                         ) : (
-                          <span className="font-sans text-xs text-[#55576A] italic">Not assessed</span>
+                          <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, fontStyle: 'italic' }}>
+                            Not assessed
+                          </span>
                         )}
                       </td>
-                      <td className="py-3 px-4">
+                      <td style={{ padding: '12px 16px' }}>
                         {!item.vendor_item ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-sans font-medium bg-white/[0.06] text-[#55576A]">
+                          <span style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#F1F5F9', color: T.textMuted, border: `1px solid ${T.border}` }}>
                             Not Assessed
                           </span>
                         ) : item.matches ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-sans font-medium bg-emerald-500/10 text-emerald-400">
+                          <span style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` }}>
                             Match
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-sans font-medium bg-amber-500/10 text-amber-400">
+                          <span style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: T.warningLight, color: T.warning, border: `1px solid ${T.warningBorder}` }}>
                             Difference
                           </span>
                         )}

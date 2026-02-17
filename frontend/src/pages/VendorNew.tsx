@@ -1,299 +1,277 @@
-/**
- * VendorNew - Form for creating a new vendor
- */
-
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { vendorsApi, type CreateVendorData } from '../api/vendors';
 import { getErrorMessage } from '../api/client';
 
-interface FormErrors {
-  name?: string;
-  contact_email?: string;
-}
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  card:         '#FFFFFF',
+  border:       '#E2E8F0',
+  borderLight:  '#F1F5F9',
+  textPrimary:  '#0F172A',
+  textSecondary:'#64748B',
+  textMuted:    '#94A3B8',
+  accent:       '#4F46E5',
+  accentLight:  'rgba(79,70,229,0.08)',
+  danger:       '#DC2626',
+  dangerLight:  'rgba(220,38,38,0.08)',
+  fontSans:     'Manrope, sans-serif',
+  fontDisplay:  'Barlow Condensed, sans-serif',
+};
+
+const card: React.CSSProperties = {
+  background: T.card, border: `1px solid ${T.border}`,
+  borderRadius: 12, boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
+};
+
+const sectionLabel: React.CSSProperties = {
+  fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+  letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textMuted,
+};
+
+const fieldLabel: React.CSSProperties = {
+  fontFamily: T.fontSans, fontSize: 11, fontWeight: 700,
+  color: T.textSecondary, display: 'block', marginBottom: 6,
+};
+
+const inputStyle = (hasError = false): React.CSSProperties => ({
+  width: '100%', padding: '9px 12px', borderRadius: 8,
+  border: `1px solid ${hasError ? 'rgba(220,38,38,0.4)' : T.border}`,
+  outline: 'none', fontFamily: T.fontSans, fontSize: 13,
+  color: T.textPrimary, background: T.card,
+  transition: 'border-color 0.15s', boxSizing: 'border-box',
+});
 
 const industries = [
-  'Technology',
-  'Healthcare',
-  'Finance',
-  'Manufacturing',
-  'Retail',
-  'Energy',
-  'Government',
-  'Education',
-  'Other',
+  'Technology', 'Healthcare', 'Finance', 'Manufacturing',
+  'Retail', 'Energy', 'Government', 'Education', 'Other',
 ];
-
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const inputClass = "w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors";
-const inputErrorClass = "w-full px-3 py-2.5 bg-white/[0.04] border border-red-500/40 rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-red-500/60 transition-colors";
-const selectClass = "w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] focus:outline-none focus:border-amber-500/40 transition-colors appearance-none cursor-pointer";
+interface FormErrors { name?: string; contact_email?: string; }
 
 export default function VendorNew() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
-
   const [form, setForm] = useState({
-    name: '',
-    industry: '',
-    website: '',
-    contact_name: '',
-    contact_email: '',
-    contact_phone: '',
+    name: '', industry: '', website: '',
+    contact_name: '', contact_email: '', contact_phone: '',
     criticality_level: 'medium' as 'low' | 'medium' | 'high' | 'critical',
     vendor_status: 'active' as 'active' | 'inactive' | 'under_review' | 'terminated',
     notes: '',
   });
 
   const updateField = (field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field as keyof FormErrors]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (errors[field as keyof FormErrors]) setErrors(prev => ({ ...prev, [field]: undefined }));
   };
 
   const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!form.name.trim()) {
-      newErrors.name = 'Vendor name is required';
-    }
-
-    if (form.contact_email && !emailRegex.test(form.contact_email)) {
-      newErrors.contact_email = 'Please enter a valid email address';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e: FormErrors = {};
+    if (!form.name.trim()) e.name = 'Vendor name is required';
+    if (form.contact_email && !emailRegex.test(form.contact_email)) e.contact_email = 'Please enter a valid email address';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
     if (!validate()) return;
-
     try {
       setSubmitting(true);
-      const data: CreateVendorData = {
-        name: form.name.trim(),
-      };
-      if (form.industry) data.industry = form.industry;
-      if (form.website) data.website = form.website;
-      if (form.contact_name) data.contact_name = form.contact_name;
-      if (form.contact_email) data.contact_email = form.contact_email;
-      if (form.contact_phone) data.contact_phone = form.contact_phone;
+      const data: CreateVendorData = { name: form.name.trim() };
+      if (form.industry)          data.industry = form.industry;
+      if (form.website)           data.website = form.website;
+      if (form.contact_name)      data.contact_name = form.contact_name;
+      if (form.contact_email)     data.contact_email = form.contact_email;
+      if (form.contact_phone)     data.contact_phone = form.contact_phone;
       if (form.criticality_level) data.criticality_level = form.criticality_level;
-      if (form.vendor_status) data.vendor_status = form.vendor_status;
-      if (form.notes) data.notes = form.notes;
-
+      if (form.vendor_status)     data.vendor_status = form.vendor_status;
+      if (form.notes)             data.notes = form.notes;
       await vendorsApi.create(data);
       navigate('/vendors');
-    } catch (err) {
-      alert(getErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { alert(getErrorMessage(err)); }
+    finally { setSubmitting(false); }
   };
 
+  const Section = ({ title }: { title: string }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+      <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+      <span style={sectionLabel}>{title}</span>
+    </div>
+  );
+
   return (
-    <div className="animate-fade-in-up space-y-6">
+    <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/vendors"
-          className="w-10 h-10 rounded-lg bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-[#55576A] hover:text-[#F0F0F5] hover:border-amber-500/30 transition-all"
-        >
-          <ArrowLeft className="w-4 h-4" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <Link to="/vendors" style={{ textDecoration: 'none' }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 9,
+            background: T.card, border: `1px solid ${T.border}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: T.textMuted, cursor: 'pointer', transition: 'all 0.14s',
+          }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = '#CBD5E1'; el.style.color = T.textPrimary; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = T.border; el.style.color = T.textMuted; }}
+          >
+            <ArrowLeft size={16} />
+          </div>
         </Link>
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Add New Vendor</h1>
-          <p className="font-sans text-sm text-[#8E8FA8] mt-0.5">Register a new third-party vendor</p>
+          <h1 style={{ fontFamily: T.fontSans, fontSize: 22, fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.02em', margin: 0 }}>
+            Add New Vendor
+          </h1>
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, marginTop: 2 }}>
+            Register a new third-party vendor
+          </p>
         </div>
       </div>
 
-      {/* Form Card */}
-      <form onSubmit={handleSubmit} className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
-        {/* Section 1: Basic Information */}
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              Basic Information
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* Vendor Name */}
-            <div className="space-y-1.5">
-              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">
-                Vendor Name <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => updateField('name', e.target.value)}
-                placeholder="Enter vendor name"
-                className={errors.name ? inputErrorClass : inputClass}
-              />
-              {errors.name && (
-                <p className="font-sans text-[11px] text-red-400">{errors.name}</p>
-              )}
-            </div>
+      {/* Form */}
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div style={{ ...card, overflow: 'hidden' }}>
 
-            {/* Industry */}
-            <div className="space-y-1.5">
-              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Industry</label>
-              <select
-                value={form.industry}
-                onChange={(e) => updateField('industry', e.target.value)}
-                className={selectClass}
-              >
-                <option value="" className="bg-[#0E1018]">Select industry</option>
-                {industries.map((ind) => (
-                  <option key={ind} value={ind} className="bg-[#0E1018]">{ind}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Website */}
-            <div className="space-y-1.5">
-              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Website</label>
-              <input
-                type="url"
-                value={form.website}
-                onChange={(e) => updateField('website', e.target.value)}
-                placeholder="https://example.com"
-                className={inputClass}
-              />
+          {/* Section 1: Basic */}
+          <div style={{ padding: '24px 24px 20px' }}>
+            <Section title="Basic Information" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={fieldLabel}>Vendor Name <span style={{ color: T.danger }}>*</span></label>
+                <input type="text" value={form.name} onChange={e => updateField('name', e.target.value)}
+                  placeholder="Enter vendor name" style={inputStyle(!!errors.name)}
+                  onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
+                  onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = errors.name ? 'rgba(220,38,38,0.4)' : T.border; }}
+                />
+                {errors.name && <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.danger, marginTop: 4 }}>{errors.name}</p>}
+              </div>
+              <div>
+                <label style={fieldLabel}>Industry</label>
+                <select value={form.industry} onChange={e => updateField('industry', e.target.value)}
+                  style={{ ...inputStyle(), cursor: 'pointer' }}>
+                  <option value="">Select industry</option>
+                  {industries.map(i => <option key={i} value={i}>{i}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={fieldLabel}>Website</label>
+                <input type="url" value={form.website} onChange={e => updateField('website', e.target.value)}
+                  placeholder="https://example.com" style={inputStyle()}
+                  onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
+                  onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Section 2: Contact Information */}
-        <div className="px-6 pb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              Contact Information
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* Contact Name */}
-            <div className="space-y-1.5">
-              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Contact Name</label>
-              <input
-                type="text"
-                value={form.contact_name}
-                onChange={(e) => updateField('contact_name', e.target.value)}
-                placeholder="John Doe"
-                className={inputClass}
-              />
-            </div>
+          <div style={{ height: 1, background: T.borderLight, margin: '0 24px' }} />
 
-            {/* Email */}
-            <div className="space-y-1.5">
-              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Email</label>
-              <input
-                type="email"
-                value={form.contact_email}
-                onChange={(e) => updateField('contact_email', e.target.value)}
-                placeholder="contact@vendor.com"
-                className={errors.contact_email ? inputErrorClass : inputClass}
-              />
-              {errors.contact_email && (
-                <p className="font-sans text-[11px] text-red-400">{errors.contact_email}</p>
-              )}
-            </div>
-
-            {/* Phone */}
-            <div className="space-y-1.5">
-              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Phone</label>
-              <input
-                type="text"
-                value={form.contact_phone}
-                onChange={(e) => updateField('contact_phone', e.target.value)}
-                placeholder="+1 (555) 123-4567"
-                className={inputClass}
-              />
+          {/* Section 2: Contact */}
+          <div style={{ padding: '20px 24px' }}>
+            <Section title="Contact Information" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={fieldLabel}>Contact Name</label>
+                <input type="text" value={form.contact_name} onChange={e => updateField('contact_name', e.target.value)}
+                  placeholder="John Doe" style={inputStyle()}
+                  onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
+                  onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
+                />
+              </div>
+              <div>
+                <label style={fieldLabel}>Email</label>
+                <input type="email" value={form.contact_email} onChange={e => updateField('contact_email', e.target.value)}
+                  placeholder="contact@vendor.com" style={inputStyle(!!errors.contact_email)}
+                  onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
+                  onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = errors.contact_email ? 'rgba(220,38,38,0.4)' : T.border; }}
+                />
+                {errors.contact_email && <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.danger, marginTop: 4 }}>{errors.contact_email}</p>}
+              </div>
+              <div>
+                <label style={fieldLabel}>Phone</label>
+                <input type="text" value={form.contact_phone} onChange={e => updateField('contact_phone', e.target.value)}
+                  placeholder="+1 (555) 123-4567" style={inputStyle()}
+                  onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
+                  onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Section 3: Risk Management */}
-        <div className="px-6 pb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              Risk Management
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Criticality Level */}
-            <div className="space-y-1.5">
-              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Criticality Level</label>
-              <select
-                value={form.criticality_level}
-                onChange={(e) => updateField('criticality_level', e.target.value)}
-                className={selectClass}
-              >
-                <option value="low" className="bg-[#0E1018]">Low</option>
-                <option value="medium" className="bg-[#0E1018]">Medium</option>
-                <option value="high" className="bg-[#0E1018]">High</option>
-                <option value="critical" className="bg-[#0E1018]">Critical</option>
-              </select>
-            </div>
+          <div style={{ height: 1, background: T.borderLight, margin: '0 24px' }} />
 
-            {/* Vendor Status */}
-            <div className="space-y-1.5">
-              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Vendor Status</label>
-              <select
-                value={form.vendor_status}
-                onChange={(e) => updateField('vendor_status', e.target.value)}
-                className={selectClass}
-              >
-                <option value="active" className="bg-[#0E1018]">Active</option>
-                <option value="inactive" className="bg-[#0E1018]">Inactive</option>
-                <option value="under_review" className="bg-[#0E1018]">Under Review</option>
-              </select>
+          {/* Section 3: Risk */}
+          <div style={{ padding: '20px 24px' }}>
+            <Section title="Risk Management" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={fieldLabel}>Criticality Level</label>
+                <select value={form.criticality_level} onChange={e => updateField('criticality_level', e.target.value)}
+                  style={{ ...inputStyle(), cursor: 'pointer' }}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div>
+                <label style={fieldLabel}>Vendor Status</label>
+                <select value={form.vendor_status} onChange={e => updateField('vendor_status', e.target.value)}
+                  style={{ ...inputStyle(), cursor: 'pointer' }}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="under_review">Under Review</option>
+                </select>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Section 4: Notes */}
-        <div className="px-6 pb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-              Notes
-            </h2>
+          <div style={{ height: 1, background: T.borderLight, margin: '0 24px' }} />
+
+          {/* Section 4: Notes */}
+          <div style={{ padding: '20px 24px' }}>
+            <Section title="Notes" />
+            <textarea value={form.notes} onChange={e => updateField('notes', e.target.value)}
+              rows={4} placeholder="Any additional notes about this vendor..."
+              style={{ ...inputStyle(), resize: 'vertical', lineHeight: 1.6 }}
+              onFocus={e => { (e.currentTarget as HTMLTextAreaElement).style.borderColor = '#A5B4FC'; }}
+              onBlur={e => { (e.currentTarget as HTMLTextAreaElement).style.borderColor = T.border; }}
+            />
           </div>
-          <textarea
-            value={form.notes}
-            onChange={(e) => updateField('notes', e.target.value)}
-            rows={4}
-            placeholder="Any additional notes about this vendor..."
-            className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors resize-none"
-          />
-        </div>
 
-        {/* Form Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/[0.06] bg-white/[0.02]">
-          <Link
-            to="/vendors"
-            className="inline-flex items-center px-4 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-white/[0.15] hover:text-[#F0F0F5] transition-all"
-          >
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex items-center gap-2 px-5 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create Vendor
-          </button>
+          {/* Footer */}
+          <div style={{
+            display: 'flex', justifyContent: 'flex-end', gap: 10,
+            padding: '14px 24px', borderTop: `1px solid ${T.borderLight}`,
+            background: '#F8FAFC',
+          }}>
+            <Link to="/vendors" style={{ textDecoration: 'none' }}>
+              <button type="button" style={{
+                padding: '8px 18px', borderRadius: 8,
+                background: T.card, color: T.textSecondary,
+                fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+                border: `1px solid ${T.border}`, cursor: 'pointer',
+              }}>
+                Cancel
+              </button>
+            </Link>
+            <button type="submit" disabled={submitting} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '8px 20px', borderRadius: 8,
+              background: submitting ? '#E2E8F0' : T.accent,
+              color: submitting ? T.textMuted : '#fff',
+              fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+              border: 'none', cursor: submitting ? 'not-allowed' : 'pointer',
+              boxShadow: submitting ? 'none' : '0 1px 3px rgba(79,70,229,0.3)',
+              transition: 'background 0.15s',
+            }}>
+              {submitting && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+              Create Vendor
+            </button>
+          </div>
         </div>
       </form>
     </div>

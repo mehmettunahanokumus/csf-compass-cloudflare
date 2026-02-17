@@ -22,28 +22,67 @@ import type {
 } from '../types';
 import { getErrorMessage, formatDate } from '../api/client';
 
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  card:          '#FFFFFF',
+  bg:            '#F8FAFC',
+  border:        '#E2E8F0',
+  borderLight:   '#F1F5F9',
+  textPrimary:   '#0F172A',
+  textSecondary: '#64748B',
+  textMuted:     '#94A3B8',
+  textFaint:     '#CBD5E1',
+  accent:        '#4F46E5',
+  accentLight:   'rgba(79,70,229,0.08)',
+  accentBorder:  'rgba(79,70,229,0.2)',
+  success:       '#16A34A',
+  successLight:  'rgba(22,163,74,0.08)',
+  successBorder: 'rgba(22,163,74,0.2)',
+  warning:       '#D97706',
+  warningLight:  'rgba(217,119,6,0.08)',
+  warningBorder: 'rgba(217,119,6,0.2)',
+  danger:        '#DC2626',
+  dangerLight:   'rgba(220,38,38,0.08)',
+  dangerBorder:  'rgba(220,38,38,0.2)',
+  fontSans:      'Manrope, sans-serif',
+  fontMono:      'JetBrains Mono, monospace',
+  fontDisplay:   'Barlow Condensed, sans-serif',
+};
+
+const card: React.CSSProperties = {
+  background: T.card,
+  border: `1px solid ${T.border}`,
+  borderRadius: 12,
+  boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
+};
+
+const sectionLabel: React.CSSProperties = {
+  fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+  letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textMuted,
+};
+
 // ── Helpers ──────────────────────────────────────────────
 
 function getStatusIcon(status: string) {
   switch (status) {
     case 'compliant':
-      return <CheckCircle className="h-5 w-5 text-emerald-400" />;
+      return <CheckCircle size={18} style={{ color: T.success, flexShrink: 0 }} />;
     case 'partial':
-      return <AlertCircle className="h-5 w-5 text-amber-400" />;
+      return <AlertCircle size={18} style={{ color: T.warning, flexShrink: 0 }} />;
     case 'non_compliant':
-      return <XCircle className="h-5 w-5 text-red-400" />;
+      return <XCircle size={18} style={{ color: T.danger, flexShrink: 0 }} />;
     case 'not_applicable':
-      return <Ban className="h-5 w-5 text-[#55576A]" />;
+      return <Ban size={18} style={{ color: T.textMuted, flexShrink: 0 }} />;
     default:
-      return <Circle className="h-5 w-5 text-[#55576A]/50" />;
+      return <Circle size={18} style={{ color: T.textFaint, flexShrink: 0 }} />;
   }
 }
 
 const STATUS_OPTIONS = [
-  { value: 'compliant', label: 'Compliant', activeClass: 'bg-emerald-500 text-white border-emerald-500' },
-  { value: 'partial', label: 'Partial', activeClass: 'bg-amber-500 text-[#08090E] border-amber-500' },
-  { value: 'non_compliant', label: 'Non-Compliant', activeClass: 'bg-red-500 text-white border-red-500' },
-  { value: 'not_applicable', label: 'Not Applicable', activeClass: 'bg-[#55576A] text-white border-[#55576A]' },
+  { value: 'compliant',      label: 'Compliant',     bg: T.successLight, color: T.success, border: T.successBorder },
+  { value: 'partial',        label: 'Partial',       bg: T.warningLight, color: T.warning, border: T.warningBorder },
+  { value: 'non_compliant',  label: 'Non-Compliant', bg: T.dangerLight,  color: T.danger,  border: T.dangerBorder },
+  { value: 'not_applicable', label: 'Not Applicable',bg: T.borderLight,  color: T.textMuted, border: T.border },
 ] as const;
 
 // ── Component ────────────────────────────────────────────
@@ -93,9 +132,7 @@ export default function VendorPortalShadcn() {
       setLoadingItems(true);
       const functionsData = await csfApi.getFunctions();
       setFunctions(functionsData);
-      if (functionsData.length > 0) {
-        setSelectedFunction(functionsData[0].id);
-      }
+      if (functionsData.length > 0) setSelectedFunction(functionsData[0].id);
       const itemsData = await vendorInvitationsApi.getItems(tokenValue);
       setItems(itemsData);
     } catch (err) {
@@ -123,9 +160,7 @@ export default function VendorPortalShadcn() {
 
   const handleSubmit = async () => {
     if (!token) return;
-    if (!confirm('Are you sure you want to submit this assessment? You will not be able to make changes after submission.')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to submit this assessment? You will not be able to make changes after submission.')) return;
     try {
       setSubmitting(true);
       await vendorInvitationsApi.complete(token);
@@ -138,7 +173,6 @@ export default function VendorPortalShadcn() {
     }
   };
 
-  // Calculate progress
   const filteredItems = items.filter((item) => item.function?.id === selectedFunction);
   const totalItems = items.length;
   const assessedItems = items.filter((i) => i.status !== 'not_assessed').length;
@@ -148,10 +182,13 @@ export default function VendorPortalShadcn() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#08090E]">
-        <div className="flex items-center gap-3 text-[#8E8FA8]">
-          <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
-          <span className="font-sans text-sm">Validating invitation...</span>
+      <div style={{
+        display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center',
+        background: T.bg,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: T.textSecondary }}>
+          <Loader2 size={20} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Validating invitation...</span>
         </div>
       </div>
     );
@@ -161,16 +198,27 @@ export default function VendorPortalShadcn() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#08090E] p-4">
-        <div className="max-w-md bg-[#0E1018] border border-white/[0.07] rounded-xl p-8">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
-              <XCircle className="h-5 w-5 text-red-400" />
+      <div style={{
+        display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center',
+        background: T.bg, padding: 24,
+      }}>
+        <div style={{ ...card, maxWidth: 440, padding: 36 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+              background: T.dangerLight, border: `1px solid ${T.dangerBorder}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <XCircle size={20} style={{ color: T.danger }} />
             </div>
-            <h1 className="font-display text-xl font-bold text-[#F0F0F5]">Invalid Invitation</h1>
+            <h1 style={{ fontFamily: T.fontDisplay, fontSize: 22, fontWeight: 700, color: T.textPrimary, margin: 0, letterSpacing: '0.01em' }}>
+              Invalid Invitation
+            </h1>
           </div>
-          <p className="mb-6 font-sans text-sm leading-relaxed text-[#8E8FA8]">{error}</p>
-          <p className="font-sans text-xs text-[#55576A]">
+          <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textSecondary, lineHeight: 1.7, marginBottom: 20 }}>
+            {error}
+          </p>
+          <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
             Please contact the organization that sent you this invitation for assistance.
           </p>
         </div>
@@ -184,18 +232,27 @@ export default function VendorPortalShadcn() {
 
   if (completed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#08090E] p-4">
-        <div className="max-w-md bg-[#0E1018] border border-white/[0.07] rounded-xl p-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <CheckCircle className="h-8 w-8 text-emerald-400" />
+      <div style={{
+        display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center',
+        background: T.bg, padding: 24,
+      }}>
+        <div style={{ ...card, maxWidth: 440, padding: 40, textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: 16,
+              background: T.successLight, border: `1px solid ${T.successBorder}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <CheckCircle size={32} style={{ color: T.success }} />
             </div>
           </div>
-          <h1 className="font-display text-xl font-bold text-[#F0F0F5] mb-2">Assessment Completed</h1>
-          <p className="font-sans text-sm leading-relaxed text-[#8E8FA8] mb-6">
+          <h1 style={{ fontFamily: T.fontDisplay, fontSize: 24, fontWeight: 700, color: T.textPrimary, margin: '0 0 10px', letterSpacing: '0.01em' }}>
+            Assessment Completed
+          </h1>
+          <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textSecondary, lineHeight: 1.7, marginBottom: 20 }}>
             Thank you for completing the cybersecurity assessment. Your responses have been submitted successfully.
           </p>
-          <p className="font-mono text-xs text-[#55576A]">
+          <p style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textMuted }}>
             Completed on {formatDate(validationData.invitation?.completed_at || undefined)}
           </p>
         </div>
@@ -206,55 +263,91 @@ export default function VendorPortalShadcn() {
   // ── Main render ──
 
   return (
-    <div className="min-h-screen bg-[#08090E]">
+    <div style={{ minHeight: '100vh', background: T.bg }}>
+
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#0E1018]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20">
-              <Shield className="h-5 w-5 text-amber-400" />
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        borderBottom: `1px solid ${T.border}`,
+        background: 'rgba(255,255,255,0.95)',
+        backdropFilter: 'blur(8px)',
+        boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
+      }}>
+        <div style={{
+          margin: '0 auto', maxWidth: 900,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 24px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 10,
+              background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Shield size={20} style={{ color: T.accent }} />
             </div>
             <div>
-              <h1 className="font-display text-lg font-bold text-[#F0F0F5]">CSF Compass</h1>
-              <p className="font-sans text-[11px] text-[#55576A]">Vendor Assessment Portal</p>
+              <h1 style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: T.textPrimary, margin: 0, letterSpacing: '0.02em' }}>
+                CSF Compass
+              </h1>
+              <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, marginTop: 1 }}>
+                Vendor Assessment Portal
+              </p>
             </div>
           </div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-            <Lock className="h-3 w-3 text-emerald-400" />
-            <span className="font-sans text-[11px] font-medium text-emerald-400">Secure Session</span>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '5px 12px',
+            background: T.successLight, border: `1px solid ${T.successBorder}`,
+            borderRadius: 999,
+          }}>
+            <Lock size={12} style={{ color: T.success }} />
+            <span style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.success }}>
+              Secure Session
+            </span>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
+      <main style={{ margin: '0 auto', maxWidth: 900, padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
         {/* Welcome Card */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20">
-              <Lock className="h-5 w-5 text-amber-400" />
+        <div style={{ ...card, padding: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18 }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+              background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Lock size={22} style={{ color: T.accent }} />
             </div>
-            <div className="flex-1">
-              <h2 className="font-display text-lg font-bold text-[#F0F0F5] mb-2">Secure Vendor Assessment</h2>
-              <p className="font-sans text-sm leading-relaxed text-[#8E8FA8] mb-4">
+            <div style={{ flex: 1 }}>
+              <h2 style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: T.textPrimary, margin: '0 0 8px', letterSpacing: '0.01em' }}>
+                Secure Vendor Assessment
+              </h2>
+              <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textSecondary, lineHeight: 1.7, marginBottom: 14 }}>
                 Welcome{validationData.vendor_contact_name ? `, ${validationData.vendor_contact_name}` : ''}.
                 You've been invited to complete a cybersecurity assessment for{' '}
-                <span className="font-medium text-[#F0F0F5]">{assessment.name}</span>.
+                <span style={{ fontWeight: 700, color: T.textPrimary }}>{assessment.name}</span>.
                 Please answer each question honestly and provide supporting documentation where applicable.
               </p>
               {validationData.invitation?.message && (
-                <div className="mb-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3">
-                  <p className="font-sans text-sm text-indigo-300">
+                <div style={{
+                  marginBottom: 14, padding: 14, borderRadius: 9,
+                  background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+                }}>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.accent, margin: 0 }}>
                     {validationData.invitation.message}
                   </p>
                 </div>
               )}
-              <div className="flex items-center gap-4 text-[11px] text-[#55576A]">
-                <span className="flex items-center gap-1 font-sans">
-                  <Lock className="h-3 w-3" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: T.fontSans, fontSize: 11, color: T.textMuted }}>
+                  <Lock size={12} />
                   Encrypted communication
                 </span>
-                <span className="font-mono">
+                <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.textMuted }}>
                   Expires {formatDate(validationData.invitation?.token_expires_at)}
                 </span>
               </div>
@@ -263,145 +356,187 @@ export default function VendorPortalShadcn() {
         </div>
 
         {/* Progress Card */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-display text-sm font-semibold text-[#F0F0F5]">Assessment Progress</span>
-            <span className="font-mono text-xs text-[#8E8FA8]">
+        <div style={{ ...card, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontFamily: T.fontDisplay, fontSize: 15, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.02em' }}>
+              Assessment Progress
+            </span>
+            <span style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textSecondary }}>
               {assessedItems} of {totalItems} completed
             </span>
           </div>
-          <div className="w-full h-2.5 bg-white/[0.06] rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500 ease-out"
-              style={{
-                width: `${progressPct}%`,
-                background: progressPct < 30 ? '#EF4444' : progressPct < 70 ? '#F59E0B' : '#10B981',
-              }}
-            />
+          <div style={{ width: '100%', height: 10, background: T.borderLight, borderRadius: 999, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 999, transition: 'width 0.5s ease-out',
+              width: `${progressPct}%`,
+              background: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
+            }} />
           </div>
-          <div className="mt-2 text-right">
-            <span className={`font-display text-sm font-bold tabular-nums ${
-              progressPct < 30 ? 'text-red-400' : progressPct < 70 ? 'text-amber-400' : 'text-emerald-400'
-            }`}>
+          <div style={{ marginTop: 8, textAlign: 'right' }}>
+            <span style={{
+              fontFamily: T.fontDisplay, fontSize: 14, fontWeight: 700,
+              color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
+            }}>
               {progressPct}%
             </span>
           </div>
         </div>
 
         {/* Assessment Card */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
-          <div className="p-6 pb-0">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-              <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
-                NIST Cybersecurity Framework Assessment
-              </h2>
+        <div style={{ ...card, overflow: 'hidden' }}>
+          <div style={{ padding: '24px 24px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+              <span style={sectionLabel}>NIST Cybersecurity Framework Assessment</span>
             </div>
-            <p className="font-sans text-sm leading-relaxed text-[#55576A] mb-6 ml-[15px]">
+            <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, lineHeight: 1.6, marginBottom: 20, paddingLeft: 11 }}>
               Please review each category and indicate your compliance status. Your progress is saved automatically.
             </p>
 
             {/* Function Tabs */}
-            <div className="border-b border-white/[0.06]">
-              <nav className="-mb-px flex gap-1 overflow-x-auto">
-                {functions.map((func) => {
-                  const isSelected = selectedFunction === func.id;
-                  return (
-                    <button
-                      key={func.id}
-                      onClick={() => setSelectedFunction(func.id)}
-                      className={`whitespace-nowrap px-4 py-3 font-display text-xs font-semibold tracking-wide transition-colors border-b-2 ${
-                        isSelected
-                          ? 'border-amber-500 text-amber-400'
-                          : 'border-transparent text-[#55576A] hover:text-[#8E8FA8] hover:border-white/[0.1]'
-                      }`}
-                    >
-                      {func.name}
-                    </button>
-                  );
-                })}
-              </nav>
+            <div style={{ borderBottom: `1px solid ${T.border}`, display: 'flex', gap: 2, overflowX: 'auto' }}>
+              {functions.map((func) => {
+                const isSelected = selectedFunction === func.id;
+                return (
+                  <button
+                    key={func.id}
+                    onClick={() => setSelectedFunction(func.id)}
+                    style={{
+                      padding: '10px 18px', fontFamily: T.fontDisplay,
+                      fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap', border: 'none', cursor: 'pointer',
+                      borderBottom: isSelected ? `2px solid ${T.accent}` : '2px solid transparent',
+                      color: isSelected ? T.accent : T.textMuted,
+                      background: 'transparent', transition: 'all 0.14s',
+                      marginBottom: -1,
+                    }}
+                    onMouseEnter={e => { if (!isSelected) { (e.currentTarget as HTMLButtonElement).style.color = T.textSecondary; } }}
+                    onMouseLeave={e => { if (!isSelected) { (e.currentTarget as HTMLButtonElement).style.color = T.textMuted; } }}
+                  >
+                    {func.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Assessment Items */}
-          <div className="p-6 space-y-3">
+          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
             {loadingItems ? (
-              <div className="space-y-3 py-4">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '8px 0' }}>
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="rounded-lg border border-white/[0.06] p-5 animate-pulse">
-                    <div className="h-3 w-20 bg-white/[0.06] rounded mb-3" />
-                    <div className="h-4 w-3/4 bg-white/[0.06] rounded mb-2" />
-                    <div className="h-3 w-full bg-white/[0.04] rounded" />
+                  <div key={i} style={{ borderRadius: 10, border: `1px solid ${T.border}`, padding: 20 }}>
+                    <div style={{ height: 12, width: 80, borderRadius: 4, background: T.borderLight, marginBottom: 12 }} />
+                    <div style={{ height: 15, width: '60%', borderRadius: 4, background: T.borderLight, marginBottom: 8 }} />
+                    <div style={{ height: 11, width: '85%', borderRadius: 4, background: T.borderLight }} />
                   </div>
                 ))}
               </div>
             ) : filteredItems.length === 0 ? (
-              <p className="py-12 text-center font-sans text-sm text-[#55576A]">
+              <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textMuted, textAlign: 'center', padding: '40px 0' }}>
                 No assessment items found for this category
               </p>
             ) : (
               filteredItems.map((item) => {
                 const isExpanded = expandedItem === item.id;
+                const statusStyle =
+                  item.status === 'compliant'      ? { bg: T.successLight, color: T.success, border: T.successBorder, label: 'Compliant' } :
+                  item.status === 'partial'         ? { bg: T.warningLight, color: T.warning, border: T.warningBorder, label: 'Partial' } :
+                  item.status === 'non_compliant'   ? { bg: T.dangerLight, color: T.danger, border: T.dangerBorder, label: 'Non-Compliant' } :
+                  item.status === 'not_applicable'  ? { bg: T.borderLight, color: T.textMuted, border: T.border, label: 'N/A' } :
+                                                      { bg: T.borderLight, color: T.textMuted, border: T.border, label: 'Not Assessed' };
 
                 return (
-                  <div key={item.id} className="rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-colors overflow-hidden">
-                    {/* Item Header - clickable */}
+                  <div key={item.id} style={{
+                    borderRadius: 10, border: `1px solid ${T.border}`,
+                    overflow: 'hidden', transition: 'border-color 0.14s',
+                  }}>
+                    {/* Item Header */}
                     <button
                       onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                      className="flex w-full items-start gap-4 p-5 text-left hover:bg-amber-500/[0.02] transition-colors"
+                      style={{
+                        display: 'flex', width: '100%', alignItems: 'flex-start', gap: 14,
+                        padding: '16px 20px', textAlign: 'left', border: 'none',
+                        background: 'transparent', cursor: 'pointer', transition: 'background 0.12s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.borderLight; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                     >
                       {getStatusIcon(item.status)}
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex items-center gap-2">
-                          <span className="font-mono text-[11px] font-bold text-amber-400">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontFamily: T.fontMono, fontSize: 11, fontWeight: 700, color: T.accent }}>
                             {item.subcategory?.id}
                           </span>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-sans text-[10px] font-medium uppercase tracking-wide border ${
-                            item.status === 'compliant' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                            item.status === 'partial' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                            item.status === 'non_compliant' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                            item.status === 'not_applicable' ? 'bg-white/[0.04] text-[#55576A] border-white/[0.07]' :
-                            'bg-white/[0.04] text-[#55576A] border-white/[0.07]'
-                          }`}>
-                            {item.status === 'not_assessed' ? 'Not Assessed' :
-                             item.status === 'non_compliant' ? 'Non-Compliant' :
-                             item.status === 'not_applicable' ? 'N/A' :
-                             item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            padding: '2px 8px', borderRadius: 999,
+                            fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+                            letterSpacing: '0.05em', textTransform: 'uppercase',
+                            background: statusStyle.bg, color: statusStyle.color,
+                            border: `1px solid ${statusStyle.border}`,
+                          }}>
+                            {statusStyle.label}
                           </span>
                         </div>
-                        <p className="font-sans text-sm font-medium text-[#F0F0F5]">{item.subcategory?.name}</p>
+                        <p style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary, margin: 0 }}>
+                          {item.subcategory?.name}
+                        </p>
                         {item.subcategory?.description && (
-                          <p className="mt-1 font-sans text-xs leading-relaxed text-[#55576A]">
+                          <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, marginTop: 4, lineHeight: 1.6 }}>
                             {item.subcategory.description}
                           </p>
                         )}
                       </div>
                       <ChevronRight
-                        className={`h-4 w-4 shrink-0 text-[#55576A] transition-transform ${
-                          isExpanded ? 'rotate-90' : ''
-                        }`}
+                        size={16}
+                        style={{
+                          flexShrink: 0, color: T.textMuted,
+                          transform: isExpanded ? 'rotate(90deg)' : 'none',
+                          transition: 'transform 0.2s',
+                        }}
                       />
                     </button>
 
                     {/* Expanded: Status Selection */}
                     {isExpanded && (
-                      <div className="border-t border-white/[0.06] px-5 pb-5 pt-4 bg-white/[0.01]">
-                        <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold mb-3">
-                          Select compliance status
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {STATUS_OPTIONS.map(({ value, label, activeClass }) => {
+                      <div style={{
+                        borderTop: `1px solid ${T.borderLight}`,
+                        padding: '14px 20px 16px',
+                        background: T.bg,
+                      }}>
+                        <p style={{ ...sectionLabel, marginBottom: 10 }}>Select compliance status</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {STATUS_OPTIONS.map(({ value, label, bg, color, border }) => {
                             const isActive = item.status === value;
                             return (
                               <button
                                 key={value}
                                 onClick={() => handleStatusChange(item.id, value)}
-                                className={`px-3 py-1.5 rounded-lg font-sans text-xs font-medium border transition-all ${
-                                  isActive
-                                    ? activeClass
-                                    : 'bg-white/[0.04] text-[#8E8FA8] border-white/[0.07] hover:bg-white/[0.07] hover:text-[#F0F0F5]'
-                                }`}
+                                style={{
+                                  padding: '7px 16px', borderRadius: 8,
+                                  fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+                                  border: `1px solid ${isActive ? border : T.border}`,
+                                  background: isActive ? bg : T.card,
+                                  color: isActive ? color : T.textSecondary,
+                                  cursor: 'pointer', transition: 'all 0.14s',
+                                }}
+                                onMouseEnter={e => {
+                                  if (!isActive) {
+                                    const el = e.currentTarget as HTMLButtonElement;
+                                    el.style.borderColor = border;
+                                    el.style.background = bg;
+                                    el.style.color = color;
+                                  }
+                                }}
+                                onMouseLeave={e => {
+                                  if (!isActive) {
+                                    const el = e.currentTarget as HTMLButtonElement;
+                                    el.style.borderColor = T.border;
+                                    el.style.background = T.card;
+                                    el.style.color = T.textSecondary;
+                                  }
+                                }}
                               >
                                 {label}
                               </button>
@@ -418,23 +553,34 @@ export default function VendorPortalShadcn() {
         </div>
 
         {/* Submit Footer */}
-        <div className="flex items-center justify-between pb-8 pt-2">
-          <p className="font-sans text-xs text-[#55576A]">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 32 }}>
+          <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
             Your progress is saved automatically when you change a status
           </p>
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '10px 24px', borderRadius: 9,
+              background: submitting ? T.borderLight : T.accent,
+              color: submitting ? T.textMuted : '#fff', border: 'none',
+              fontFamily: T.fontDisplay, fontSize: 15, fontWeight: 700, letterSpacing: '0.02em',
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              boxShadow: submitting ? 'none' : '0 1px 3px rgba(79,70,229,0.3)',
+              transition: 'all 0.14s',
+            }}
+            onMouseEnter={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.background = '#4338CA'; }}
+            onMouseLeave={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.background = T.accent; }}
           >
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
                 Submitting...
               </>
             ) : (
               <>
-                <Send className="h-4 w-4" />
+                <Send size={16} />
                 Submit Assessment
               </>
             )}
@@ -443,9 +589,9 @@ export default function VendorPortalShadcn() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-12 border-t border-white/[0.06]">
-        <div className="mx-auto max-w-5xl px-6 py-6">
-          <p className="text-center font-sans text-[11px] text-[#55576A]">
+      <footer style={{ borderTop: `1px solid ${T.border}`, marginTop: 24 }}>
+        <div style={{ margin: '0 auto', maxWidth: 900, padding: '20px 24px' }}>
+          <p style={{ textAlign: 'center', fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, margin: 0 }}>
             Powered by CSF Compass — NIST Cybersecurity Framework 2.0
           </p>
         </div>

@@ -1,29 +1,131 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
-  Plus,
-  Building2,
-  Search,
-  Trophy,
-  Layout,
-} from "lucide-react";
-import { vendorsApi } from "@/api/vendors";
-import type { Vendor } from "@/types";
-import { getErrorMessage, formatDate } from "@/api/client";
-import NewVendorModal from "@/components/NewVendorModal";
+  Plus, Building2, Search, Trophy,
+  AlertTriangle, TrendingUp, Shield,
+  Eye, Pencil, Trash2, ChevronRight,
+} from 'lucide-react';
+import { vendorsApi } from '@/api/vendors';
+import type { Vendor } from '@/types';
+import { getErrorMessage, formatDate } from '@/api/client';
+import NewVendorModal from '@/components/NewVendorModal';
 
-export default function VendorsShadcn() {
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  card:         '#FFFFFF',
+  border:       '#E2E8F0',
+  borderLight:  '#F1F5F9',
+  textPrimary:  '#0F172A',
+  textSecondary:'#64748B',
+  textMuted:    '#94A3B8',
+  textFaint:    '#CBD5E1',
+  accent:       '#4F46E5',
+  accentLight:  'rgba(79,70,229,0.08)',
+  accentBorder: 'rgba(79,70,229,0.2)',
+  success:      '#16A34A',
+  successLight: 'rgba(22,163,74,0.08)',
+  warning:      '#D97706',
+  warningLight: 'rgba(217,119,6,0.08)',
+  danger:       '#DC2626',
+  dangerLight:  'rgba(220,38,38,0.08)',
+  sky:          '#0EA5E9',
+  skyLight:     'rgba(14,165,233,0.08)',
+  fontSans:     'Manrope, sans-serif',
+  fontMono:     'JetBrains Mono, monospace',
+  fontDisplay:  'Barlow Condensed, sans-serif',
+};
+
+const card: React.CSSProperties = {
+  background:   T.card,
+  border:       `1px solid ${T.border}`,
+  borderRadius: 12,
+  boxShadow:    '0 1px 3px rgba(15,23,42,0.06)',
+};
+
+// ── Helpers ───────────────────────────────────────────────────
+function scoreColor(s: number) {
+  if (s >= 70) return T.success;
+  if (s >= 50) return T.warning;
+  return T.danger;
+}
+
+function riskConfig(tier: string | undefined | null) {
+  switch (tier) {
+    case 'critical': return { bg: T.dangerLight,  color: T.danger,         border: 'rgba(220,38,38,0.2)',   label: 'Critical' };
+    case 'high':     return { bg: T.warningLight, color: T.warning,        border: 'rgba(217,119,6,0.2)',   label: 'High'     };
+    case 'medium':   return { bg: T.accentLight,  color: T.accent,         border: T.accentBorder,          label: 'Medium'   };
+    case 'low':      return { bg: T.successLight, color: T.success,        border: 'rgba(22,163,74,0.2)',   label: 'Low'      };
+    default:         return { bg: 'rgba(148,163,184,0.08)', color: T.textSecondary, border: T.border, label: 'Unknown' };
+  }
+}
+
+function initials(name: string) {
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+const avatarColors = ['#4F46E5','#0EA5E9','#16A34A','#D97706','#DC2626','#9333EA','#0891B2','#059669'];
+function avatarColor(name: string) {
+  return avatarColors[name.charCodeAt(0) % avatarColors.length];
+}
+
+// ── Skeleton row ──────────────────────────────────────────────
+function RowSkeleton() {
+  return (
+    <tr className="animate-pulse">
+      {[280, 100, 80, 120, 90, 90].map((w, i) => (
+        <td key={i} style={{ padding: '14px 20px' }}>
+          <div style={{ width: w, height: 13, borderRadius: 5, background: '#F1F5F9' }} />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+// ── Filter pill ───────────────────────────────────────────────
+function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '5px 13px', borderRadius: 7,
+        fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+        border: 'none', cursor: 'pointer', transition: 'all 0.13s',
+        background: active ? T.accent : T.card,
+        color:      active ? '#fff' : T.textSecondary,
+        outline:    active ? 'none' : `1px solid ${T.border}`,
+        boxShadow:  active ? '0 1px 3px rgba(79,70,229,0.25)' : 'none',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ── Action button ─────────────────────────────────────────────
+function actionBtnStyle(color: string): React.CSSProperties {
+  return {
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    padding: '5px 10px', borderRadius: 7,
+    fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
+    color,
+    background: `${color}08`,
+    border: `1px solid ${color}20`,
+    cursor: 'pointer', transition: 'background 0.13s, border-color 0.13s',
+  };
+}
+
+// ── Main ──────────────────────────────────────────────────────
+export default function Vendors() {
   const navigate = useNavigate();
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [filterRiskTier, setFilterRiskTier] = useState("all");
+  const [vendors,    setVendors]    = useState<Vendor[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
+  const [search,     setSearch]     = useState('');
+  const [riskFilter, setRiskFilter] = useState('all');
+  const [showModal,  setShowModal]  = useState(false);
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadVendors();
-  }, []);
+  useEffect(() => { loadVendors(); }, []);
 
   const loadVendors = async () => {
     try {
@@ -37,319 +139,342 @@ export default function VendorsShadcn() {
     }
   };
 
-  const handleVendorCreated = (newVendor: Vendor) => {
-    setVendors([...vendors, newVendor]);
-  };
-
   const handleDelete = async (vendor: Vendor) => {
     try {
       await vendorsApi.delete(vendor.id);
-      setVendors(vendors.filter((v) => v.id !== vendor.id));
+      setVendors(v => v.filter(x => x.id !== vendor.id));
     } catch (err) {
       setError(getErrorMessage(err));
     }
   };
 
-  const filteredVendors = vendors
-    .filter(
-      (vendor) =>
-        (vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          vendor.industry?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (filterRiskTier === "all" || vendor.risk_tier === filterRiskTier)
+  const filtered = vendors
+    .filter(v =>
+      (v.name.toLowerCase().includes(search.toLowerCase()) ||
+       v.industry?.toLowerCase().includes(search.toLowerCase())) &&
+      (riskFilter === 'all' || v.risk_tier === riskFilter)
     )
     .sort((a, b) => {
-      const tierOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-      const aTier = tierOrder[a.risk_tier || "medium"] ?? 999;
-      const bTier = tierOrder[b.risk_tier || "medium"] ?? 999;
-      return aTier - bTier;
+      const ord: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+      return (ord[a.risk_tier ?? 'medium'] ?? 2) - (ord[b.risk_tier ?? 'medium'] ?? 2);
     });
 
-  // Stats
-  const highRisk = vendors.filter((v) => (v.latest_assessment_score ?? 100) < 50);
-  const critical = vendors.filter(
-    (v) => v.criticality_level === "critical" || v.risk_tier === "critical"
-  );
-  const avgScore =
-    vendors.length > 0
-      ? vendors.reduce((sum, v) => sum + (v.latest_assessment_score ?? 0), 0) / vendors.length
-      : 0;
+  const highRisk = vendors.filter(v => (v.latest_assessment_score ?? 100) < 50);
+  const critical = vendors.filter(v => v.risk_tier === 'critical' || v.criticality_level === 'critical');
+  const avgScore = vendors.length > 0
+    ? vendors.reduce((s, v) => s + (v.latest_assessment_score ?? 0), 0) / vendors.length
+    : 0;
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-        <p className="font-sans text-sm text-red-400">{error}</p>
+      <div style={{ ...card, padding: '16px 20px', background: T.dangerLight, borderColor: 'rgba(220,38,38,0.2)' }}>
+        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.danger, margin: 0 }}>{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in-up space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+    <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Vendors</h1>
-          <p className="font-sans text-sm text-[#8E8FA8] mt-1">
+          <h1 style={{ fontFamily: T.fontSans, fontSize: 22, fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.02em', margin: 0 }}>
+            Vendors
+          </h1>
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, marginTop: 3 }}>
             Third-party security posture management
           </p>
         </div>
-        <button
-          onClick={() => setShowNewModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Vendor
-        </button>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
-          <div className="font-display text-2xl font-bold text-amber-400 tabular-nums mb-1">
-            {loading ? '—' : vendors.length}
-          </div>
-          <div className="font-sans text-xs text-[#8E8FA8]">Total Vendors</div>
-        </div>
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
-          <div className="font-display text-2xl font-bold text-red-400 tabular-nums mb-1">
-            {loading ? '—' : highRisk.length}
-          </div>
-          <div className="font-sans text-xs text-[#8E8FA8]">High Risk</div>
-        </div>
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
-          <div className={`font-display text-2xl font-bold tabular-nums mb-1 ${
-            avgScore >= 80 ? 'text-emerald-400' :
-            avgScore >= 50 ? 'text-amber-400' : 'text-red-400'
-          }`}>
-            {loading ? '—' : avgScore > 0 ? `${avgScore.toFixed(1)}%` : 'N/A'}
-          </div>
-          <div className="font-sans text-xs text-[#8E8FA8]">Average Score</div>
-        </div>
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
-          <div className="font-display text-2xl font-bold text-amber-400 tabular-nums mb-1">
-            {loading ? '—' : critical.length}
-          </div>
-          <div className="font-sans text-xs text-[#8E8FA8]">Critical</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => navigate('/vendors/ranking')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '8px 14px', borderRadius: 8,
+              background: T.card, color: T.textSecondary,
+              fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+              border: `1px solid ${T.border}`, cursor: 'pointer', transition: 'all 0.14s',
+            }}
+            onMouseEnter={e => { const b = e.currentTarget; b.style.borderColor = '#CBD5E1'; b.style.color = T.textPrimary; }}
+            onMouseLeave={e => { const b = e.currentTarget; b.style.borderColor = T.border; b.style.color = T.textSecondary; }}
+          >
+            <Trophy size={14} /> Rankings
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '9px 18px', borderRadius: 9,
+              background: T.accent, color: '#fff',
+              fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+              border: 'none', cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(79,70,229,0.3)',
+              transition: 'background 0.15s, box-shadow 0.15s',
+            }}
+            onMouseEnter={e => { const b = e.currentTarget; b.style.background = '#4338CA'; b.style.boxShadow = '0 4px 12px rgba(79,70,229,0.35)'; }}
+            onMouseLeave={e => { const b = e.currentTarget; b.style.background = T.accent;  b.style.boxShadow = '0 1px 3px rgba(79,70,229,0.3)'; }}
+          >
+            <Plus size={15} /> Add Vendor
+          </button>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex gap-3 flex-wrap">
-        <button
-          onClick={() => navigate("/vendors/ranking")}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all"
-        >
-          <Trophy className="w-3.5 h-3.5" />
-          View Rankings
-        </button>
-        <button
-          onClick={() => navigate("/vendors/templates")}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all"
-        >
-          <Layout className="w-3.5 h-3.5" />
-          Manage Templates
-        </button>
+      {/* KPI cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+        {[
+          { icon: <Building2 size={16} />,     label: 'Total Vendors', value: loading ? '—' : `${vendors.length}`,                             color: T.accent         },
+          { icon: <AlertTriangle size={16} />,  label: 'High Risk',     value: loading ? '—' : `${highRisk.length}`,                            color: T.danger         },
+          { icon: <TrendingUp size={16} />,     label: 'Avg Score',     value: loading ? '—' : avgScore > 0 ? `${avgScore.toFixed(0)}%` : 'N/A', color: scoreColor(avgScore) },
+          { icon: <Shield size={16} />,         label: 'Critical',      value: loading ? '—' : `${critical.length}`,                            color: T.warning        },
+        ].map((k, i) => (
+          <div key={i} style={{ ...card, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+              background: `${k.color}10`, border: `1px solid ${k.color}20`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: k.color,
+            }}>
+              {k.icon}
+            </div>
+            <div>
+              <div style={{ fontFamily: T.fontDisplay, fontSize: 26, fontWeight: 700, color: k.color, lineHeight: 1 }}>
+                {k.value}
+              </div>
+              <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.textMuted, marginTop: 2 }}>
+                {k.label}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Search + Filter Bar */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#55576A]" />
+      {/* Search + Filters */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['all', 'critical', 'high', 'medium', 'low'].map(tier => (
+            <FilterPill
+              key={tier}
+              label={tier === 'all' ? 'All' : tier.charAt(0).toUpperCase() + tier.slice(1)}
+              active={riskFilter === tier}
+              onClick={() => setRiskFilter(tier)}
+            />
+          ))}
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ position: 'relative' }}>
+          <Search size={13} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
           <input
             type="text"
             placeholder="Search vendors..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: 200, paddingLeft: 34, paddingRight: 12, paddingTop: 7, paddingBottom: 7,
+              borderRadius: 8, border: `1px solid ${T.border}`,
+              fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
+              background: T.card, outline: 'none',
+              boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+              transition: 'border-color 0.15s',
+            }}
+            onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
+            onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
           />
-        </div>
-
-        {/* Criticality filter chips */}
-        <div className="flex items-center gap-1.5">
-          {['all', 'critical', 'high', 'medium', 'low'].map((level) => (
-            <button
-              key={level}
-              onClick={() => setFilterRiskTier(level)}
-              className={`px-3 py-1.5 rounded-lg font-sans text-xs font-medium transition-colors ${
-                filterRiskTier === level
-                  ? 'bg-amber-500 text-[#08090E]'
-                  : 'bg-white/[0.04] text-[#8E8FA8] hover:bg-white/[0.07]'
-              }`}
-            >
-              {level.charAt(0).toUpperCase() + level.slice(1)}
-            </button>
-          ))}
         </div>
       </div>
 
-      {/* Vendors Table */}
-      {loading ? (
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-8">
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center gap-4 animate-pulse">
-                <div className="w-8 h-8 rounded-lg bg-white/[0.06]" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-40 bg-white/[0.06] rounded" />
-                  <div className="h-3 w-24 bg-white/[0.04] rounded" />
-                </div>
-                <div className="h-5 w-16 bg-white/[0.06] rounded-full" />
-                <div className="h-4 w-24 bg-white/[0.06] rounded" />
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="text-left px-5 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Vendor</th>
-                <th className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Industry</th>
-                <th className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Criticality</th>
-                <th className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Risk Score</th>
-                <th className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Last Assessment</th>
-                <th className="text-right px-5 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredVendors.map((vendor) => (
-                <tr
-                  key={vendor.id}
-                  className="border-b border-white/[0.04] hover:bg-amber-500/[0.03] transition-colors"
-                >
-                  {/* Vendor name + initials */}
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center flex-shrink-0">
-                        <span className="font-display text-xs font-bold text-amber-400">
-                          {vendor.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div>
-                        <Link to={`/vendors/${vendor.id}`}>
-                          <span className="font-sans text-sm font-medium text-[#F0F0F5] hover:text-amber-400 transition-colors">
-                            {vendor.name}
-                          </span>
-                        </Link>
-                        {vendor.contact_email && (
-                          <div className="font-mono text-[10px] text-[#55576A]">{vendor.contact_email}</div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Industry */}
-                  <td className="px-4 py-4">
-                    <span className="font-sans text-sm text-[#8E8FA8]">{vendor.industry ?? '—'}</span>
-                  </td>
-
-                  {/* Criticality badge */}
-                  <td className="px-4 py-4">
-                    {(vendor.risk_tier || vendor.criticality_level) ? (
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-wide border ${
-                        (vendor.risk_tier || vendor.criticality_level) === 'critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                        (vendor.risk_tier || vendor.criticality_level) === 'high' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                        (vendor.risk_tier || vendor.criticality_level) === 'medium' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
-                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                      }`}>
-                        {vendor.risk_tier || vendor.criticality_level || 'medium'}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-wide border bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
-                        medium
-                      </span>
-                    )}
-                  </td>
-
-                  {/* Risk score bar */}
-                  <td className="px-4 py-4">
-                    {vendor.latest_assessment_score != null && vendor.latest_assessment_score > 0 ? (
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-24 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${vendor.latest_assessment_score}%`,
-                              background: vendor.latest_assessment_score < 30 ? '#EF4444' :
-                                          vendor.latest_assessment_score < 60 ? '#F59E0B' : '#10B981'
-                            }}
-                          />
-                        </div>
-                        <span className={`font-display text-sm font-semibold tabular-nums ${
-                          vendor.latest_assessment_score < 30 ? 'text-red-400' :
-                          vendor.latest_assessment_score < 60 ? 'text-amber-400' : 'text-emerald-400'
-                        }`}>
-                          {vendor.latest_assessment_score}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-[#55576A] font-sans text-sm">—</span>
-                    )}
-                  </td>
-
-                  {/* Last Assessment */}
-                  <td className="px-4 py-4">
-                    <span className="font-sans text-sm text-[#8E8FA8]">
-                      {vendor.last_assessment_date ? formatDate(vendor.last_assessment_date) : 'Never'}
-                    </span>
-                  </td>
-
-                  {/* Actions */}
-                  <td className="px-5 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Link to={`/vendors/${vendor.id}`}>
-                        <button className="font-sans text-xs text-[#8E8FA8] hover:text-amber-400 px-3 py-1.5 border border-white/[0.07] hover:border-amber-500/30 rounded-lg transition-all">
-                          View
-                        </button>
-                      </Link>
-                      <button
-                        onClick={() => navigate(`/vendors/${vendor.id}/edit`)}
-                        className="font-sans text-xs text-[#8E8FA8] hover:text-[#F0F0F5] px-3 py-1.5 border border-white/[0.07] hover:border-white/[0.15] rounded-lg transition-all"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(vendor)}
-                        className="font-sans text-xs text-[#55576A] hover:text-red-400 px-3 py-1.5 border border-white/[0.07] hover:border-red-500/30 rounded-lg transition-all"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+      {/* Table */}
+      <div style={{ ...card, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#F8FAFC', borderBottom: `1px solid ${T.borderLight}` }}>
+              {['Vendor', 'Industry', 'Risk Tier', 'Compliance Score', 'Last Assessment', ''].map(h => (
+                <th key={h} style={{
+                  textAlign: 'left', padding: '10px 20px',
+                  fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted,
+                }}>
+                  {h}
+                </th>
               ))}
-            </tbody>
-          </table>
+            </tr>
+          </thead>
+          <tbody>
+            {loading
+              ? Array.from({ length: 5 }).map((_, i) => <RowSkeleton key={i} />)
+              : filtered.map(vendor => {
+                  const score  = vendor.latest_assessment_score;
+                  const risk   = riskConfig(vendor.risk_tier ?? vendor.criticality_level);
+                  const color  = avatarColor(vendor.name);
+                  const isHov  = hoveredRow === vendor.id;
+                  return (
+                    <tr
+                      key={vendor.id}
+                      style={{
+                        borderBottom: `1px solid ${T.borderLight}`,
+                        background: isHov ? '#F8FAFC' : 'transparent',
+                        transition: 'background 0.12s',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={() => setHoveredRow(vendor.id)}
+                      onMouseLeave={() => setHoveredRow(null)}
+                      onClick={() => navigate(`/vendors/${vendor.id}`)}
+                    >
+                      {/* Vendor name + avatar */}
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{
+                            width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                            background: `${color}15`, border: `1px solid ${color}25`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 800, color }}>
+                              {initials(vendor.name)}
+                            </span>
+                          </div>
+                          <div>
+                            <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: isHov ? T.accent : T.textPrimary, transition: 'color 0.13s' }}>
+                              {vendor.name}
+                            </div>
+                            {vendor.contact_email && (
+                              <div style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textFaint, marginTop: 2 }}>
+                                {vendor.contact_email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
 
-          {/* Empty state */}
-          {filteredVendors.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center mb-3">
-                <Building2 className="w-5 h-5 text-amber-500/50" />
-              </div>
-              <p className="font-display text-sm font-semibold text-[#F0F0F5] mb-1">No vendors found</p>
-              <p className="font-sans text-xs text-[#8E8FA8]">
-                {searchTerm || filterRiskTier !== 'all' ? 'Try a different search term' : 'Add your first vendor to get started'}
-              </p>
-              {!searchTerm && filterRiskTier === 'all' && (
-                <button
-                  onClick={() => setShowNewModal(true)}
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
-                >
-                  Add Your First Vendor
-                </button>
-              )}
+                      {/* Industry */}
+                      <td style={{ padding: '14px 20px', fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>
+                        {vendor.industry ?? '—'}
+                      </td>
+
+                      {/* Risk tier badge */}
+                      <td style={{ padding: '14px 20px' }}>
+                        <span style={{
+                          display: 'inline-flex', padding: '3px 10px', borderRadius: 100,
+                          fontFamily: T.fontSans, fontSize: 11, fontWeight: 700,
+                          background: risk.bg, color: risk.color, border: `1px solid ${risk.border}`,
+                          letterSpacing: '0.02em',
+                        }}>
+                          {risk.label}
+                        </span>
+                      </td>
+
+                      {/* Compliance score */}
+                      <td style={{ padding: '14px 20px' }}>
+                        {score != null && score > 0 ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 80, height: 5, borderRadius: 3, background: '#F1F5F9', overflow: 'hidden' }}>
+                              <div style={{ width: `${score}%`, height: '100%', borderRadius: 3, background: scoreColor(score), transition: 'width 0.5s' }} />
+                            </div>
+                            <span style={{ fontFamily: T.fontDisplay, fontSize: 18, fontWeight: 700, color: scoreColor(score), lineHeight: 1 }}>
+                              {score.toFixed(0)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textFaint }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Last assessment */}
+                      <td style={{ padding: '14px 20px', fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
+                        {vendor.last_assessment_date ? formatDate(vendor.last_assessment_date) : (
+                          <span style={{ color: T.textFaint }}>Never</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td style={{ padding: '14px 20px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
+                          <Link to={`/vendors/${vendor.id}`} style={{ textDecoration: 'none' }} onClick={e => e.stopPropagation()}>
+                            <button style={actionBtnStyle(T.accent)}
+                              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.accentLight; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${T.accent}08`; }}
+                            >
+                              <Eye size={12} /> View
+                            </button>
+                          </Link>
+                          <button
+                            onClick={() => navigate(`/vendors/${vendor.id}/edit`)}
+                            style={actionBtnStyle(T.textSecondary)}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(100,116,139,0.1)'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${T.textSecondary}08`; }}
+                          >
+                            <Pencil size={12} /> Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(vendor)}
+                            style={actionBtnStyle(T.danger)}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.dangerLight; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${T.danger}08`; }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+            }
+          </tbody>
+        </table>
+
+        {/* Empty state */}
+        {!loading && filtered.length === 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '56px 24px', gap: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Building2 size={22} style={{ color: T.textFaint }} />
             </div>
-          )}
-        </div>
-      )}
+            <div style={{ fontFamily: T.fontSans, fontSize: 15, fontWeight: 700, color: T.textPrimary }}>
+              {search || riskFilter !== 'all' ? 'No vendors match filters' : 'No vendors yet'}
+            </div>
+            <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted }}>
+              {search || riskFilter !== 'all' ? 'Try a different search term or filter' : 'Add your first vendor to start tracking risk'}
+            </div>
+            {!search && riskFilter === 'all' && (
+              <button
+                onClick={() => setShowModal(true)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '9px 18px', borderRadius: 9,
+                  background: T.accent, color: '#fff',
+                  fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+                  border: 'none', cursor: 'pointer', marginTop: 4,
+                }}
+              >
+                <Plus size={14} /> Add First Vendor
+              </button>
+            )}
+          </div>
+        )}
 
-      {/* New Vendor Modal */}
-      <NewVendorModal
-        isOpen={showNewModal}
-        onClose={() => setShowNewModal(false)}
-        onCreate={handleVendorCreated}
-      />
+        {/* Footer */}
+        {!loading && filtered.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 20px', borderTop: `1px solid ${T.borderLight}`,
+            background: '#F8FAFC',
+          }}>
+            <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
+              Showing <strong style={{ color: T.textPrimary }}>{filtered.length}</strong> of{' '}
+              <strong style={{ color: T.textPrimary }}>{vendors.length}</strong> vendors
+            </span>
+            <button
+              onClick={() => navigate('/vendors/ranking')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.accent,
+                background: 'none', border: 'none', cursor: 'pointer',
+              }}
+            >
+              View full ranking <ChevronRight size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <NewVendorModal isOpen={showModal} onClose={() => setShowModal(false)} onCreate={v => setVendors(prev => [...prev, v])} />
     </div>
   );
 }
