@@ -2,17 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Shield,
-  CheckCircle2,
   Building2,
   AlertTriangle,
   TrendingUp,
-  ArrowRight,
-  Clock,
+  Plus,
+  Target,
 } from 'lucide-react';
 import {
-  PieChart,
-  Pie,
-  Cell,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -21,10 +17,6 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle, CardAction } from '../components/ui/card';
-import { Progress } from '../components/ui/progress';
-import { Button } from '../components/ui/button';
-import { Skeleton } from '../components/ui/skeleton';
 import { assessmentsApi } from '../api/assessments';
 import { vendorsApi } from '../api/vendors';
 import type { Assessment, Vendor } from '../types';
@@ -91,8 +83,8 @@ export default function DashboardShadcn() {
     (v) => (v.latest_assessment_score ?? 100) < 50
   );
 
-  // Vendor risk distribution for pie chart
-  const riskDistribution = [
+  // Vendor risk distribution (kept for potential future use)
+  const _riskDistribution = [
     { name: 'Critical', value: vendors.filter((v) => v.criticality_level === 'critical').length, color: '#ef4444' },
     { name: 'High', value: vendors.filter((v) => v.criticality_level === 'high').length, color: '#f97316' },
     { name: 'Medium', value: vendors.filter((v) => v.criticality_level === 'medium').length, color: '#eab308' },
@@ -103,29 +95,16 @@ export default function DashboardShadcn() {
 
   if (loading) {
     return (
-      <div className="space-y-8">
-        <div>
-          <Skeleton className="mb-2 h-8 w-56" />
-          <Skeleton className="h-5 w-80" />
-        </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="mb-3 h-4 w-24" />
-                <Skeleton className="mb-2 h-8 w-16" />
-                <Skeleton className="h-3 w-32" />
-              </CardContent>
-            </Card>
+      <div className="space-y-8 animate-pulse">
+        <div className="h-12 bg-white/[0.04] rounded-xl w-48" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-28 bg-white/[0.04] rounded-xl" />
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {[1, 2].map((i) => (
-            <Card key={i}>
-              <CardHeader><Skeleton className="h-5 w-48" /></CardHeader>
-              <CardContent><Skeleton className="h-[300px] w-full" /></CardContent>
-            </Card>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="h-64 bg-white/[0.04] rounded-xl" />
+          <div className="h-64 bg-white/[0.04] rounded-xl" />
         </div>
       </div>
     );
@@ -135,271 +114,210 @@ export default function DashboardShadcn() {
 
   if (error) {
     return (
-      <Card className="border-destructive">
-        <CardContent className="p-6">
-          <p className="text-destructive">{error}</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+          <p className="font-sans text-sm text-[#8E8FA8]">{error}</p>
+        </div>
+      </div>
     );
   }
 
   // ── Main render ──
 
   return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <div>
-        <h1 className="mb-1 text-3xl font-semibold">Security Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of your organization's cybersecurity posture and vendor risk landscape
-        </p>
+    <div className="animate-fade-in-up space-y-8">
+      {/* Page header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Security Overview</h1>
+          <p className="font-sans text-sm text-[#8E8FA8] mt-1">NIST CSF 2.0 compliance dashboard</p>
+        </div>
+        <Link to="/assessments/new">
+          <button className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
+            <Plus className="w-4 h-4" />
+            New Assessment
+          </button>
+        </Link>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Overall Score */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="mb-1 text-sm text-muted-foreground">Overall Score</p>
-                <p className="text-3xl font-semibold">{avgScore}</p>
-                <p className="mt-2 flex items-center gap-1 text-xs text-emerald-500">
-                  <TrendingUp className="h-3 w-3" />
-                  +5% from last month
-                </p>
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
+      {/* KPI Cards - 4 column grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Assessments */}
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all group">
+          <div className="flex items-start justify-between mb-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
+              <Shield className="w-[18px] h-[18px] text-amber-500/70" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="font-display text-3xl font-bold text-amber-400 mb-1 tabular-nums">
+            {assessments.length}
+          </div>
+          <div className="font-sans text-xs text-[#8E8FA8] font-medium">Total Assessments</div>
+        </div>
 
-        {/* Completion */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="mb-1 text-sm text-muted-foreground">Completion</p>
-                <p className="text-3xl font-semibold">{completionPct}%</p>
-                <div className="mt-3">
-                  <Progress value={completionPct} className="h-2" />
-                </div>
-              </div>
-              <div className="ml-4 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
-                <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-              </div>
+        {/* Active Vendors */}
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all group">
+          <div className="flex items-start justify-between mb-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
+              <Building2 className="w-[18px] h-[18px] text-amber-500/70" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="font-display text-3xl font-bold text-amber-400 mb-1 tabular-nums">
+            {vendors.length}
+          </div>
+          <div className="font-sans text-xs text-[#8E8FA8] font-medium">Active Vendors</div>
+        </div>
 
-        {/* Vendors Assessed */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="mb-1 text-sm text-muted-foreground">Vendors Assessed</p>
-                <p className="text-3xl font-semibold">{vendors.length}</p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {completedAssessments.filter((a) => a.assessment_type === 'vendor').length} assessments done
-                </p>
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
-                <Building2 className="h-6 w-6 text-blue-500" />
-              </div>
+        {/* Avg Compliance Score */}
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all group">
+          <div className="flex items-start justify-between mb-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
+              <Target className="w-[18px] h-[18px] text-amber-500/70" />
             </div>
-          </CardContent>
-        </Card>
+            {completedAssessments.length > 0 && (
+              <div className="flex items-center gap-1 text-emerald-400 text-xs font-sans">
+                <TrendingUp className="w-3 h-3" />
+                <span>+5%</span>
+              </div>
+            )}
+          </div>
+          <div className={`font-display text-3xl font-bold mb-1 tabular-nums ${avgScore > 70 ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {avgScore}%
+          </div>
+          <div className="font-sans text-xs text-[#8E8FA8] font-medium">Avg Compliance Score</div>
+        </div>
 
-        {/* High-Risk Vendors */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="mb-1 text-sm text-muted-foreground">High-Risk Vendors</p>
-                <p className="text-3xl font-semibold">{highRiskVendors.length}</p>
-                {highRiskVendors.length > 0 && (
-                  <p className="mt-2 flex items-center gap-1 text-xs text-orange-500">
-                    <AlertTriangle className="h-3 w-3" />
-                    Requires attention
-                  </p>
-                )}
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10">
-                <AlertTriangle className="h-6 w-6 text-orange-500" />
-              </div>
+        {/* Critical Findings */}
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/20 transition-all group">
+          <div className="flex items-start justify-between mb-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
+              <AlertTriangle className="w-[18px] h-[18px] text-amber-500/70" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className={`font-display text-3xl font-bold mb-1 tabular-nums ${highRiskVendors.length > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+            {highRiskVendors.length}
+          </div>
+          <div className="font-sans text-xs text-[#8E8FA8] font-medium">Critical Findings</div>
+        </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* NIST CSF Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle>NIST CSF 2.0 Assessment Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={assessmentProgressData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis
-                  dataKey="category"
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  stroke="hsl(var(--muted-foreground))"
-                />
-                <YAxis
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  stroke="hsl(var(--muted-foreground))"
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))',
-                  }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
-                />
-                <Bar dataKey="progress" fill="hsl(var(--chart-1, var(--primary)))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Charts + Activity - 2 column grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Bar chart card */}
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              CSF Framework Coverage
+            </h2>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={assessmentProgressData} barSize={32}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <XAxis
+                dataKey="category"
+                tick={{ fill: '#55576A', fontSize: 10, fontFamily: 'DM Sans' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: '#55576A', fontSize: 10, fontFamily: 'DM Sans' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `${v}%`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: '#13151F',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px',
+                  fontFamily: 'DM Sans',
+                  fontSize: 12,
+                }}
+                cursor={{ fill: 'rgba(245,158,11,0.04)' }}
+              />
+              <Bar dataKey="progress" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
-        {/* Vendor Risk Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Vendor Risk Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-8">
-              <ResponsiveContainer width="50%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={riskDistribution}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {riskDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex-1 space-y-3">
-                {riskDistribution.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-sm">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-medium">{item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-          <CardAction>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/vendors">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentActivityStatic.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-start gap-4 rounded-lg border bg-secondary/30 p-4"
-              >
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                    activity.type === 'success'
-                      ? 'bg-emerald-500/10'
-                      : activity.type === 'warning'
-                        ? 'bg-orange-500/10'
-                        : 'bg-blue-500/10'
-                  }`}
-                >
-                  {activity.type === 'success' && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
-                  {activity.type === 'warning' && <AlertTriangle className="h-5 w-5 text-orange-500" />}
-                  {activity.type === 'info' && <Clock className="h-5 w-5 text-blue-500" />}
+        {/* Recent activity card */}
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Recent Activity
+            </h2>
+          </div>
+          <div>
+            {recentActivityStatic.map((item) => (
+              <div key={item.id} className="flex items-start gap-3 py-3 border-b border-white/[0.04] last:border-0">
+                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                  item.type === 'success' ? 'bg-emerald-500' :
+                  item.type === 'warning' ? 'bg-amber-500' :
+                  'bg-indigo-400'
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-sans text-sm text-[#F0F0F5] font-medium">{item.action}</p>
+                  <p className="font-sans text-xs text-[#55576A] mt-0.5">{item.vendor}</p>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{activity.action}</p>
-                  <p className="text-sm text-muted-foreground">{activity.vendor}</p>
-                </div>
-                <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  {activity.timestamp}
-                </span>
+                <span className="font-mono text-[10px] text-[#55576A] flex-shrink-0">{item.timestamp}</span>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <Link to="/assessments/new" className="group">
-          <Card className="transition-colors hover:border-primary">
-            <CardContent className="p-6">
-              <Shield className="mb-3 h-8 w-8 text-primary" />
-              <h3 className="mb-2 font-semibold">Start Assessment</h3>
-              <p className="text-sm text-muted-foreground">
-                Begin a new NIST CSF 2.0 assessment using the guided wizard
-              </p>
-              <ArrowRight className="mt-4 h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/vendors" className="group">
-          <Card className="transition-colors hover:border-primary">
-            <CardContent className="p-6">
-              <Building2 className="mb-3 h-8 w-8 text-primary" />
-              <h3 className="mb-2 font-semibold">Manage Vendors</h3>
-              <p className="text-sm text-muted-foreground">
-                Review vendor assessments and risk scores
-              </p>
-              <ArrowRight className="mt-4 h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/assessment/checklist" className="group">
-          <Card className="transition-colors hover:border-primary">
-            <CardContent className="p-6">
-              <CheckCircle2 className="mb-3 h-8 w-8 text-primary" />
-              <h3 className="mb-2 font-semibold">View Checklist</h3>
-              <p className="text-sm text-muted-foreground">
-                Access the full NIST CSF checklist and track progress
-              </p>
-              <ArrowRight className="mt-4 h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
-            </CardContent>
-          </Card>
-        </Link>
+      {/* Recent assessments */}
+      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+          <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+            Recent Assessments
+          </h2>
+        </div>
+        {assessments.length > 0 ? (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-white/[0.06]">
+                <th className="text-left py-2.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Assessment</th>
+                <th className="text-left py-2.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Type</th>
+                <th className="text-left py-2.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Score</th>
+                <th className="text-left py-2.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assessments.slice(0, 5).map((a) => (
+                <tr key={a.id} className="border-b border-white/[0.03] hover:bg-amber-500/[0.03] transition-colors cursor-pointer">
+                  <td className="py-3 font-sans text-sm text-[#F0F0F5] font-medium">{a.name}</td>
+                  <td className="py-3">
+                    <span className="font-mono text-[11px] text-[#8E8FA8] bg-white/[0.04] px-2 py-0.5 rounded">
+                      {a.assessment_type}
+                    </span>
+                  </td>
+                  <td className="py-3 font-display text-sm font-semibold text-amber-400 tabular-nums">
+                    {a.overall_score != null ? `${a.overall_score.toFixed(0)}%` : '—'}
+                  </td>
+                  <td className="py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-sans font-medium ${
+                      a.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                      a.status === 'in_progress' ? 'bg-indigo-500/10 text-indigo-400' :
+                      'bg-white/[0.06] text-[#8E8FA8]'
+                    }`}>
+                      {a.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="text-center py-8">
+            <p className="font-sans text-sm text-[#55576A]">No assessments yet</p>
+          </div>
+        )}
       </div>
     </div>
   );

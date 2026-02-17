@@ -7,47 +7,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { vendorsApi, type UpdateVendorData } from '../api/vendors';
 import { getErrorMessage } from '../api/client';
-import Skeleton from '../components/Skeleton.new';
 
 interface FormErrors {
   name?: string;
   contact_email?: string;
 }
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: '13px',
-  fontWeight: 500,
-  color: 'var(--text-2)',
-  marginBottom: '6px',
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 14px',
-  fontSize: '14px',
-  color: 'var(--text-1)',
-  background: 'var(--card)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)',
-  outline: 'none',
-  transition: 'border-color 150ms ease',
-  boxSizing: 'border-box',
-};
-
-const inputErrorStyle: React.CSSProperties = {
-  ...inputStyle,
-  borderColor: 'var(--red)',
-};
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: '16px',
-  fontWeight: 600,
-  color: 'var(--text-1)',
-  marginBottom: '16px',
-  paddingBottom: '12px',
-  borderBottom: '1px solid var(--border)',
-};
 
 const industries = [
   'Technology',
@@ -62,6 +26,10 @@ const industries = [
 ];
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const inputClass = "w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors";
+const inputErrorClass = "w-full px-3 py-2.5 bg-white/[0.04] border border-red-500/40 rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-red-500/60 transition-colors";
+const selectClass = "w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] focus:outline-none focus:border-amber-500/40 transition-colors appearance-none cursor-pointer";
 
 export default function VendorEdit() {
   const { id } = useParams<{ id: string }>();
@@ -159,35 +127,20 @@ export default function VendorEdit() {
     }
   };
 
-  const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    e.currentTarget.style.borderColor = 'var(--accent)';
-  };
-
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, hasError: boolean) => {
-    e.currentTarget.style.borderColor = hasError ? 'var(--red)' : 'var(--border)';
-  };
-
   if (loading) {
     return (
-      <div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '28px' }}>
-          <Skeleton w="40px" h="40px" />
-          <Skeleton w="200px" h="28px" />
+      <div className="animate-fade-in-up space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-white/[0.06] animate-pulse" />
+          <div className="h-7 w-48 bg-white/[0.06] rounded animate-pulse" />
         </div>
-        <div
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '28px',
-          }}
-        >
-          <Skeleton w="150px" h="20px" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '20px' }}>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 animate-pulse">
+          <div className="h-4 w-32 bg-white/[0.06] rounded mb-6" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i}>
-                <Skeleton w="80px" h="14px" />
-                <Skeleton w="100%" h="42px" />
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-20 bg-white/[0.06] rounded" />
+                <div className="h-10 w-full bg-white/[0.04] rounded-lg" />
               </div>
             ))}
           </div>
@@ -198,319 +151,219 @@ export default function VendorEdit() {
 
   if (error) {
     return (
-      <div
-        style={{
-          background: 'var(--red-subtle)',
-          border: '1px solid var(--red)',
-          borderRadius: 'var(--radius-md)',
-          padding: '16px',
-          color: 'var(--red-text)',
-        }}
-      >
-        {error}
+      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+        <p className="font-sans text-sm text-red-400">{error}</p>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="animate-fade-in-up space-y-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5">
+        <Link to="/vendors" className="font-sans text-xs text-[#55576A] hover:text-[#8E8FA8] transition-colors">
+          Vendors
+        </Link>
+        <span className="text-[#55576A] text-xs">/</span>
+        <Link to={`/vendors/${id}`} className="font-sans text-xs text-[#55576A] hover:text-[#8E8FA8] transition-colors">
+          {form.name || 'Detail'}
+        </Link>
+        <span className="text-[#55576A] text-xs">/</span>
+        <span className="font-sans text-xs text-[#8E8FA8]">Edit</span>
+      </div>
+
       {/* Header */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '28px' }}>
+      <div className="flex items-center gap-4">
         <Link
           to={`/vendors/${id}`}
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-3)',
-            textDecoration: 'none',
-            transition: 'all 150ms ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--raised)';
-            e.currentTarget.style.color = 'var(--text-1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--card)';
-            e.currentTarget.style.color = 'var(--text-3)';
-          }}
+          className="w-10 h-10 rounded-lg bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-[#55576A] hover:text-[#F0F0F5] hover:border-amber-500/30 transition-all"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft className="w-4 h-4" />
         </Link>
-        <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-1)' }}>
-          Edit Vendor
-        </h1>
+        <div>
+          <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Edit Vendor</h1>
+          <p className="font-sans text-sm text-[#8E8FA8] mt-0.5">Update vendor information</p>
+        </div>
       </div>
 
       {/* Form Card */}
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: 'var(--card)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: 'var(--shadow-xs)',
-          overflow: 'hidden',
-        }}
-      >
+      <form onSubmit={handleSubmit} className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
         {/* Section 1: Basic Information */}
-        <div style={{ padding: '28px' }}>
-          <h2 style={sectionTitleStyle}>Basic Information</h2>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '20px',
-            }}
-          >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Basic Information
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* Vendor Name */}
-            <div>
-              <label style={labelStyle}>
-                Vendor Name <span style={{ color: 'var(--red)' }}>*</span>
+            <div className="space-y-1.5">
+              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">
+                Vendor Name <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => updateField('name', e.target.value)}
                 placeholder="Enter vendor name"
-                style={errors.name ? inputErrorStyle : inputStyle}
-                onFocus={handleFocus}
-                onBlur={(e) => handleBlur(e, !!errors.name)}
+                className={errors.name ? inputErrorClass : inputClass}
               />
               {errors.name && (
-                <p style={{ fontSize: '12px', color: 'var(--red)', marginTop: '4px' }}>
-                  {errors.name}
-                </p>
+                <p className="font-sans text-[11px] text-red-400">{errors.name}</p>
               )}
             </div>
 
             {/* Industry */}
-            <div>
-              <label style={labelStyle}>Industry</label>
+            <div className="space-y-1.5">
+              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Industry</label>
               <select
                 value={form.industry}
                 onChange={(e) => updateField('industry', e.target.value)}
-                style={{ ...inputStyle, cursor: 'pointer' }}
-                onFocus={handleFocus}
-                onBlur={(e) => handleBlur(e, false)}
+                className={selectClass}
               >
-                <option value="">Select industry</option>
+                <option value="" className="bg-[#0E1018]">Select industry</option>
                 {industries.map((ind) => (
-                  <option key={ind} value={ind}>
-                    {ind}
-                  </option>
+                  <option key={ind} value={ind} className="bg-[#0E1018]">{ind}</option>
                 ))}
               </select>
             </div>
 
             {/* Website */}
-            <div>
-              <label style={labelStyle}>Website</label>
+            <div className="space-y-1.5">
+              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Website</label>
               <input
                 type="url"
                 value={form.website}
                 onChange={(e) => updateField('website', e.target.value)}
                 placeholder="https://example.com"
-                style={inputStyle}
-                onFocus={handleFocus}
-                onBlur={(e) => handleBlur(e, false)}
+                className={inputClass}
               />
             </div>
           </div>
         </div>
 
         {/* Section 2: Contact Information */}
-        <div style={{ padding: '0 28px 28px' }}>
-          <h2 style={sectionTitleStyle}>Contact Information</h2>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '20px',
-            }}
-          >
+        <div className="px-6 pb-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Contact Information
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* Contact Name */}
-            <div>
-              <label style={labelStyle}>Contact Name</label>
+            <div className="space-y-1.5">
+              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Contact Name</label>
               <input
                 type="text"
                 value={form.contact_name}
                 onChange={(e) => updateField('contact_name', e.target.value)}
                 placeholder="John Doe"
-                style={inputStyle}
-                onFocus={handleFocus}
-                onBlur={(e) => handleBlur(e, false)}
+                className={inputClass}
               />
             </div>
 
             {/* Email */}
-            <div>
-              <label style={labelStyle}>Email</label>
+            <div className="space-y-1.5">
+              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Email</label>
               <input
                 type="email"
                 value={form.contact_email}
                 onChange={(e) => updateField('contact_email', e.target.value)}
                 placeholder="contact@vendor.com"
-                style={errors.contact_email ? inputErrorStyle : inputStyle}
-                onFocus={handleFocus}
-                onBlur={(e) => handleBlur(e, !!errors.contact_email)}
+                className={errors.contact_email ? inputErrorClass : inputClass}
               />
               {errors.contact_email && (
-                <p style={{ fontSize: '12px', color: 'var(--red)', marginTop: '4px' }}>
-                  {errors.contact_email}
-                </p>
+                <p className="font-sans text-[11px] text-red-400">{errors.contact_email}</p>
               )}
             </div>
 
             {/* Phone */}
-            <div>
-              <label style={labelStyle}>Phone</label>
+            <div className="space-y-1.5">
+              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Phone</label>
               <input
                 type="text"
                 value={form.contact_phone}
                 onChange={(e) => updateField('contact_phone', e.target.value)}
                 placeholder="+1 (555) 123-4567"
-                style={inputStyle}
-                onFocus={handleFocus}
-                onBlur={(e) => handleBlur(e, false)}
+                className={inputClass}
               />
             </div>
           </div>
         </div>
 
         {/* Section 3: Risk Management */}
-        <div style={{ padding: '0 28px 28px' }}>
-          <h2 style={sectionTitleStyle}>Risk Management</h2>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '20px',
-            }}
-          >
+        <div className="px-6 pb-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Risk Management
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Criticality Level */}
-            <div>
-              <label style={labelStyle}>Criticality Level</label>
+            <div className="space-y-1.5">
+              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Criticality Level</label>
               <select
                 value={form.criticality_level}
                 onChange={(e) => updateField('criticality_level', e.target.value)}
-                style={{ ...inputStyle, cursor: 'pointer' }}
-                onFocus={handleFocus}
-                onBlur={(e) => handleBlur(e, false)}
+                className={selectClass}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
+                <option value="low" className="bg-[#0E1018]">Low</option>
+                <option value="medium" className="bg-[#0E1018]">Medium</option>
+                <option value="high" className="bg-[#0E1018]">High</option>
+                <option value="critical" className="bg-[#0E1018]">Critical</option>
               </select>
             </div>
 
             {/* Vendor Status */}
-            <div>
-              <label style={labelStyle}>Vendor Status</label>
+            <div className="space-y-1.5">
+              <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Vendor Status</label>
               <select
                 value={form.vendor_status}
                 onChange={(e) => updateField('vendor_status', e.target.value)}
-                style={{ ...inputStyle, cursor: 'pointer' }}
-                onFocus={handleFocus}
-                onBlur={(e) => handleBlur(e, false)}
+                className={selectClass}
               >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="under_review">Under Review</option>
+                <option value="active" className="bg-[#0E1018]">Active</option>
+                <option value="inactive" className="bg-[#0E1018]">Inactive</option>
+                <option value="under_review" className="bg-[#0E1018]">Under Review</option>
               </select>
             </div>
           </div>
         </div>
 
         {/* Section 4: Notes */}
-        <div style={{ padding: '0 28px 28px' }}>
-          <h2 style={sectionTitleStyle}>Notes</h2>
+        <div className="px-6 pb-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Notes
+            </h2>
+          </div>
           <textarea
             value={form.notes}
             onChange={(e) => updateField('notes', e.target.value)}
-            rows={5}
+            rows={4}
             placeholder="Any additional notes about this vendor..."
-            style={{
-              ...inputStyle,
-              resize: 'vertical',
-              fontFamily: 'var(--font-ui)',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--accent)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border)';
-            }}
+            className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors resize-none"
           />
         </div>
 
         {/* Form Footer */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            padding: '20px 28px',
-            borderTop: '1px solid var(--border)',
-            background: 'var(--raised)',
-          }}
-        >
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/[0.06] bg-white/[0.02]">
           <Link
             to={`/vendors/${id}`}
-            style={{
-              padding: '10px 20px',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: 'var(--text-2)',
-              background: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              transition: 'all 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--raised)';
-              e.currentTarget.style.color = 'var(--text-1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--card)';
-              e.currentTarget.style.color = 'var(--text-2)';
-            }}
+            className="inline-flex items-center px-4 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-white/[0.15] hover:text-[#F0F0F5] transition-all"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={submitting}
-            style={{
-              padding: '10px 24px',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: 'var(--text-on-accent)',
-              background: submitting ? 'var(--text-4)' : 'var(--accent)',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!submitting) e.currentTarget.style.background = 'var(--accent-hover)';
-            }}
-            onMouseLeave={(e) => {
-              if (!submitting) e.currentTarget.style.background = 'var(--accent)';
-            }}
+            className="inline-flex items-center gap-2 px-5 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {submitting && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
             Update Vendor
           </button>
         </div>

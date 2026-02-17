@@ -1,46 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Trash2, ClipboardList, Globe, Mail, User, Phone } from 'lucide-react';
+import { Edit2, Trash2, ClipboardList, Globe, Mail, User, Phone, Plus } from 'lucide-react';
 import { vendorsApi } from '../api/vendors';
 import { assessmentsApi } from '../api/assessments';
 import type { Vendor, Assessment, VendorStats } from '../types';
 import { getErrorMessage, formatDate } from '../api/client';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Skeleton } from '../components/ui/skeleton';
-import { Alert, AlertDescription } from '../components/ui/alert';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Textarea } from '../components/ui/textarea';
-import RiskScoreIndicator from '../components/vendors/RiskScoreIndicator';
-import CriticalityBadge from '../components/vendors/CriticalityBadge';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
-
-function getRiskBadgeClass(tier?: string) {
-  switch (tier) {
-    case 'critical':
-    case 'high':
-      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-    case 'medium':
-      return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-    case 'low':
-      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-}
-
-function getAssessmentStatusClass(status: string) {
-  switch (status) {
-    case 'completed':
-      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-    case 'in_progress':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-}
 
 export default function VendorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -119,334 +84,446 @@ export default function VendorDetail() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between">
-          <div className="flex gap-4">
-            <Skeleton className="h-10 w-10" />
+      <div className="animate-fade-in-up space-y-6">
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-14 bg-white/[0.06] rounded animate-pulse" />
+          <span className="text-[#55576A] text-xs">/</span>
+          <div className="h-3 w-24 bg-white/[0.06] rounded animate-pulse" />
+        </div>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 animate-pulse">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-white/[0.06]" />
             <div className="space-y-2">
-              <Skeleton className="h-7 w-56" />
-              <Skeleton className="h-4 w-40" />
+              <div className="h-6 w-48 bg-white/[0.06] rounded" />
+              <div className="h-3 w-32 bg-white/[0.04] rounded" />
             </div>
           </div>
-          <Skeleton className="h-10 w-24" />
         </div>
-        <Skeleton className="h-40 w-full" />
-        <div className="grid grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 animate-pulse">
+              <div className="h-8 w-16 bg-white/[0.06] rounded mb-1" />
+              <div className="h-3 w-24 bg-white/[0.04] rounded" />
+            </div>
+          ))}
         </div>
-        <Skeleton className="h-64 w-full" />
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 animate-pulse">
+          <div className="h-40 w-full bg-white/[0.04] rounded" />
+        </div>
       </div>
     );
   }
 
   if (error || !vendor) {
     return (
-      <Alert variant="destructive">
-        <AlertDescription>{error || 'Vendor not found'}</AlertDescription>
-      </Alert>
+      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+        <p className="font-sans text-sm text-red-400">{error || 'Vendor not found'}</p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start flex-wrap gap-4">
-        <div className="flex gap-4 items-start">
-          <Link to="/vendors">
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{vendor.name}</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Added {formatDate(vendor.created_at)}
-              {vendor.last_assessment_date && ` • Last assessed ${formatDate(vendor.last_assessment_date)}`}
-            </p>
+    <div className="animate-fade-in-up space-y-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5">
+        <Link to="/vendors" className="font-sans text-xs text-[#55576A] hover:text-[#8E8FA8] transition-colors">
+          Vendors
+        </Link>
+        <span className="text-[#55576A] text-xs">/</span>
+        <span className="font-sans text-xs text-[#8E8FA8]">{vendor.name}</span>
+      </div>
+
+      {/* Vendor header card */}
+      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            {/* Large avatar */}
+            <div className="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <span className="font-display text-xl font-bold text-amber-400">
+                {vendor.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <h1 className="font-display text-xl font-bold text-[#F0F0F5] mb-1">{vendor.name}</h1>
+              <div className="flex items-center gap-2.5">
+                {vendor.industry && (
+                  <span className="font-sans text-xs text-[#8E8FA8]">{vendor.industry}</span>
+                )}
+                {(vendor.risk_tier || vendor.criticality_level) && (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-sans text-[10px] font-medium uppercase tracking-wide border ${
+                    (vendor.risk_tier || vendor.criticality_level) === 'critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                    (vendor.risk_tier || vendor.criticality_level) === 'high' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                    (vendor.risk_tier || vendor.criticality_level) === 'medium' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
+                    'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  }`}>
+                    {vendor.risk_tier || vendor.criticality_level || 'medium'}
+                  </span>
+                )}
+                {vendor.last_assessment_date && (
+                  <span className="font-sans text-[11px] text-[#55576A]">
+                    Last assessed {formatDate(vendor.last_assessment_date)}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium ${getRiskBadgeClass(vendor.risk_tier)}`}>
-            {vendor.risk_tier || 'medium'} risk
-          </span>
-          {!editing && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                <Edit2 className="h-4 w-4 mr-1.5" />
-                Edit
-              </Button>
-              <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-                <Trash2 className="h-4 w-4 mr-1.5" />
-                Delete
-              </Button>
-            </>
-          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2">
+            {!editing && (
+              <>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setDeleteOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#55576A] font-sans text-sm rounded-lg hover:border-red-500/30 hover:text-red-400 transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+              </>
+            )}
+            <Link to={`/assessments/new?vendor=${id}`}>
+              <button className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
+                <Plus className="w-3.5 h-3.5" />
+                New Assessment
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
 
       {/* Edit Form */}
-      {editing ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Edit Vendor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleEdit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-name">Vendor Name *</Label>
-                  <Input
-                    id="edit-name"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-risk-tier">Risk Tier (Business Impact)</Label>
-                  <Select
-                    value={editForm.risk_tier}
-                    onValueChange={(v) => setEditForm({ ...editForm, risk_tier: v as any })}
-                  >
-                    <SelectTrigger id="edit-risk-tier"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-risk-level">Risk Level (Technical)</Label>
-                  <Select
-                    value={editForm.risk_level}
-                    onValueChange={(v) => setEditForm({ ...editForm, risk_level: v as any })}
-                  >
-                    <SelectTrigger id="edit-risk-level"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low Risk</SelectItem>
-                      <SelectItem value="medium">Medium Risk</SelectItem>
-                      <SelectItem value="high">High Risk</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-website">Website</Label>
-                  <Input
-                    id="edit-website"
-                    type="url"
-                    value={editForm.website}
-                    onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
-                    placeholder="https://example.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-email">Contact Email</Label>
-                  <Input
-                    id="edit-email"
-                    type="email"
-                    value={editForm.contact_email}
-                    onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
-                    placeholder="contact@vendor.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-contact">Contact Name</Label>
-                  <Input
-                    id="edit-contact"
-                    value={editForm.contact_name}
-                    onChange={(e) => setEditForm({ ...editForm, contact_name: e.target.value })}
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="edit-desc">Description</Label>
-                  <Textarea
-                    id="edit-desc"
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    rows={3}
-                    placeholder="Brief description of the vendor's services..."
-                  />
-                </div>
+      {editing && (
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Edit Vendor
+            </h2>
+          </div>
+          <form onSubmit={handleEdit} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Vendor Name *</label>
+                <input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
+                />
               </div>
-              <div className="flex gap-3 pt-4 border-t">
-                <Button type="submit">Save Changes</Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditing(false);
-                    setEditForm({
-                      name: vendor.name,
-                      website: vendor.website || '',
-                      contact_email: vendor.contact_email || '',
-                      contact_name: vendor.contact_name || '',
-                      description: vendor.description || '',
-                      risk_level: vendor.risk_level || 'medium',
-                      risk_tier: vendor.risk_tier || 'medium',
-                    });
-                  }}
+              <div className="space-y-1.5">
+                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Risk Tier</label>
+                <select
+                  value={editForm.risk_tier}
+                  onChange={(e) => setEditForm({ ...editForm, risk_tier: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] focus:outline-none focus:border-amber-500/40 transition-colors appearance-none"
                 >
-                  Cancel
-                </Button>
+                  <option value="low" className="bg-[#0E1018]">Low</option>
+                  <option value="medium" className="bg-[#0E1018]">Medium</option>
+                  <option value="high" className="bg-[#0E1018]">High</option>
+                  <option value="critical" className="bg-[#0E1018]">Critical</option>
+                </select>
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Contact Information */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="flex gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Email</p>
-                    {vendor.contact_email ? (
-                      <a href={`mailto:${vendor.contact_email}`} className="text-sm font-medium text-primary hover:underline">
-                        {vendor.contact_email}
-                      </a>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Globe className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Website</p>
-                    {vendor.website ? (
-                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline">
-                        {vendor.website}
-                      </a>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Phone</p>
-                    {vendor.contact_phone ? (
-                      <a href={`tel:${vendor.contact_phone}`} className="text-sm font-medium text-primary hover:underline">
-                        {vendor.contact_phone}
-                      </a>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <User className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Contact Name</p>
-                    <p className="text-sm font-medium text-foreground">{vendor.contact_name || 'Not provided'}</p>
-                  </div>
-                </div>
-                {vendor.description && (
-                  <div className="sm:col-span-2">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Description</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{vendor.description}</p>
-                  </div>
-                )}
+              <div className="space-y-1.5">
+                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Risk Level (Technical)</label>
+                <select
+                  value={editForm.risk_level}
+                  onChange={(e) => setEditForm({ ...editForm, risk_level: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] focus:outline-none focus:border-amber-500/40 transition-colors appearance-none"
+                >
+                  <option value="low" className="bg-[#0E1018]">Low Risk</option>
+                  <option value="medium" className="bg-[#0E1018]">Medium Risk</option>
+                  <option value="high" className="bg-[#0E1018]">High Risk</option>
+                </select>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Risk Score */}
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center p-6 gap-4 h-full">
-              <h3 className="text-sm font-semibold text-foreground">Risk Score</h3>
-              <RiskScoreIndicator score={vendor.latest_assessment_score ?? 0} size="lg" />
-              <CriticalityBadge level={(vendor.risk_tier || vendor.criticality_level || 'medium') as 'low' | 'medium' | 'high' | 'critical'} />
-              {vendor.last_assessment_date && (
-                <p className="text-xs text-muted-foreground">
-                  Last assessed: {formatDate(vendor.last_assessment_date)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+              <div className="space-y-1.5">
+                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Website</label>
+                <input
+                  type="url"
+                  value={editForm.website}
+                  onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+                  placeholder="https://example.com"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Contact Email</label>
+                <input
+                  type="email"
+                  value={editForm.contact_email}
+                  onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
+                  placeholder="contact@vendor.com"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Contact Name</label>
+                <input
+                  value={editForm.contact_name}
+                  onChange={(e) => setEditForm({ ...editForm, contact_name: e.target.value })}
+                  placeholder="John Doe"
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold">Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  rows={3}
+                  placeholder="Brief description of the vendor's services..."
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-4 border-t border-white/[0.06]">
+              <button
+                type="submit"
+                className="inline-flex items-center px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
+              >
+                Save Changes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  setEditForm({
+                    name: vendor.name,
+                    website: vendor.website || '',
+                    contact_email: vendor.contact_email || '',
+                    contact_name: vendor.contact_name || '',
+                    description: vendor.description || '',
+                    risk_level: vendor.risk_level || 'medium',
+                    risk_tier: vendor.risk_tier || 'medium',
+                  });
+                }}
+                className="inline-flex items-center px-4 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-white/[0.15] hover:text-[#F0F0F5] transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* Stats */}
+      {/* Contact & Risk Info - shown when not editing */}
+      {!editing && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Contact Information */}
+          <div className="lg:col-span-2 bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+              <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+                Contact Information
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
+                  <Mail className="w-3.5 h-3.5 text-[#55576A]" />
+                </div>
+                <div>
+                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Email</p>
+                  {vendor.contact_email ? (
+                    <a href={`mailto:${vendor.contact_email}`} className="font-sans text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                      {vendor.contact_email}
+                    </a>
+                  ) : (
+                    <p className="font-sans text-sm text-[#55576A]">Not provided</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
+                  <Globe className="w-3.5 h-3.5 text-[#55576A]" />
+                </div>
+                <div>
+                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Website</p>
+                  {vendor.website ? (
+                    <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="font-sans text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                      {vendor.website}
+                    </a>
+                  ) : (
+                    <p className="font-sans text-sm text-[#55576A]">Not provided</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
+                  <Phone className="w-3.5 h-3.5 text-[#55576A]" />
+                </div>
+                <div>
+                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Phone</p>
+                  {vendor.contact_phone ? (
+                    <a href={`tel:${vendor.contact_phone}`} className="font-sans text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                      {vendor.contact_phone}
+                    </a>
+                  ) : (
+                    <p className="font-sans text-sm text-[#55576A]">Not provided</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
+                  <User className="w-3.5 h-3.5 text-[#55576A]" />
+                </div>
+                <div>
+                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Contact Name</p>
+                  <p className="font-sans text-sm text-[#F0F0F5]">{vendor.contact_name || 'Not provided'}</p>
+                </div>
+              </div>
+              {vendor.description && (
+                <div className="sm:col-span-2">
+                  <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#55576A] font-semibold mb-1">Description</p>
+                  <p className="font-sans text-sm text-[#8E8FA8] leading-relaxed">{vendor.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Risk Score card */}
+          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 flex flex-col items-center justify-center gap-3">
+            <div className="flex items-center gap-3 w-full mb-2">
+              <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+              <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+                Risk Score
+              </h2>
+            </div>
+            <div className={`font-display text-5xl font-bold tabular-nums ${
+              (vendor.latest_assessment_score ?? 0) >= 80 ? 'text-emerald-400' :
+              (vendor.latest_assessment_score ?? 0) >= 50 ? 'text-amber-400' : 'text-red-400'
+            }`}>
+              {vendor.latest_assessment_score != null ? `${vendor.latest_assessment_score}%` : '—'}
+            </div>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-wide border ${
+              (vendor.risk_tier || vendor.criticality_level || 'medium') === 'critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+              (vendor.risk_tier || vendor.criticality_level || 'medium') === 'high' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+              (vendor.risk_tier || vendor.criticality_level || 'medium') === 'medium' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
+              'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            }`}>
+              {vendor.risk_tier || vendor.criticality_level || 'medium'} risk
+            </span>
+            {vendor.last_assessment_date && (
+              <p className="font-sans text-[11px] text-[#55576A]">
+                Last assessed: {formatDate(vendor.last_assessment_date)}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stats row - 4 cards */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Assessments', value: stats.totalAssessments, className: 'text-primary' },
-            { label: 'Completed', value: stats.completedAssessments, className: 'text-green-600' },
-            { label: 'In Progress', value: stats.inProgressAssessments, className: 'text-blue-600' },
-            { label: 'Avg Score', value: `${stats.averageScore?.toFixed(1) || '0.0'}%`, className: 'text-purple-600' },
-          ].map((stat) => (
-            <Card key={stat.label}>
-              <CardContent className="p-5 text-center">
-                <p className={`text-3xl font-bold font-mono ${stat.className}`}>{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </CardContent>
-            </Card>
-          ))}
+          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
+            <div className="font-display text-2xl font-bold text-amber-400 tabular-nums mb-1">
+              {stats.totalAssessments ?? 0}
+            </div>
+            <div className="font-sans text-xs text-[#8E8FA8]">Total Assessments</div>
+          </div>
+          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
+            <div className="font-display text-2xl font-bold text-emerald-400 tabular-nums mb-1">
+              {stats.completedAssessments ?? 0}
+            </div>
+            <div className="font-sans text-xs text-[#8E8FA8]">Completed</div>
+          </div>
+          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
+            <div className="font-display text-2xl font-bold text-indigo-400 tabular-nums mb-1">
+              {stats.inProgressAssessments ?? 0}
+            </div>
+            <div className="font-sans text-xs text-[#8E8FA8]">In Progress</div>
+          </div>
+          <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
+            <div className={`font-display text-2xl font-bold tabular-nums mb-1 ${
+              (stats.averageScore ?? 0) >= 80 ? 'text-emerald-400' :
+              (stats.averageScore ?? 0) >= 50 ? 'text-amber-400' : 'text-red-400'
+            }`}>
+              {stats.averageScore != null ? `${stats.averageScore.toFixed(1)}%` : '—'}
+            </div>
+            <div className="font-sans text-xs text-[#8E8FA8]">Avg Score</div>
+          </div>
         </div>
       )}
 
       {/* Assessment History */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Assessment History</CardTitle>
+      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Assessment History
+            </h2>
+          </div>
           <Link to={`/assessments/new?vendor=${id}`}>
-            <Button size="sm">
-              <ClipboardList className="h-4 w-4 mr-1.5" />
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-xs rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all">
+              <ClipboardList className="w-3 h-3" />
               New Assessment
-            </Button>
+            </button>
           </Link>
-        </CardHeader>
-        <CardContent>
-          {assessments.length === 0 ? (
-            <div className="text-center py-12">
-              <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground mb-5">No assessments yet</p>
-              <Link to={`/assessments/new?vendor=${id}`}>
-                <Button>Create First Assessment</Button>
-              </Link>
+        </div>
+
+        {assessments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center mb-3">
+              <ClipboardList className="w-5 h-5 text-amber-500/50" />
             </div>
-          ) : (
-            <div className="space-y-3">
-              {assessments.map((assessment) => (
-                <Link key={assessment.id} to={`/assessments/${assessment.id}`} className="block">
-                  <div className="flex justify-between items-start gap-4 p-4 border rounded-lg hover:border-primary/50 hover:shadow-sm transition-all">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground">{assessment.name}</h3>
-                      {assessment.description && (
-                        <p className="text-sm text-muted-foreground mt-0.5 truncate">{assessment.description}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Started {formatDate(assessment.created_at)}
-                        {assessment.completed_at && ` • Completed ${formatDate(assessment.completed_at)}`}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getAssessmentStatusClass(assessment.status)}`}>
-                        {assessment.status === 'in_progress' ? 'in progress' : assessment.status}
-                      </span>
-                      {assessment.overall_score != null && (
-                        <span className="text-lg font-bold font-mono text-foreground">
-                          {assessment.overall_score.toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
+            <p className="font-display text-sm font-semibold text-[#F0F0F5] mb-1">No assessments yet</p>
+            <p className="font-sans text-xs text-[#8E8FA8] mb-4">Create the first assessment for this vendor</p>
+            <Link to={`/assessments/new?vendor=${id}`}>
+              <button className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
+                Create First Assessment
+              </button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {assessments.map((assessment) => (
+              <Link key={assessment.id} to={`/assessments/${assessment.id}`} className="block group">
+                <div className="flex justify-between items-center gap-4 p-4 rounded-lg border border-white/[0.04] hover:border-amber-500/20 hover:bg-amber-500/[0.02] transition-all">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-sans text-sm font-medium text-[#F0F0F5] group-hover:text-amber-400 transition-colors">
+                      {assessment.name}
+                    </h3>
+                    {assessment.description && (
+                      <p className="font-sans text-xs text-[#55576A] mt-0.5 truncate">{assessment.description}</p>
+                    )}
+                    <p className="font-mono text-[10px] text-[#55576A] mt-1">
+                      Started {formatDate(assessment.created_at)}
+                      {assessment.completed_at && ` \u00B7 Completed ${formatDate(assessment.completed_at)}`}
+                    </p>
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium border ${
+                      assessment.status === 'completed'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : assessment.status === 'in_progress'
+                        ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                        : 'bg-white/[0.04] text-[#8E8FA8] border-white/[0.07]'
+                    }`}>
+                      {assessment.status === 'in_progress' ? 'In Progress' : assessment.status}
+                    </span>
+                    {assessment.overall_score != null && (
+                      <span className={`font-display text-lg font-bold tabular-nums ${
+                        assessment.overall_score >= 80 ? 'text-emerald-400' :
+                        assessment.overall_score >= 50 ? 'text-amber-400' : 'text-red-400'
+                      }`}>
+                        {assessment.overall_score.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 
       <DeleteConfirmDialog
         open={deleteOpen}

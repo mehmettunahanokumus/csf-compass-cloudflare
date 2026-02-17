@@ -1,6 +1,4 @@
 import { type LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/components/ui/utils";
 
 interface MetricCardProps {
   label: string;
@@ -19,40 +17,40 @@ export function MetricCard({
   label,
   value,
   icon: Icon,
-  iconColor = "text-primary",
+  iconColor = "text-amber-400",
   trend,
   subtitle,
-  className,
+  className = "",
 }: MetricCardProps) {
   return (
-    <Card className={cn("bg-card border-border", className)}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="text-3xl font-semibold">{value}</p>
-            {trend && (
-              <div className="flex items-center gap-1 text-xs">
-                {trend.positive ? (
-                  <TrendingUp className="h-3 w-3 text-green-500" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-red-500" />
-                )}
-                <span className={trend.positive ? "text-green-500" : "text-red-500"}>
-                  {trend.value}
-                </span>
-              </div>
-            )}
-            {subtitle && (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
-            )}
-          </div>
-          <div className={cn("rounded-lg bg-primary/10 p-2.5", iconColor.includes("text-") ? "" : "")}>
-            <Icon className={cn("h-5 w-5", iconColor)} />
-          </div>
+    <div
+      className={`bg-[#0E1018] border border-white/[0.07] rounded-xl p-5 hover:border-amber-500/15 transition-all ${className}`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <p className="font-sans text-xs text-[#8E8FA8]">{label}</p>
+          <p className="font-display text-2xl font-bold text-[#F0F0F5] tabular-nums">{value}</p>
+          {trend && (
+            <div className="flex items-center gap-1 text-xs">
+              {trend.positive ? (
+                <TrendingUp className="h-3 w-3 text-emerald-400" />
+              ) : (
+                <TrendingDown className="h-3 w-3 text-red-400" />
+              )}
+              <span className={`font-mono text-[11px] font-medium ${trend.positive ? "text-emerald-400" : "text-red-400"}`}>
+                {trend.value}
+              </span>
+            </div>
+          )}
+          {subtitle && (
+            <p className="font-sans text-[11px] text-[#55576A]">{subtitle}</p>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center flex-shrink-0">
+          <Icon className={`h-5 w-5 ${iconColor}`} />
+        </div>
+      </div>
+    </div>
   );
 }
 

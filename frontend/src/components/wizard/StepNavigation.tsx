@@ -33,19 +33,13 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
         dots.push(
           <div
             key={i}
-            style={{
-              width: i === currentStep ? '10px' : '8px',
-              height: i === currentStep ? '10px' : '8px',
-              borderRadius: '50%',
-              background:
-                i === currentStep
-                  ? 'var(--accent)'
-                  : completedSteps.includes(i)
-                    ? 'var(--green)'
-                    : 'var(--border-hover)',
-              transition: 'all 0.2s ease',
-              flexShrink: 0,
-            }}
+            className={`rounded-full transition-all ${
+              i === currentStep
+                ? 'w-2.5 h-2.5 bg-amber-500'
+                : completedSteps.includes(i)
+                  ? 'w-2 h-2 bg-emerald-500/60'
+                  : 'w-2 h-2 bg-white/[0.1]'
+            }`}
           />
         );
       }
@@ -56,7 +50,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
 
       if (adjustedStart > 0) {
         dots.push(
-          <span key="start-ellipsis" style={{ color: 'var(--text-3)', fontSize: '12px' }}>
+          <span key="start-ellipsis" className="font-mono text-[10px] text-[#55576A]">
             ...
           </span>
         );
@@ -66,26 +60,20 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
         dots.push(
           <div
             key={i}
-            style={{
-              width: i === currentStep ? '10px' : '8px',
-              height: i === currentStep ? '10px' : '8px',
-              borderRadius: '50%',
-              background:
-                i === currentStep
-                  ? 'var(--accent)'
-                  : completedSteps.includes(i)
-                    ? 'var(--green)'
-                    : 'var(--border-hover)',
-              transition: 'all 0.2s ease',
-              flexShrink: 0,
-            }}
+            className={`rounded-full transition-all ${
+              i === currentStep
+                ? 'w-2.5 h-2.5 bg-amber-500'
+                : completedSteps.includes(i)
+                  ? 'w-2 h-2 bg-emerald-500/60'
+                  : 'w-2 h-2 bg-white/[0.1]'
+            }`}
           />
         );
       }
 
       if (end < totalSteps - 1) {
         dots.push(
-          <span key="end-ellipsis" style={{ color: 'var(--text-3)', fontSize: '12px' }}>
+          <span key="end-ellipsis" className="font-mono text-[10px] text-[#55576A]">
             ...
           </span>
         );
@@ -96,105 +84,37 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'sticky',
-        bottom: 0,
-        zIndex: 30,
-        background: 'var(--card)',
-        borderTop: '1px solid var(--border)',
-        padding: '16px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '16px',
-      }}
-    >
+    <div className="sticky bottom-0 z-30 bg-[#08090E]/95 backdrop-blur-sm border-t border-white/[0.06] px-6 py-4 flex items-center justify-between gap-4">
       {/* Left: Previous */}
       <button
         onClick={onPrevious}
         disabled={isFirstStep}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '8px 16px',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)',
-          background: 'transparent',
-          color: isFirstStep ? 'var(--text-4)' : 'var(--text-2)',
-          fontSize: '13px',
-          fontWeight: 500,
-          fontFamily: 'var(--font-sans)',
-          cursor: isFirstStep ? 'not-allowed' : 'pointer',
-          opacity: isFirstStep ? 0.5 : 1,
-          transition: 'all 0.15s ease',
-        }}
-        onMouseEnter={(e) => {
-          if (!isFirstStep) {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-hover)';
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--sidebar-hover)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)';
-          (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-        }}
+        className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-white/[0.07] disabled:hover:text-[#8E8FA8]"
       >
-        <ChevronLeft size={16} />
+        <ChevronLeft className="w-4 h-4" />
         Previous
       </button>
 
       {/* Center: Dot indicators */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-        }}
-      >
+      <div className="hidden md:flex items-center gap-1.5">
         {renderDots()}
       </div>
 
       {/* Right: Save Draft + Next */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="flex items-center gap-2">
         <button
           onClick={onSaveDraft}
           disabled={isSaving}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 16px',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'transparent',
-            color: isSaving ? 'var(--text-3)' : 'var(--text-2)',
-            fontSize: '13px',
-            fontWeight: 500,
-            fontFamily: 'var(--font-sans)',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (!isSaving) {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-hover)';
-              (e.currentTarget as HTMLButtonElement).style.background = 'var(--sidebar-hover)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)';
-            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-          }}
+          className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? (
             <>
-              <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
               Saving...
             </>
           ) : (
             <>
-              <Save size={14} />
+              <Save className="w-3.5 h-3.5" />
               Save Draft
             </>
           )}
@@ -202,37 +122,21 @@ const StepNavigation: React.FC<StepNavigationProps> = ({
 
         <button
           onClick={onNext}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 20px',
-            border: 'none',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--accent)',
-            color: 'var(--text-on-accent)',
-            fontSize: '13px',
-            fontWeight: 600,
-            fontFamily: 'var(--font-sans)',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-hover)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)';
-          }}
+          className={`inline-flex items-center gap-1.5 px-4 py-2 font-display text-sm font-semibold rounded-lg transition-colors ${
+            isLastStep
+              ? 'bg-emerald-500 text-[#08090E] hover:bg-emerald-400'
+              : 'bg-amber-500 text-[#08090E] hover:bg-amber-400'
+          }`}
         >
           {isLastStep ? (
             <>
               Complete Assessment
-              <CheckCircle2 size={16} />
+              <CheckCircle2 className="w-4 h-4" />
             </>
           ) : (
             <>
               Next
-              <ChevronRight size={16} />
+              <ChevronRight className="w-4 h-4" />
             </>
           )}
         </button>

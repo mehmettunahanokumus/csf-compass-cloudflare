@@ -1,6 +1,6 @@
 /**
- * NewAssessment - Rebuilt from scratch
- * Multi-step wizard for creating organization or vendor assessments
+ * NewAssessment - Multi-step wizard for creating organization or vendor assessments
+ * CIPHER design system
  */
 
 import { useEffect, useState } from 'react';
@@ -10,7 +10,6 @@ import { assessmentsApi } from '../api/assessments';
 import { vendorsApi } from '../api/vendors';
 import type { Vendor } from '../types';
 import { getErrorMessage } from '../api/client';
-import Skeleton from '../components/Skeleton.new';
 
 type AssessmentType = 'organization' | 'vendor';
 
@@ -64,7 +63,6 @@ export default function NewAssessmentNew() {
   };
 
   const handleNext = () => {
-    // Validation for step 2 (vendor selection)
     if (step === 2 && formData.type === 'vendor' && !formData.vendorId) {
       alert('Please select a vendor');
       return;
@@ -108,55 +106,36 @@ export default function NewAssessmentNew() {
     return true;
   };
 
-  const getRiskBadge = (riskLevel: string) => {
+  const getRiskBadgeClass = (riskLevel: string) => {
     switch (riskLevel) {
       case 'high':
-        return { bg: 'var(--red-subtle)', color: 'var(--red-text)' };
+        return 'bg-red-500/10 text-red-400';
       case 'medium':
-        return { bg: 'var(--orange-subtle)', color: 'var(--orange-text)' };
+        return 'bg-amber-500/10 text-amber-400';
       case 'low':
-        return { bg: 'var(--green-subtle)', color: 'var(--green-text)' };
+        return 'bg-emerald-500/10 text-emerald-400';
       default:
-        return { bg: 'var(--gray-subtle)', color: 'var(--gray-text)' };
+        return 'bg-white/[0.06] text-[#8E8FA8]';
     }
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+    <div className="max-w-[800px] mx-auto animate-fade-in-up">
       {/* Header */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'start', marginBottom: '32px' }}>
+      <div className="flex gap-4 items-start mb-8">
         <Link
           to="/assessments"
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-3)',
-            textDecoration: 'none',
-            transition: 'all 150ms ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--raised)';
-            e.currentTarget.style.color = 'var(--text-1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--card)';
-            e.currentTarget.style.color = 'var(--text-3)';
-          }}
+          className="bg-[#0E1018] border border-white/[0.07] rounded-lg p-2.5 flex items-center justify-center text-[#8E8FA8] hover:text-[#F0F0F5] hover:border-amber-500/20 transition-all"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '4px' }}>
+          <h1 className="font-display text-2xl font-bold text-[#F0F0F5] mb-1">
             Create New Assessment
           </h1>
-          <p style={{ fontSize: '14px', color: 'var(--text-3)' }}>
-            Step <span style={{ fontFamily: 'var(--font-mono)' }}>{step}</span> of{' '}
-            <span style={{ fontFamily: 'var(--font-mono)' }}>3</span> -{' '}
+          <p className="font-sans text-sm text-[#8E8FA8]">
+            Step <span className="font-mono">{step}</span> of{' '}
+            <span className="font-mono">3</span> —{' '}
             {step === 1
               ? 'Assessment Type'
               : step === 2
@@ -169,47 +148,24 @@ export default function NewAssessmentNew() {
       </div>
 
       {/* Progress Bar */}
-      <div
-        style={{
-          background: 'var(--card)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '24px',
-          marginBottom: '28px',
-          boxShadow: 'var(--shadow-xs)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 mb-7">
+        <div className="flex items-center">
           {[1, 2, 3].map((s) => (
-            <div key={s} style={{ display: 'flex', alignItems: 'center', flex: s < 3 ? 1 : 'unset' }}>
+            <div key={s} className={`flex items-center ${s < 3 ? 'flex-1' : ''}`}>
               <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '16px',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-mono)',
-                  background: s <= step ? 'var(--accent)' : 'var(--ground)',
-                  color: s <= step ? 'var(--text-on-accent)' : 'var(--text-4)',
-                  transition: 'all 300ms ease',
-                }}
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-mono text-base font-semibold transition-all duration-300 ${
+                  s <= step
+                    ? 'bg-amber-500 text-[#08090E]'
+                    : 'bg-[#08090E] text-[#55576A]'
+                }`}
               >
                 {s}
               </div>
               {s < 3 && (
                 <div
-                  style={{
-                    flex: 1,
-                    height: '4px',
-                    margin: '0 12px',
-                    background: s < step ? 'var(--accent)' : 'var(--border)',
-                    borderRadius: '999px',
-                    transition: 'all 300ms ease',
-                  }}
+                  className={`flex-1 h-1 mx-3 rounded-full transition-all duration-300 ${
+                    s < step ? 'bg-amber-500' : 'bg-white/[0.07]'
+                  }`}
                 />
               )}
             </div>
@@ -219,36 +175,17 @@ export default function NewAssessmentNew() {
 
       {/* Step 1: Assessment Type */}
       {step === 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(2, 1fr)', gap: '20px' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Organization Assessment */}
           <button
             onClick={() => handleTypeSelect('organization')}
-            style={{
-              background: 'var(--card)',
-              border: '2px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '36px 28px',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 200ms ease',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--accent)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-              e.currentTarget.style.transform = 'translateY(-4px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
+            className="bg-[#0E1018] border-2 border-white/[0.07] rounded-xl p-9 text-center cursor-pointer transition-all hover:border-amber-500/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/5 group"
           >
-            <Building2 size={64} style={{ color: 'var(--accent)', margin: '0 auto 20px' }} />
-            <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-1)', marginBottom: '10px' }}>
+            <Building2 className="w-16 h-16 text-amber-500/70 mx-auto mb-5 group-hover:text-amber-400 transition-colors" />
+            <h2 className="font-display text-lg font-semibold text-[#F0F0F5] mb-2.5">
               Organization Assessment
             </h2>
-            <p style={{ fontSize: '14px', color: 'var(--text-3)', lineHeight: 1.5 }}>
+            <p className="font-sans text-sm text-[#8E8FA8] leading-relaxed">
               Assess your organization's cybersecurity posture against NIST CSF 2.0 framework
             </p>
           </button>
@@ -256,32 +193,13 @@ export default function NewAssessmentNew() {
           {/* Vendor Assessment */}
           <button
             onClick={() => handleTypeSelect('vendor')}
-            style={{
-              background: 'var(--card)',
-              border: '2px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '36px 28px',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 200ms ease',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--purple)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-              e.currentTarget.style.transform = 'translateY(-4px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
+            className="bg-[#0E1018] border-2 border-white/[0.07] rounded-xl p-9 text-center cursor-pointer transition-all hover:border-purple-500/40 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/5 group"
           >
-            <ClipboardCheck size={64} style={{ color: 'var(--purple)', margin: '0 auto 20px' }} />
-            <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-1)', marginBottom: '10px' }}>
+            <ClipboardCheck className="w-16 h-16 text-purple-400/70 mx-auto mb-5 group-hover:text-purple-400 transition-colors" />
+            <h2 className="font-display text-lg font-semibold text-[#F0F0F5] mb-2.5">
               Vendor Assessment
             </h2>
-            <p style={{ fontSize: '14px', color: 'var(--text-3)', lineHeight: 1.5 }}>
+            <p className="font-sans text-sm text-[#8E8FA8] leading-relaxed">
               Evaluate a third-party vendor's security controls and compliance posture
             </p>
           </button>
@@ -290,82 +208,44 @@ export default function NewAssessmentNew() {
 
       {/* Step 2: Vendor Selection (only for vendor assessments) */}
       {step === 2 && formData.type === 'vendor' && (
-        <div
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '28px',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-1)', marginBottom: '20px' }}>
-            Select Vendor
-          </h2>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-7">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Select Vendor
+            </h2>
+          </div>
 
           {loadingVendors ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} w="100%" h="72px" />
+            <div className="space-y-3 animate-pulse">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-[72px] bg-white/[0.04] rounded-lg" />
               ))}
             </div>
           ) : vendors.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 20px' }}>
-              <p style={{ fontSize: '14px', color: 'var(--text-3)', marginBottom: '20px' }}>
+            <div className="text-center py-12">
+              <p className="font-sans text-sm text-[#55576A] mb-5">
                 No vendors found. Create a vendor first.
               </p>
               <Link
                 to="/vendors"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'var(--accent)',
-                  color: 'var(--text-on-accent)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '10px 20px',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  textDecoration: 'none',
-                  transition: 'all 150ms ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
               >
                 Go to Vendors
               </Link>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+            <div className="space-y-3 mb-6">
               {vendors.map((vendor) => {
                 const isSelected = formData.vendorId === vendor.id;
-                const riskBadge = vendor.risk_level ? getRiskBadge(vendor.risk_level) : null;
                 return (
                   <label
                     key={vendor.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '16px',
-                      border: isSelected ? '2px solid var(--accent)' : '2px solid var(--border)',
-                      borderRadius: 'var(--radius-sm)',
-                      background: isSelected ? 'var(--accent-subtle)' : 'var(--card)',
-                      cursor: 'pointer',
-                      transition: 'all 150ms ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.borderColor = 'var(--border-hover)';
-                        e.currentTarget.style.background = 'var(--raised)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.borderColor = 'var(--border)';
-                        e.currentTarget.style.background = 'var(--card)';
-                      }
-                    }}
+                    className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-amber-500/60 bg-amber-500/[0.05]'
+                        : 'border-white/[0.07] bg-[#0E1018] hover:border-white/[0.12] hover:bg-[#13151F]'
+                    }`}
                   >
                     <input
                       type="radio"
@@ -373,32 +253,18 @@ export default function NewAssessmentNew() {
                       value={vendor.id}
                       checked={isSelected}
                       onChange={(e) => handleVendorSelect(e.target.value)}
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        accentColor: 'var(--accent)',
-                        cursor: 'pointer',
-                      }}
+                      className="w-4 h-4 accent-amber-500 cursor-pointer"
                     />
-                    <div style={{ flex: 1, marginLeft: '16px' }}>
-                      <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-1)' }}>{vendor.name}</p>
-                      <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '2px' }}>
+                    <div className="flex-1 ml-4">
+                      <p className="font-sans text-sm font-semibold text-[#F0F0F5]">{vendor.name}</p>
+                      <p className="font-sans text-xs text-[#55576A] mt-0.5">
                         {vendor.website || vendor.contact_email}
                       </p>
                     </div>
-                    {riskBadge && (
-                      <div
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          background: riskBadge.bg,
-                          color: riskBadge.color,
-                        }}
-                      >
+                    {vendor.risk_level && (
+                      <span className={`font-mono text-[10px] font-medium px-2 py-0.5 rounded ${getRiskBadgeClass(vendor.risk_level)}`}>
                         {vendor.risk_level} risk
-                      </div>
+                      </span>
                     )}
                   </label>
                 );
@@ -406,65 +272,25 @@ export default function NewAssessmentNew() {
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+          <div className="flex justify-between pt-6 border-t border-white/[0.06]">
             <button
               onClick={handleBack}
-              style={{
-                background: 'var(--card)',
-                color: 'var(--text-2)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '10px 16px',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 150ms ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--raised)';
-                e.currentTarget.style.color = 'var(--text-1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--card)';
-                e.currentTarget.style.color = 'var(--text-2)';
-              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0E1018] text-[#8E8FA8] border border-white/[0.07] rounded-lg font-sans text-sm font-medium hover:text-[#F0F0F5] hover:border-white/[0.12] transition-all"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft className="w-4 h-4" />
               Back
             </button>
             <button
               onClick={handleNext}
               disabled={!canProceed()}
-              style={{
-                background: canProceed() ? 'var(--accent)' : 'var(--ground)',
-                color: canProceed() ? 'var(--text-on-accent)' : 'var(--text-4)',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                padding: '10px 16px',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: canProceed() ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 150ms ease',
-              }}
-              onMouseEnter={(e) => {
-                if (canProceed()) {
-                  e.currentTarget.style.background = 'var(--accent-hover)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (canProceed()) {
-                  e.currentTarget.style.background = 'var(--accent)';
-                }
-              }}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-display text-sm font-semibold transition-all ${
+                canProceed()
+                  ? 'bg-amber-500 text-[#08090E] hover:bg-amber-400'
+                  : 'bg-white/[0.04] text-[#55576A] cursor-not-allowed'
+              }`}
             >
               Next
-              <ArrowRight size={18} />
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -477,24 +303,18 @@ export default function NewAssessmentNew() {
 
       {/* Step 3: Assessment Details */}
       {step === 3 && (
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '28px',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-1)', marginBottom: '24px' }}>
-            Assessment Details
-          </h2>
+        <form onSubmit={handleSubmit} className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-7">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+              Assessment Details
+            </h2>
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="space-y-6">
             {/* Assessment Name */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-2)', marginBottom: '8px' }}>
+              <label className="block font-display text-[10px] tracking-[0.12em] uppercase text-[#8E8FA8] font-semibold mb-2">
                 Assessment Name *
               </label>
               <input
@@ -503,31 +323,13 @@ export default function NewAssessmentNew() {
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="e.g., Q1 2024 Security Assessment"
                 required
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  fontSize: '14px',
-                  color: 'var(--text-1)',
-                  background: 'var(--card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  outline: 'none',
-                  transition: 'all 150ms ease',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border-focus)';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-subtle)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                className="w-full px-3 py-2.5 font-sans text-sm text-[#F0F0F5] bg-white/[0.04] border border-white/[0.07] rounded-lg outline-none transition-all placeholder:text-[#55576A] focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-2)', marginBottom: '8px' }}>
+              <label className="block font-display text-[10px] tracking-[0.12em] uppercase text-[#8E8FA8] font-semibold mb-2">
                 Description
               </label>
               <textarea
@@ -535,133 +337,61 @@ export default function NewAssessmentNew() {
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 placeholder="Optional: Add notes about the scope and purpose of this assessment"
                 rows={4}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  fontSize: '14px',
-                  color: 'var(--text-1)',
-                  background: 'var(--card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  outline: 'none',
-                  resize: 'vertical',
-                  transition: 'all 150ms ease',
-                  fontFamily: 'var(--font-ui)',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border-focus)';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-subtle)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                className="w-full px-3 py-2.5 font-sans text-sm text-[#F0F0F5] bg-white/[0.04] border border-white/[0.07] rounded-lg outline-none transition-all resize-y placeholder:text-[#55576A] focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20"
               />
             </div>
 
             {/* Summary */}
-            <div
-              style={{
-                background: 'var(--ground)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '20px',
-              }}
-            >
-              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-1)', marginBottom: '16px' }}>
+            <div className="bg-[#13151F] border border-white/[0.05] rounded-lg p-5">
+              <h3 className="font-display text-[10px] tracking-[0.12em] uppercase text-[#8E8FA8] font-semibold mb-4">
                 Assessment Summary
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-3)' }}>Type:</span>
-                  <span style={{ fontWeight: 500, color: 'var(--text-1)' }}>
+              <div className="space-y-3 font-sans text-sm">
+                <div className="flex justify-between">
+                  <span className="text-[#55576A]">Type</span>
+                  <span className="font-medium text-[#F0F0F5]">
                     {formData.type === 'organization' ? 'Organization Assessment' : 'Vendor Assessment'}
                   </span>
                 </div>
                 {formData.type === 'vendor' && formData.vendorId && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-3)' }}>Vendor:</span>
-                    <span style={{ fontWeight: 500, color: 'var(--text-1)' }}>
+                  <div className="flex justify-between">
+                    <span className="text-[#55576A]">Vendor</span>
+                    <span className="font-medium text-[#F0F0F5]">
                       {vendors.find((v) => v.id === formData.vendorId)?.name}
                     </span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-3)' }}>Framework:</span>
-                  <span style={{ fontWeight: 500, color: 'var(--text-1)' }}>NIST CSF 2.0</span>
+                <div className="flex justify-between">
+                  <span className="text-[#55576A]">Framework</span>
+                  <span className="font-medium text-[#F0F0F5]">NIST CSF 2.0</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-3)' }}>Subcategories:</span>
-                  <span style={{ fontWeight: 500, fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>
-                    120 (across 6 functions)
+                <div className="flex justify-between">
+                  <span className="text-[#55576A]">Subcategories</span>
+                  <span className="font-mono font-medium text-amber-400">
+                    120 <span className="text-[#55576A] font-sans font-normal">(across 6 functions)</span>
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              paddingTop: '24px',
-              marginTop: '24px',
-              borderTop: '1px solid var(--border)',
-            }}
-          >
+          <div className="flex justify-between pt-6 mt-6 border-t border-white/[0.06]">
             <button
               type="button"
               onClick={handleBack}
-              style={{
-                background: 'var(--card)',
-                color: 'var(--text-2)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '10px 16px',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 150ms ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--raised)';
-                e.currentTarget.style.color = 'var(--text-1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--card)';
-                e.currentTarget.style.color = 'var(--text-2)';
-              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0E1018] text-[#8E8FA8] border border-white/[0.07] rounded-lg font-sans text-sm font-medium hover:text-[#F0F0F5] hover:border-white/[0.12] transition-all"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft className="w-4 h-4" />
               Back
             </button>
             <button
               type="submit"
               disabled={loading}
-              style={{
-                background: loading ? 'var(--ground)' : 'var(--accent)',
-                color: loading ? 'var(--text-4)' : 'var(--text-on-accent)',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                padding: '10px 24px',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'all 150ms ease',
-              }}
-              onMouseEnter={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.background = 'var(--accent-hover)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.background = 'var(--accent)';
-                }
-              }}
+              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-display text-sm font-semibold transition-all ${
+                loading
+                  ? 'bg-white/[0.04] text-[#55576A] cursor-not-allowed'
+                  : 'bg-amber-500 text-[#08090E] hover:bg-amber-400'
+              }`}
             >
               {loading ? 'Creating...' : 'Create Assessment'}
             </button>

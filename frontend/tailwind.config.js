@@ -7,132 +7,150 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Sidebar (always dark)
-        sidebar: {
-          bg: 'var(--sidebar-bg)',
-          'bg-hover': 'var(--sidebar-bg-hover)',
-          'bg-active': 'var(--sidebar-bg-active)',
-          text: 'var(--sidebar-text)',
-          'text-active': 'var(--sidebar-text-active)',
-          'text-muted': 'var(--sidebar-text-muted)',
-          border: 'var(--sidebar-border)',
-          'section-label': 'var(--sidebar-section-label)',
-          accent: 'var(--sidebar-accent)',
-          'user-bg': 'var(--sidebar-user-bg)',
+        // Primary accent - Amber Gold
+        primary: {
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
+          dim: 'var(--accent-dim)',
+          glow: 'var(--accent-glow)',
         },
 
-        // Top Navigation
-        topnav: {
-          bg: 'var(--topnav-bg)',
-          border: 'var(--topnav-border)',
-          text: 'var(--topnav-text)',
-          'text-secondary': 'var(--topnav-text-secondary)',
+        // Amber
+        amber: {
+          DEFAULT: '#F59E0B',
+          dim: 'rgba(245,158,11,0.12)',
+          glow: 'rgba(245,158,11,0.3)',
+          50: '#FFFBEB',
+          100: '#FEF3C7',
+          200: '#FDE68A',
+          300: '#FCD34D',
+          400: '#FBBF24',
+          500: '#F59E0B',
+          600: '#D97706',
+          700: '#B45309',
+          800: '#92400E',
+          900: '#78350F',
+          950: '#1C0A00',
         },
 
-        // Content Area
-        page: {
-          bg: 'var(--page-bg)',
+        // Jade Green
+        jade: {
+          DEFAULT: '#10B981',
+          dim: 'rgba(16,185,129,0.12)',
+          glow: 'rgba(16,185,129,0.2)',
+        },
+
+        // Legacy cyber palette (keep for compatibility)
+        cyber: {
+          DEFAULT: '#F59E0B',
+          dim: 'rgba(245,158,11,0.12)',
+          glow: 'rgba(245,158,11,0.3)',
+          green: '#10B981',
+          red: '#EF4444',
+        },
+
+        // Surfaces
+        ground: 'var(--ground)',
+        surface: {
+          1: 'var(--surface-1)',
+          2: 'var(--surface-2)',
+          3: 'var(--surface-3)',
         },
         card: {
-          bg: 'var(--card-bg)',
-          border: 'var(--card-border)',
+          DEFAULT: 'var(--card)',
+          elevated: 'var(--card-elevated)',
+        },
+        sidebar: {
+          DEFAULT: 'var(--sidebar)',
         },
 
         // Text
         text: {
-          primary: 'var(--text-primary)',
-          secondary: 'var(--text-secondary)',
-          muted: 'var(--text-muted)',
+          1: 'var(--text-1)',
+          2: 'var(--text-2)',
+          3: 'var(--text-3)',
           inverse: 'var(--text-inverse)',
         },
 
-        // Card-specific text (dark mode readability)
-        'card-title': 'var(--card-title)',
-        'card-description': 'var(--card-description)',
-        'card-metadata': 'var(--card-metadata)',
-
-        // Links
-        link: {
-          DEFAULT: 'var(--link-color)',
-          hover: 'var(--link-hover)',
-        },
-
-        // Borders & Dividers
+        // Borders
         border: {
-          DEFAULT: 'var(--border-default)',
-          strong: 'var(--border-strong)',
+          DEFAULT: 'var(--border)',
+          muted: 'var(--border-muted)',
+          accent: 'var(--border-accent)',
         },
-        divider: 'var(--divider)',
 
-        // Interactive / Brand
-        primary: {
-          DEFAULT: 'var(--primary)',
-          hover: 'var(--primary-hover)',
-          active: 'var(--primary-active)',
-        },
-        secondary: {
-          DEFAULT: 'var(--secondary)',
-          hover: 'var(--secondary-hover)',
-          light: 'var(--secondary-light)',
+        // Accent
+        accent: {
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
+          dim: 'var(--accent-dim)',
+          glow: 'var(--accent-glow)',
         },
 
         // Status Colors
         status: {
-          compliant: 'var(--status-compliant)',
-          'compliant-bg': 'var(--status-compliant-bg)',
-          'compliant-text': 'var(--status-compliant-text)',
-          'compliant-border': 'var(--status-compliant-border)',
-
+          met: 'var(--status-met)',
+          'met-bg': 'var(--status-met-bg)',
+          'met-text': 'var(--status-met-text)',
           partial: 'var(--status-partial)',
           'partial-bg': 'var(--status-partial-bg)',
           'partial-text': 'var(--status-partial-text)',
-          'partial-border': 'var(--status-partial-border)',
-
-          noncompliant: 'var(--status-noncompliant)',
-          'noncompliant-bg': 'var(--status-noncompliant-bg)',
-          'noncompliant-text': 'var(--status-noncompliant-text)',
-          'noncompliant-border': 'var(--status-noncompliant-border)',
-
+          'not-met': 'var(--status-not-met)',
+          'not-met-bg': 'var(--status-not-met-bg)',
+          'not-met-text': 'var(--status-not-met-text)',
           draft: 'var(--status-draft)',
           'draft-bg': 'var(--status-draft-bg)',
-          'draft-text': 'var(--status-draft-text)',
-          'draft-border': 'var(--status-draft-border)',
-
           inprogress: 'var(--status-inprogress)',
           'inprogress-bg': 'var(--status-inprogress-bg)',
-          'inprogress-text': 'var(--status-inprogress-text)',
-          'inprogress-border': 'var(--status-inprogress-border)',
-
           critical: 'var(--status-critical)',
-          'critical-bg': 'var(--status-critical-bg)',
-          'critical-text': 'var(--status-critical-text)',
-          'critical-border': 'var(--status-critical-border)',
-        },
-
-        // Inputs & Forms
-        input: {
-          bg: 'var(--input-bg)',
-          border: 'var(--input-border)',
-          'border-focus': 'var(--input-border-focus)',
-          placeholder: 'var(--input-placeholder)',
-          text: 'var(--input-text)',
-        },
-
-        // Misc
-        'focus-ring': 'var(--focus-ring)',
-        overlay: 'var(--overlay)',
-        scrollbar: {
-          thumb: 'var(--scrollbar-thumb)',
-          track: 'var(--scrollbar-track)',
+          success: 'var(--status-success)',
+          'success-bg': 'var(--status-success-bg)',
+          'success-text': 'var(--status-success-text)',
+          warning: 'var(--status-warning)',
+          'warning-bg': 'var(--status-warning-bg)',
+          'warning-text': 'var(--status-warning-text)',
+          danger: 'var(--status-danger)',
+          'danger-bg': 'var(--status-danger-bg)',
+          'danger-text': 'var(--status-danger-text)',
+          info: 'var(--status-info)',
+          'info-bg': 'var(--status-info-bg)',
+          'info-text': 'var(--status-info-text)',
         },
       },
       boxShadow: {
-        'card': 'var(--card-shadow)',
-        'card-hover': 'var(--card-shadow-hover)',
+        'xs': 'var(--shadow-xs)',
+        'sm': 'var(--shadow-sm)',
+        'md': 'var(--shadow-md)',
+        'lg': 'var(--shadow-lg)',
+        '2xl': 'var(--shadow-2xl)',
+        'accent': 'var(--shadow-accent)',
+        'green': 'var(--shadow-green)',
+        'red': 'var(--shadow-red)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Syne', 'sans-serif'],
+        sans: ['DM Sans', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
+      },
+      borderRadius: {
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        xl: 'var(--radius-xl)',
+      },
+      keyframes: {
+        fadeInUp: {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+      },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.4s ease-out both',
+        'shimmer': 'shimmer 1.5s infinite',
       },
     },
   },

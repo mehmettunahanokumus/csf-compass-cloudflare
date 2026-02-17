@@ -62,90 +62,37 @@ export default function VendorTemplates() {
   };
 
   return (
-    <div>
+    <div className="animate-fade-in-up space-y-6">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '28px',
-          flexWrap: 'wrap',
-          gap: '16px',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
           <Link
             to="/vendors"
-            style={{
-              background: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-3)',
-              textDecoration: 'none',
-              transition: 'all 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--raised)';
-              e.currentTarget.style.color = 'var(--text-1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--card)';
-              e.currentTarget.style.color = 'var(--text-3)';
-            }}
+            className="w-10 h-10 rounded-lg bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-[#55576A] hover:text-[#F0F0F5] hover:border-amber-500/30 transition-all"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-1)' }}>
-            Assessment Templates
-          </h1>
+          <div>
+            <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Assessment Templates</h1>
+            <p className="font-sans text-sm text-[#8E8FA8] mt-0.5">Manage reusable assessment configurations</p>
+          </div>
         </div>
-        <button
-          style={{
-            background: 'var(--accent)',
-            color: 'var(--text-on-accent)',
-            border: 'none',
-            borderRadius: 'var(--radius-sm)',
-            padding: '10px 16px',
-            fontSize: '14px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 150ms ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
-        >
-          <Plus size={18} />
+        <button className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
+          <Plus className="w-4 h-4" />
           New Template
         </button>
       </div>
 
       {/* Info Card */}
-      <div
-        style={{
-          background: 'var(--blue-subtle)',
-          border: '1px solid var(--blue)',
-          borderRadius: 'var(--radius-md)',
-          padding: '20px',
-          marginBottom: '28px',
-          display: 'flex',
-          gap: '14px',
-          alignItems: 'flex-start',
-        }}
-      >
-        <Info size={20} style={{ color: 'var(--blue-text)', flexShrink: 0, marginTop: '2px' }} />
+      <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-5 flex gap-3.5 items-start">
+        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
+          <Info className="w-4 h-4 text-indigo-400" />
+        </div>
         <div>
-          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--blue-text)', marginBottom: '6px' }}>
+          <h3 className="font-display text-sm font-semibold text-indigo-300 mb-1">
             About Assessment Templates
           </h3>
-          <p style={{ fontSize: '14px', color: 'var(--blue-text)', lineHeight: 1.6, opacity: 0.9 }}>
+          <p className="font-sans text-sm text-indigo-300/70 leading-relaxed">
             Templates define which assessment categories and subcategories are included when
             creating new vendor assessments. The default template includes all NIST CSF 2.0
             subcategories.
@@ -155,204 +102,65 @@ export default function VendorTemplates() {
 
       {/* Template Grid */}
       {templates.length === 0 ? (
-        <div
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '64px 20px',
-            textAlign: 'center',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <FileText size={48} style={{ color: 'var(--text-4)', margin: '0 auto 20px' }} />
-          <p style={{ fontSize: '14px', color: 'var(--text-3)', marginBottom: '20px' }}>
-            No assessment templates found
-          </p>
-          <button
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'var(--accent)',
-              color: 'var(--text-on-accent)',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              padding: '10px 20px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 150ms ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
-          >
-            <Plus size={16} />
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl py-16 text-center">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center mx-auto mb-3">
+            <FileText className="w-5 h-5 text-amber-500/50" />
+          </div>
+          <p className="font-display text-sm font-semibold text-[#F0F0F5] mb-1">No templates found</p>
+          <p className="font-sans text-xs text-[#8E8FA8] mb-4">Create your first assessment template</p>
+          <button className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors">
+            <Plus className="w-4 h-4" />
             Create First Template
           </button>
         </div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '16px',
-          }}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {templates.map((template) => (
             <div
               key={template.id}
-              style={{
-                background: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '24px',
-                boxShadow: 'var(--shadow-xs)',
-                display: 'flex',
-                flexDirection: 'column',
-                transition: 'all 200ms ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                e.currentTarget.style.borderColor = 'var(--border-hover)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-                e.currentTarget.style.borderColor = 'var(--border)';
-              }}
+              className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 flex flex-col hover:border-amber-500/15 transition-all group"
             >
               {/* Title + Default Badge */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'start',
-                  marginBottom: '12px',
-                  gap: '12px',
-                }}
-              >
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-1)' }}>
+              <div className="flex justify-between items-start gap-3 mb-3">
+                <h3 className="font-display text-base font-semibold text-[#F0F0F5] group-hover:text-amber-400 transition-colors">
                   {template.name}
                 </h3>
                 {template.isDefault && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      background: 'rgba(234, 179, 8, 0.15)',
-                      color: '#b45309',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Star size={12} fill="currentColor" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 font-sans text-[10px] font-semibold text-amber-400 uppercase tracking-wide flex-shrink-0">
+                    <Star className="w-3 h-3" fill="currentColor" />
                     Default
                   </span>
                 )}
               </div>
 
               {/* Description */}
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: 'var(--text-2)',
-                  lineHeight: 1.6,
-                  marginBottom: '16px',
-                  flex: 1,
-                }}
-              >
+              <p className="font-sans text-xs text-[#8E8FA8] leading-relaxed mb-4 flex-1">
                 {template.description}
               </p>
 
               {/* Subcategory count */}
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: 'var(--text-3)',
-                  marginBottom: '8px',
-                }}
-              >
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-1)' }}>
-                  {template.subcategoryCount}
-                </span>{' '}
+              <p className="font-sans text-xs text-[#55576A] mb-1">
+                <span className="font-mono font-bold text-[#F0F0F5]">{template.subcategoryCount}</span>{' '}
                 subcategories
               </p>
 
               {/* Created date */}
-              <p style={{ fontSize: '12px', color: 'var(--text-4)', marginBottom: '20px' }}>
+              <p className="font-mono text-[10px] text-[#55576A] mb-5">
                 Created {template.createdAt}
               </p>
 
               {/* Footer Actions */}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '8px',
-                  paddingTop: '16px',
-                  borderTop: '1px solid var(--border)',
-                }}
-              >
-                <button
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '8px 12px',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: 'var(--text-2)',
-                    background: 'transparent',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    transition: 'all 150ms ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--raised)';
-                    e.currentTarget.style.color = 'var(--text-1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'var(--text-2)';
-                  }}
-                >
-                  <Pencil size={14} />
+              <div className="flex gap-2 pt-4 border-t border-white/[0.06]">
+                <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-xs rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all">
+                  <Pencil className="w-3 h-3" />
                   Edit
                 </button>
                 {!template.isDefault && (
                   <button
                     onClick={() => handleDelete(template.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      padding: '8px 12px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      color: 'var(--red-text)',
-                      background: 'var(--red-subtle)',
-                      border: '1px solid var(--red)',
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      transition: 'all 150ms ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--red)';
-                      e.currentTarget.style.color = 'white';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'var(--red-subtle)';
-                      e.currentTarget.style.color = 'var(--red-text)';
-                    }}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-red-500/5 border border-red-500/15 text-red-400/70 font-sans text-xs rounded-lg hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-all"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 className="w-3 h-3" />
                     Delete
                   </button>
                 )}

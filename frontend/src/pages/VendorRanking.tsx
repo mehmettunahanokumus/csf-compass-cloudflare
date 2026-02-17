@@ -15,7 +15,6 @@ import {
 import { vendorsApi } from '../api/vendors';
 import type { Vendor } from '../types';
 import { getErrorMessage } from '../api/client';
-import Skeleton from '../components/Skeleton.new';
 
 type SortField = 'name' | 'industry' | 'score' | 'criticality' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -35,41 +34,44 @@ const statusOrder: Record<string, number> = {
   terminated: 3,
 };
 
-function getCriticalityBadge(level: string | undefined) {
+function getCriticalityLabel(level: string | undefined) {
   switch (level) {
-    case 'critical':
-      return { bg: 'var(--red-subtle)', color: 'var(--red-text)', label: 'Critical' };
-    case 'high':
-      return { bg: 'var(--orange-subtle)', color: 'var(--orange-text)', label: 'High' };
-    case 'medium':
-      return { bg: 'var(--orange-subtle)', color: 'var(--orange-text)', label: 'Medium' };
-    case 'low':
-      return { bg: 'var(--green-subtle)', color: 'var(--green-text)', label: 'Low' };
-    default:
-      return { bg: 'var(--gray-subtle)', color: 'var(--gray-text)', label: 'N/A' };
+    case 'critical': return 'Critical';
+    case 'high': return 'High';
+    case 'medium': return 'Medium';
+    case 'low': return 'Low';
+    default: return 'N/A';
   }
 }
 
-function getStatusBadge(status: string | undefined) {
+function getCriticalityClass(level: string | undefined) {
+  switch (level) {
+    case 'critical': return 'bg-red-500/10 text-red-400 border-red-500/20';
+    case 'high': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+    case 'medium': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+    case 'low': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    default: return 'bg-white/[0.04] text-[#55576A] border-white/[0.07]';
+  }
+}
+
+function getStatusLabel(status: string | undefined) {
   switch (status) {
-    case 'active':
-      return { bg: 'var(--green-subtle)', color: 'var(--green-text)', label: 'Active' };
-    case 'inactive':
-      return { bg: 'var(--gray-subtle)', color: 'var(--gray-text)', label: 'Inactive' };
-    case 'under_review':
-      return { bg: 'var(--orange-subtle)', color: 'var(--orange-text)', label: 'Under Review' };
-    case 'terminated':
-      return { bg: 'var(--red-subtle)', color: 'var(--red-text)', label: 'Terminated' };
-    default:
-      return { bg: 'var(--gray-subtle)', color: 'var(--gray-text)', label: 'Unknown' };
+    case 'active': return 'Active';
+    case 'inactive': return 'Inactive';
+    case 'under_review': return 'Under Review';
+    case 'terminated': return 'Terminated';
+    default: return 'Unknown';
   }
 }
 
-function getScoreColor(score: number | undefined): string {
-  if (score === undefined || score === null) return 'var(--text-4)';
-  if (score >= 75) return 'var(--green)';
-  if (score >= 50) return 'var(--orange)';
-  return 'var(--red)';
+function getStatusClass(status: string | undefined) {
+  switch (status) {
+    case 'active': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    case 'inactive': return 'bg-white/[0.04] text-[#55576A] border-white/[0.07]';
+    case 'under_review': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+    case 'terminated': return 'bg-red-500/10 text-red-400 border-red-500/20';
+    default: return 'bg-white/[0.04] text-[#55576A] border-white/[0.07]';
+  }
 }
 
 export default function VendorRanking() {
@@ -149,8 +151,8 @@ export default function VendorRanking() {
     const header = 'Rank,Name,Industry,Score,Criticality,Status';
     const rows = filteredVendors.map((v, i) => {
       const score = v.latest_assessment_score != null ? v.latest_assessment_score.toFixed(1) : 'N/A';
-      const criticality = getCriticalityBadge(v.criticality_level || v.risk_tier).label;
-      const status = getStatusBadge(v.vendor_status).label;
+      const criticality = getCriticalityLabel(v.criticality_level || v.risk_tier);
+      const status = getStatusLabel(v.vendor_status);
       const name = v.name.includes(',') ? `"${v.name}"` : v.name;
       const industry = (v.industry || 'N/A').includes(',')
         ? `"${v.industry}"`
@@ -168,53 +170,39 @@ export default function VendorRanking() {
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown size={14} />;
-    return sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-[#55576A]" />;
+    return sortDirection === 'asc'
+      ? <ArrowUp className="w-3 h-3 text-amber-400" />
+      : <ArrowDown className="w-3 h-3 text-amber-400" />;
   };
 
   const filterOptions: { value: CriticalityFilter; label: string }[] = [
     { value: 'all', label: 'All' },
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
     { value: 'critical', label: 'Critical' },
+    { value: 'high', label: 'High' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'low', label: 'Low' },
   ];
-
-  const thStyle: React.CSSProperties = {
-    padding: '12px 16px',
-    fontSize: '12px',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    color: 'var(--text-3)',
-    textAlign: 'left',
-    cursor: 'pointer',
-    userSelect: 'none',
-    whiteSpace: 'nowrap',
-    borderBottom: '2px solid var(--border)',
-  };
-
-  const tdStyle: React.CSSProperties = {
-    padding: '14px 16px',
-    fontSize: '14px',
-    color: 'var(--text-1)',
-    borderBottom: '1px solid var(--border)',
-  };
 
   if (loading) {
     return (
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <Skeleton w="40px" h="40px" />
-            <Skeleton w="200px" h="28px" />
+      <div className="animate-fade-in-up space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-white/[0.06] animate-pulse" />
+            <div className="h-7 w-48 bg-white/[0.06] rounded animate-pulse" />
           </div>
-          <Skeleton w="140px" h="40px" />
+          <div className="h-10 w-36 bg-white/[0.06] rounded-lg animate-pulse" />
         </div>
-        <Skeleton w="100%" h="48px" />
-        <div style={{ marginTop: '16px' }}>
+        <div className="h-10 w-full bg-white/[0.04] rounded-lg animate-pulse" />
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} w="100%" h="52px" />
+            <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-white/[0.04] animate-pulse">
+              <div className="w-8 h-4 bg-white/[0.06] rounded" />
+              <div className="flex-1 h-4 bg-white/[0.06] rounded" />
+              <div className="w-16 h-4 bg-white/[0.06] rounded" />
+              <div className="w-20 h-5 bg-white/[0.06] rounded-full" />
+            </div>
           ))}
         </div>
       </div>
@@ -223,280 +211,201 @@ export default function VendorRanking() {
 
   if (error) {
     return (
-      <div
-        style={{
-          background: 'var(--red-subtle)',
-          border: '1px solid var(--red)',
-          borderRadius: 'var(--radius-md)',
-          padding: '16px',
-          color: 'var(--red-text)',
-        }}
-      >
-        {error}
+      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+        <p className="font-sans text-sm text-red-400">{error}</p>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="animate-fade-in-up space-y-6">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '28px',
-          flexWrap: 'wrap',
-          gap: '16px',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
           <Link
             to="/vendors"
-            style={{
-              background: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-3)',
-              textDecoration: 'none',
-              transition: 'all 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--raised)';
-              e.currentTarget.style.color = 'var(--text-1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--card)';
-              e.currentTarget.style.color = 'var(--text-3)';
-            }}
+            className="w-10 h-10 rounded-lg bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-[#55576A] hover:text-[#F0F0F5] hover:border-amber-500/30 transition-all"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-1)' }}>
-            Vendor Rankings
-          </h1>
+          <div>
+            <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Vendor Rankings</h1>
+            <p className="font-sans text-sm text-[#8E8FA8] mt-0.5">Comparative security posture overview</p>
+          </div>
         </div>
         <button
           onClick={exportCsv}
-          style={{
-            background: 'var(--accent)',
-            color: 'var(--text-on-accent)',
-            border: 'none',
-            borderRadius: 'var(--radius-sm)',
-            padding: '10px 16px',
-            fontSize: '14px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 150ms ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
         >
-          <FileDown size={18} />
-          Export to CSV
+          <FileDown className="w-4 h-4" />
+          Export CSV
         </button>
       </div>
 
       {/* Filter Bar */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-1.5">
           {filterOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setActiveFilter(opt.value)}
-              style={{
-                padding: '7px 16px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '13px',
-                fontWeight: 500,
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 150ms ease',
-                background: activeFilter === opt.value ? '#102a43' : 'var(--ground)',
-                color: activeFilter === opt.value ? '#fff' : 'var(--text-2)',
-              }}
+              className={`px-3 py-1.5 rounded-lg font-sans text-xs font-medium transition-colors ${
+                activeFilter === opt.value
+                  ? 'bg-amber-500 text-[#08090E]'
+                  : 'bg-white/[0.04] text-[#8E8FA8] hover:bg-white/[0.07]'
+              }`}
             >
               {opt.label}
             </button>
           ))}
         </div>
-        <p style={{ fontSize: '13px', color: 'var(--text-3)' }}>
+        <p className="font-sans text-xs text-[#55576A]">
           Showing{' '}
-          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-1)' }}>
-            {filteredVendors.length}
-          </span>{' '}
-          vendor{filteredVendors.length !== 1 ? 's' : ''}
+          <span className="font-mono font-semibold text-[#F0F0F5]">{filteredVendors.length}</span>
+          {' '}vendor{filteredVendors.length !== 1 ? 's' : ''}
         </p>
       </div>
 
       {/* Ranking Table */}
       {filteredVendors.length === 0 ? (
-        <div
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '64px 20px',
-            textAlign: 'center',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <Building2 size={48} style={{ color: 'var(--text-4)', margin: '0 auto 20px' }} />
-          <p style={{ fontSize: '14px', color: 'var(--text-3)' }}>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl py-16 text-center">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center mx-auto mb-3">
+            <Building2 className="w-5 h-5 text-amber-500/50" />
+          </div>
+          <p className="font-display text-sm font-semibold text-[#F0F0F5] mb-1">No vendors found</p>
+          <p className="font-sans text-xs text-[#8E8FA8]">
             {activeFilter !== 'all'
               ? 'No vendors match the selected filter'
               : 'No vendors found'}
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-xs)',
-            overflowX: 'auto',
-          }}
-        >
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={{ ...thStyle, width: '50px' }}>#</th>
-                <th style={thStyle} onClick={() => handleSort('name')}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    Vendor Name <SortIcon field="name" />
-                  </span>
-                </th>
-                <th style={thStyle} onClick={() => handleSort('industry')}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    Industry <SortIcon field="industry" />
-                  </span>
-                </th>
-                <th style={thStyle} onClick={() => handleSort('score')}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    Score <SortIcon field="score" />
-                  </span>
-                </th>
-                <th style={thStyle} onClick={() => handleSort('criticality')}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    Criticality <SortIcon field="criticality" />
-                  </span>
-                </th>
-                <th style={thStyle} onClick={() => handleSort('status')}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    Status <SortIcon field="status" />
-                  </span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredVendors.map((vendor, index) => {
-                const criticality = getCriticalityBadge(
-                  vendor.criticality_level || vendor.risk_tier
-                );
-                const status = getStatusBadge(vendor.vendor_status);
-                const score = vendor.latest_assessment_score;
-                const scoreColor = getScoreColor(score);
-
-                return (
-                  <tr
-                    key={vendor.id}
-                    style={{
-                      background: index % 2 === 1 ? 'var(--raised)' : 'transparent',
-                      transition: 'background 150ms ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--ground)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        index % 2 === 1 ? 'var(--raised)' : 'transparent';
-                    }}
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left px-5 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold w-12">
+                    #
+                  </th>
+                  <th
+                    className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold cursor-pointer select-none hover:text-[#8E8FA8] transition-colors"
+                    onClick={() => handleSort('name')}
                   >
-                    <td
-                      style={{
-                        ...tdStyle,
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 600,
-                        color: 'var(--text-3)',
-                      }}
+                    <span className="inline-flex items-center gap-1.5">
+                      Vendor Name <SortIcon field="name" />
+                    </span>
+                  </th>
+                  <th
+                    className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold cursor-pointer select-none hover:text-[#8E8FA8] transition-colors"
+                    onClick={() => handleSort('industry')}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      Industry <SortIcon field="industry" />
+                    </span>
+                  </th>
+                  <th
+                    className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold cursor-pointer select-none hover:text-[#8E8FA8] transition-colors"
+                    onClick={() => handleSort('score')}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      Score <SortIcon field="score" />
+                    </span>
+                  </th>
+                  <th
+                    className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold cursor-pointer select-none hover:text-[#8E8FA8] transition-colors"
+                    onClick={() => handleSort('criticality')}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      Criticality <SortIcon field="criticality" />
+                    </span>
+                  </th>
+                  <th
+                    className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold cursor-pointer select-none hover:text-[#8E8FA8] transition-colors"
+                    onClick={() => handleSort('status')}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      Status <SortIcon field="status" />
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredVendors.map((vendor, index) => {
+                  const critLevel = vendor.criticality_level || vendor.risk_tier;
+                  const score = vendor.latest_assessment_score;
+
+                  return (
+                    <tr
+                      key={vendor.id}
+                      className="border-b border-white/[0.04] hover:bg-amber-500/[0.03] transition-colors"
                     >
-                      {index + 1}
-                    </td>
-                    <td style={tdStyle}>
-                      <Link
-                        to={`/vendors/${vendor.id}`}
-                        style={{
-                          color: 'var(--accent)',
-                          textDecoration: 'none',
-                          fontWeight: 600,
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.textDecoration = 'underline';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.textDecoration = 'none';
-                        }}
-                      >
-                        {vendor.name}
-                      </Link>
-                    </td>
-                    <td style={{ ...tdStyle, color: 'var(--text-2)' }}>
-                      {vendor.industry || 'N/A'}
-                    </td>
-                    <td style={tdStyle}>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          color: scoreColor,
-                        }}
-                      >
-                        {score != null ? score.toFixed(1) : 'N/A'}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '3px 10px',
-                          borderRadius: '999px',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          background: criticality.bg,
-                          color: criticality.color,
-                        }}
-                      >
-                        {criticality.label}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '3px 10px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          background: status.bg,
-                          color: status.color,
-                        }}
-                      >
-                        {status.label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      {/* Rank */}
+                      <td className="px-5 py-4 font-mono text-sm font-semibold text-[#55576A]">
+                        {index + 1}
+                      </td>
+
+                      {/* Vendor Name */}
+                      <td className="px-4 py-4">
+                        <Link
+                          to={`/vendors/${vendor.id}`}
+                          className="font-sans text-sm font-semibold text-amber-400 hover:text-amber-300 transition-colors"
+                        >
+                          {vendor.name}
+                        </Link>
+                      </td>
+
+                      {/* Industry */}
+                      <td className="px-4 py-4">
+                        <span className="font-sans text-sm text-[#8E8FA8]">
+                          {vendor.industry || 'N/A'}
+                        </span>
+                      </td>
+
+                      {/* Score with bar */}
+                      <td className="px-4 py-4">
+                        {score != null ? (
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-20 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${score}%`,
+                                  background: score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444',
+                                }}
+                              />
+                            </div>
+                            <span className={`font-mono text-sm font-bold tabular-nums ${
+                              score >= 75 ? 'text-emerald-400' :
+                              score >= 50 ? 'text-amber-400' : 'text-red-400'
+                            }`}>
+                              {score.toFixed(1)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-sans text-sm text-[#55576A]">N/A</span>
+                        )}
+                      </td>
+
+                      {/* Criticality */}
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-wide border ${getCriticalityClass(critLevel)}`}>
+                          {getCriticalityLabel(critLevel)}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium border ${getStatusClass(vendor.vendor_status)}`}>
+                          {getStatusLabel(vendor.vendor_status)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

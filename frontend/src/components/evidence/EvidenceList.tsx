@@ -47,13 +47,9 @@ const EvidenceList: React.FC<EvidenceListProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div className="space-y-2">
         {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="skeleton"
-            style={{ height: '52px', borderRadius: 'var(--radius-sm)' }}
-          />
+          <div key={i} className="h-[52px] bg-white/[0.06] rounded-lg animate-pulse" />
         ))}
       </div>
     );
@@ -61,23 +57,9 @@ const EvidenceList: React.FC<EvidenceListProps> = ({
 
   if (files.length === 0) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '32px 16px',
-        }}
-      >
-        <Upload size={32} style={{ color: 'var(--text-4)' }} />
-        <span
-          style={{
-            fontSize: '13px',
-            color: 'var(--text-3)',
-            fontFamily: 'var(--font-sans)',
-          }}
-        >
+      <div className="flex flex-col items-center gap-2 py-8">
+        <Upload className="w-8 h-8 text-[#55576A]" />
+        <span className="font-sans text-sm text-[#55576A]">
           No files uploaded yet
         </span>
       </div>
@@ -85,125 +67,42 @@ const EvidenceList: React.FC<EvidenceListProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+    <div className="space-y-1.5">
       {files.map((file) => {
         const Icon = getFileIcon(file.mimeType);
 
         return (
           <div
             key={file.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border)',
-              background: 'var(--card)',
-              transition: 'border-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border-hover)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
-            }}
+            className="flex items-center gap-3 bg-[#0E1018] border border-white/[0.07] rounded-lg p-3 hover:border-white/[0.12] transition-colors group"
           >
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--accent-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <Icon size={18} style={{ color: 'var(--accent)' }} />
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <Icon className="w-4 h-4 text-amber-500/70" />
             </div>
 
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: 'var(--text-1)',
-                  fontFamily: 'var(--font-sans)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+            <div className="flex-1 min-w-0">
+              <div className="font-sans text-sm font-medium text-[#F0F0F5] truncate">
                 {file.fileName}
               </div>
-              <div
-                style={{
-                  fontSize: '11px',
-                  color: 'var(--text-3)',
-                  fontFamily: 'var(--font-sans)',
-                  marginTop: '2px',
-                }}
-              >
+              <div className="font-mono text-[10px] text-[#55576A] mt-0.5">
                 {formatDate(file.uploadedAt)} · {formatFileSize(file.fileSize)}
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+            <div className="flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={() => onDownload(file.id)}
                 title="Download"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '32px',
-                  height: '32px',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'transparent',
-                  color: 'var(--text-3)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-subtle)';
-                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-3)';
-                }}
+                className="p-1.5 rounded-md text-[#55576A] hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
               >
-                <Download size={16} />
+                <Download className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onDelete(file.id)}
                 title="Delete"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '32px',
-                  height: '32px',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'transparent',
-                  color: 'var(--text-3)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--red-subtle)';
-                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--red-text)';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-3)';
-                }}
+                className="p-1.5 rounded-md text-[#55576A] hover:text-red-400 hover:bg-red-500/10 transition-colors"
               >
-                <Trash2 size={16} />
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>

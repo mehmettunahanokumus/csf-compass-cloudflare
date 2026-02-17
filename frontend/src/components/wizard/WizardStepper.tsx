@@ -35,45 +35,16 @@ const WizardStepper: React.FC<WizardStepperProps> = ({
   const progress = totalSteps > 0 ? Math.round((completedSteps.length / totalSteps) * 100) : 0;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: 'var(--card)',
-        borderRadius: 'var(--radius-md)',
-        border: '1px solid var(--border)',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          padding: '16px',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: 'var(--text-2)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}
-        >
+    <div className="flex flex-col h-full bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-white/[0.06]">
+        <span className="font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-[#55576A]">
           Wizard Steps
         </span>
       </div>
 
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          maxHeight: 'calc(100vh - 320px)',
-          padding: '8px 0',
-        }}
-      >
+      {/* Step list */}
+      <div className="flex-1 overflow-y-auto max-h-[calc(100vh-320px)] py-1 scrollbar-thin">
         {STEP_NAMES.slice(0, totalSteps).map((name, index) => {
           const isCurrent = index === currentStep;
           const isCompleted = completedSteps.includes(index);
@@ -82,60 +53,34 @@ const WizardStepper: React.FC<WizardStepperProps> = ({
             <button
               key={index}
               onClick={() => onStepClick(index)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                width: '100%',
-                padding: '10px 16px',
-                border: 'none',
-                background: isCurrent ? 'var(--accent-subtle)' : 'transparent',
-                cursor: 'pointer',
-                transition: 'background 0.15s ease',
-                textAlign: 'left',
-              }}
-              onMouseEnter={(e) => {
-                if (!isCurrent) {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--sidebar-hover)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = isCurrent
-                  ? 'var(--accent-subtle)'
-                  : 'transparent';
-              }}
+              className={`flex items-center gap-3 w-full px-4 py-2.5 text-left transition-all ${
+                isCurrent
+                  ? 'bg-amber-500/[0.08] border-r-2 border-r-amber-500'
+                  : 'hover:bg-white/[0.03]'
+              }`}
             >
+              {/* Step dot/number */}
               <div
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-sans)',
-                  background: isCurrent
-                    ? 'var(--accent)'
+                className={`flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0 text-[10px] font-bold transition-all ${
+                  isCurrent
+                    ? 'bg-amber-500 text-[#08090E]'
                     : isCompleted
-                      ? 'var(--green)'
-                      : 'var(--gray-subtle)',
-                  color: isCurrent || isCompleted ? '#fff' : 'var(--text-3)',
-                }}
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : 'bg-white/[0.06] text-[#55576A]'
+                }`}
               >
-                {isCompleted ? <Check size={14} strokeWidth={3} /> : index + 1}
+                {isCompleted ? <Check className="w-3 h-3" strokeWidth={3} /> : index + 1}
               </div>
 
+              {/* Step label */}
               <span
-                style={{
-                  fontSize: '13px',
-                  fontFamily: 'var(--font-sans)',
-                  fontWeight: isCurrent ? 600 : 400,
-                  color: isCurrent ? 'var(--text-1)' : isCompleted ? 'var(--text-2)' : 'var(--text-3)',
-                  lineHeight: 1.3,
-                }}
+                className={`font-mono text-[11px] leading-tight ${
+                  isCurrent
+                    ? 'font-semibold text-amber-400'
+                    : isCompleted
+                      ? 'text-[#8E8FA8]'
+                      : 'text-[#55576A]'
+                }`}
               >
                 {name}
               </span>
@@ -144,57 +89,20 @@ const WizardStepper: React.FC<WizardStepperProps> = ({
         })}
       </div>
 
-      <div
-        style={{
-          padding: '16px',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '8px',
-          }}
-        >
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 500,
-              color: 'var(--text-3)',
-              fontFamily: 'var(--font-sans)',
-            }}
-          >
-            Overall Progress
+      {/* Progress footer */}
+      <div className="border-t border-white/[0.06] p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="font-sans text-[10px] font-medium text-[#55576A] uppercase tracking-wider">
+            Progress
           </span>
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--text-1)',
-              fontFamily: 'var(--font-sans)',
-            }}
-          >
-            {progress}%
-          </span>
+          <span className="font-mono text-xs font-bold text-amber-400">{progress}%</span>
         </div>
-        <div
-          style={{
-            height: '6px',
-            borderRadius: '3px',
-            background: 'var(--gray-subtle)',
-            overflow: 'hidden',
-          }}
-        >
+        <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
           <div
-            style={{
-              height: '100%',
-              width: `${progress}%`,
-              borderRadius: '3px',
-              background: progress === 100 ? 'var(--green)' : 'var(--accent)',
-              transition: 'width 0.3s ease',
-            }}
+            className={`h-full rounded-full transition-all duration-500 ${
+              progress === 100 ? 'bg-emerald-500' : 'bg-amber-500'
+            }`}
+            style={{ width: `${progress}%` }}
           />
         </div>
       </div>

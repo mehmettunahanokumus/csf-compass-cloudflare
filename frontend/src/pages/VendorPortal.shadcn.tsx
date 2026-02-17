@@ -12,11 +12,6 @@ import {
   ChevronRight,
   Loader2,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Progress } from '../components/ui/progress';
-import { Badge } from '../components/ui/badge';
-import { Skeleton } from '../components/ui/skeleton';
 import { vendorInvitationsApi } from '../api/vendor-invitations';
 import { csfApi } from '../api/csf';
 import type {
@@ -32,38 +27,23 @@ import { getErrorMessage, formatDate } from '../api/client';
 function getStatusIcon(status: string) {
   switch (status) {
     case 'compliant':
-      return <CheckCircle className="h-5 w-5 text-emerald-500" />;
+      return <CheckCircle className="h-5 w-5 text-emerald-400" />;
     case 'partial':
-      return <AlertCircle className="h-5 w-5 text-amber-500" />;
+      return <AlertCircle className="h-5 w-5 text-amber-400" />;
     case 'non_compliant':
-      return <XCircle className="h-5 w-5 text-red-500" />;
+      return <XCircle className="h-5 w-5 text-red-400" />;
     case 'not_applicable':
-      return <Ban className="h-5 w-5 text-muted-foreground" />;
+      return <Ban className="h-5 w-5 text-[#55576A]" />;
     default:
-      return <Circle className="h-5 w-5 text-muted-foreground/50" />;
-  }
-}
-
-function getStatusBadgeProps(status: string) {
-  switch (status) {
-    case 'compliant':
-      return { label: 'Compliant', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' };
-    case 'partial':
-      return { label: 'Partial', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' };
-    case 'non_compliant':
-      return { label: 'Non-Compliant', className: 'bg-red-500/10 text-red-600 border-red-500/20' };
-    case 'not_applicable':
-      return { label: 'N/A', className: 'bg-muted text-muted-foreground border-border' };
-    default:
-      return { label: 'Not Assessed', className: 'bg-muted text-muted-foreground border-border' };
+      return <Circle className="h-5 w-5 text-[#55576A]/50" />;
   }
 }
 
 const STATUS_OPTIONS = [
-  { value: 'compliant', label: 'Compliant', activeClass: 'bg-emerald-600 text-white hover:bg-emerald-600' },
-  { value: 'partial', label: 'Partial', activeClass: 'bg-amber-500 text-white hover:bg-amber-500' },
-  { value: 'non_compliant', label: 'Non-Compliant', activeClass: 'bg-red-600 text-white hover:bg-red-600' },
-  { value: 'not_applicable', label: 'Not Applicable', activeClass: 'bg-muted-foreground text-white hover:bg-muted-foreground' },
+  { value: 'compliant', label: 'Compliant', activeClass: 'bg-emerald-500 text-white border-emerald-500' },
+  { value: 'partial', label: 'Partial', activeClass: 'bg-amber-500 text-[#08090E] border-amber-500' },
+  { value: 'non_compliant', label: 'Non-Compliant', activeClass: 'bg-red-500 text-white border-red-500' },
+  { value: 'not_applicable', label: 'Not Applicable', activeClass: 'bg-[#55576A] text-white border-[#55576A]' },
 ] as const;
 
 // ── Component ────────────────────────────────────────────
@@ -168,10 +148,10 @@ export default function VendorPortalShadcn() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Validating invitation...</span>
+      <div className="flex min-h-screen items-center justify-center bg-[#08090E]">
+        <div className="flex items-center gap-3 text-[#8E8FA8]">
+          <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
+          <span className="font-sans text-sm">Validating invitation...</span>
         </div>
       </div>
     );
@@ -181,19 +161,19 @@ export default function VendorPortalShadcn() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="max-w-md">
-          <CardContent className="p-8">
-            <div className="mb-4 flex items-center gap-3 text-destructive">
-              <XCircle className="h-8 w-8" />
-              <h1 className="text-2xl font-bold">Invalid Invitation</h1>
+      <div className="flex min-h-screen items-center justify-center bg-[#08090E] p-4">
+        <div className="max-w-md bg-[#0E1018] border border-white/[0.07] rounded-xl p-8">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+              <XCircle className="h-5 w-5 text-red-400" />
             </div>
-            <p className="mb-6 leading-relaxed text-muted-foreground">{error}</p>
-            <p className="text-sm text-muted-foreground">
-              Please contact the organization that sent you this invitation for assistance.
-            </p>
-          </CardContent>
-        </Card>
+            <h1 className="font-display text-xl font-bold text-[#F0F0F5]">Invalid Invitation</h1>
+          </div>
+          <p className="mb-6 font-sans text-sm leading-relaxed text-[#8E8FA8]">{error}</p>
+          <p className="font-sans text-xs text-[#55576A]">
+            Please contact the organization that sent you this invitation for assistance.
+          </p>
+        </div>
       </div>
     );
   }
@@ -204,21 +184,21 @@ export default function VendorPortalShadcn() {
 
   if (completed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="max-w-md text-center">
-          <CardContent className="p-8">
-            <div className="mb-4 flex justify-center">
-              <CheckCircle className="h-16 w-16 text-emerald-500" />
+      <div className="flex min-h-screen items-center justify-center bg-[#08090E] p-4">
+        <div className="max-w-md bg-[#0E1018] border border-white/[0.07] rounded-xl p-8 text-center">
+          <div className="mb-4 flex justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <CheckCircle className="h-8 w-8 text-emerald-400" />
             </div>
-            <h1 className="mb-2 text-2xl font-bold">Assessment Completed</h1>
-            <p className="mb-6 leading-relaxed text-muted-foreground">
-              Thank you for completing the cybersecurity assessment. Your responses have been submitted successfully.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Completed on {formatDate(validationData.invitation?.completed_at || undefined)}
-            </p>
-          </CardContent>
-        </Card>
+          </div>
+          <h1 className="font-display text-xl font-bold text-[#F0F0F5] mb-2">Assessment Completed</h1>
+          <p className="font-sans text-sm leading-relaxed text-[#8E8FA8] mb-6">
+            Thank you for completing the cybersecurity assessment. Your responses have been submitted successfully.
+          </p>
+          <p className="font-mono text-xs text-[#55576A]">
+            Completed on {formatDate(validationData.invitation?.completed_at || undefined)}
+          </p>
+        </div>
       </div>
     );
   }
@@ -226,99 +206,114 @@ export default function VendorPortalShadcn() {
   // ── Main render ──
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Simple Header - no sidebar */}
-      <header className="sticky top-0 z-10 border-b bg-card">
+    <div className="min-h-screen bg-[#08090E]">
+      {/* Header */}
+      <header className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#0E1018]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Shield className="h-6 w-6 text-primary-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <Shield className="h-5 w-5 text-amber-400" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold">CSF Compass</h1>
-              <p className="text-xs text-muted-foreground">Vendor Assessment Portal</p>
+              <h1 className="font-display text-lg font-bold text-[#F0F0F5]">CSF Compass</h1>
+              <p className="font-sans text-[11px] text-[#55576A]">Vendor Assessment Portal</p>
             </div>
           </div>
-          <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-            <Lock className="h-3 w-3" />
-            Secure Session
-          </Badge>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+            <Lock className="h-3 w-3 text-emerald-400" />
+            <span className="font-sans text-[11px] font-medium text-emerald-400">Secure Session</span>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
         {/* Welcome Card */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <Lock className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h2 className="mb-2 text-xl font-semibold">Secure Vendor Assessment</h2>
-                <p className="mb-4 leading-relaxed text-muted-foreground">
-                  Welcome{validationData.vendor_contact_name ? `, ${validationData.vendor_contact_name}` : ''}.
-                  You've been invited to complete a cybersecurity assessment for{' '}
-                  <span className="font-medium text-foreground">{assessment.name}</span>.
-                  Please answer each question honestly and provide supporting documentation where applicable.
-                </p>
-                {validationData.invitation?.message && (
-                  <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/50">
-                    <p className="text-sm text-blue-800 dark:text-blue-300">
-                      {validationData.invitation.message}
-                    </p>
-                  </div>
-                )}
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Lock className="h-3 w-3" />
-                    Encrypted communication
-                  </span>
-                  <span>
-                    Expires {formatDate(validationData.invitation?.token_expires_at)}
-                  </span>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <Lock className="h-5 w-5 text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display text-lg font-bold text-[#F0F0F5] mb-2">Secure Vendor Assessment</h2>
+              <p className="font-sans text-sm leading-relaxed text-[#8E8FA8] mb-4">
+                Welcome{validationData.vendor_contact_name ? `, ${validationData.vendor_contact_name}` : ''}.
+                You've been invited to complete a cybersecurity assessment for{' '}
+                <span className="font-medium text-[#F0F0F5]">{assessment.name}</span>.
+                Please answer each question honestly and provide supporting documentation where applicable.
+              </p>
+              {validationData.invitation?.message && (
+                <div className="mb-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3">
+                  <p className="font-sans text-sm text-indigo-300">
+                    {validationData.invitation.message}
+                  </p>
                 </div>
+              )}
+              <div className="flex items-center gap-4 text-[11px] text-[#55576A]">
+                <span className="flex items-center gap-1 font-sans">
+                  <Lock className="h-3 w-3" />
+                  Encrypted communication
+                </span>
+                <span className="font-mono">
+                  Expires {formatDate(validationData.invitation?.token_expires_at)}
+                </span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Progress Card */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="font-medium">Assessment Progress</span>
-              <span className="text-sm text-muted-foreground">
-                {assessedItems} of {totalItems} completed
-              </span>
-            </div>
-            <Progress value={progressPct} className="h-3" />
-          </CardContent>
-        </Card>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="font-display text-sm font-semibold text-[#F0F0F5]">Assessment Progress</span>
+            <span className="font-mono text-xs text-[#8E8FA8]">
+              {assessedItems} of {totalItems} completed
+            </span>
+          </div>
+          <div className="w-full h-2.5 bg-white/[0.06] rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500 ease-out"
+              style={{
+                width: `${progressPct}%`,
+                background: progressPct < 30 ? '#EF4444' : progressPct < 70 ? '#F59E0B' : '#10B981',
+              }}
+            />
+          </div>
+          <div className="mt-2 text-right">
+            <span className={`font-display text-sm font-bold tabular-nums ${
+              progressPct < 30 ? 'text-red-400' : progressPct < 70 ? 'text-amber-400' : 'text-emerald-400'
+            }`}>
+              {progressPct}%
+            </span>
+          </div>
+        </div>
 
         {/* Assessment Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>NIST Cybersecurity Framework Assessment</CardTitle>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Please review each category and indicate your compliance status. You can save your progress and return later using the same link.
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
+          <div className="p-6 pb-0">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+              <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+                NIST Cybersecurity Framework Assessment
+              </h2>
+            </div>
+            <p className="font-sans text-sm leading-relaxed text-[#55576A] mb-6 ml-[15px]">
+              Please review each category and indicate your compliance status. Your progress is saved automatically.
             </p>
-          </CardHeader>
-          <CardContent>
+
             {/* Function Tabs */}
-            <div className="mb-6 border-b">
-              <nav className="-mb-px flex gap-6 overflow-x-auto">
+            <div className="border-b border-white/[0.06]">
+              <nav className="-mb-px flex gap-1 overflow-x-auto">
                 {functions.map((func) => {
                   const isSelected = selectedFunction === func.id;
                   return (
                     <button
                       key={func.id}
                       onClick={() => setSelectedFunction(func.id)}
-                      className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition-colors ${
+                      className={`whitespace-nowrap px-4 py-3 font-display text-xs font-semibold tracking-wide transition-colors border-b-2 ${
                         isSelected
-                          ? 'border-primary text-primary'
-                          : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
+                          ? 'border-amber-500 text-amber-400'
+                          : 'border-transparent text-[#55576A] hover:text-[#8E8FA8] hover:border-white/[0.1]'
                       }`}
                     >
                       {func.name}
@@ -327,115 +322,131 @@ export default function VendorPortalShadcn() {
                 })}
               </nav>
             </div>
+          </div>
 
-            {/* Assessment Items */}
-            <div className="space-y-4">
-              {loadingItems ? (
-                <div className="space-y-4 py-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="space-y-3 rounded-lg border p-5">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-full" />
-                    </div>
-                  ))}
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  No assessment items found for this category
-                </p>
-              ) : (
-                filteredItems.map((item) => {
-                  const badge = getStatusBadgeProps(item.status);
-                  const isExpanded = expandedItem === item.id;
+          {/* Assessment Items */}
+          <div className="p-6 space-y-3">
+            {loadingItems ? (
+              <div className="space-y-3 py-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-lg border border-white/[0.06] p-5 animate-pulse">
+                    <div className="h-3 w-20 bg-white/[0.06] rounded mb-3" />
+                    <div className="h-4 w-3/4 bg-white/[0.06] rounded mb-2" />
+                    <div className="h-3 w-full bg-white/[0.04] rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <p className="py-12 text-center font-sans text-sm text-[#55576A]">
+                No assessment items found for this category
+              </p>
+            ) : (
+              filteredItems.map((item) => {
+                const isExpanded = expandedItem === item.id;
 
-                  return (
-                    <div key={item.id} className="rounded-lg border transition-colors">
-                      {/* Item Header - clickable */}
-                      <button
-                        onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                        className="flex w-full items-start gap-4 p-5 text-left"
-                      >
-                        {getStatusIcon(item.status)}
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className="font-mono text-xs font-semibold text-primary">
-                              {item.subcategory?.id}
-                            </span>
-                            <Badge variant="outline" className={badge.className}>
-                              {badge.label}
-                            </Badge>
-                          </div>
-                          <p className="font-medium">{item.subcategory?.name}</p>
-                          {item.subcategory?.description && (
-                            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                              {item.subcategory.description}
-                            </p>
-                          )}
+                return (
+                  <div key={item.id} className="rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-colors overflow-hidden">
+                    {/* Item Header - clickable */}
+                    <button
+                      onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                      className="flex w-full items-start gap-4 p-5 text-left hover:bg-amber-500/[0.02] transition-colors"
+                    >
+                      {getStatusIcon(item.status)}
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex items-center gap-2">
+                          <span className="font-mono text-[11px] font-bold text-amber-400">
+                            {item.subcategory?.id}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-sans text-[10px] font-medium uppercase tracking-wide border ${
+                            item.status === 'compliant' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            item.status === 'partial' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                            item.status === 'non_compliant' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                            item.status === 'not_applicable' ? 'bg-white/[0.04] text-[#55576A] border-white/[0.07]' :
+                            'bg-white/[0.04] text-[#55576A] border-white/[0.07]'
+                          }`}>
+                            {item.status === 'not_assessed' ? 'Not Assessed' :
+                             item.status === 'non_compliant' ? 'Non-Compliant' :
+                             item.status === 'not_applicable' ? 'N/A' :
+                             item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                          </span>
                         </div>
-                        <ChevronRight
-                          className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${
-                            isExpanded ? 'rotate-90' : ''
-                          }`}
-                        />
-                      </button>
+                        <p className="font-sans text-sm font-medium text-[#F0F0F5]">{item.subcategory?.name}</p>
+                        {item.subcategory?.description && (
+                          <p className="mt-1 font-sans text-xs leading-relaxed text-[#55576A]">
+                            {item.subcategory.description}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight
+                        className={`h-4 w-4 shrink-0 text-[#55576A] transition-transform ${
+                          isExpanded ? 'rotate-90' : ''
+                        }`}
+                      />
+                    </button>
 
-                      {/* Expanded: Status Selection */}
-                      {isExpanded && (
-                        <div className="border-t px-5 pb-5 pt-4">
-                          <p className="mb-3 text-sm font-medium">Select compliance status:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {STATUS_OPTIONS.map(({ value, label, activeClass }) => {
-                              const isActive = item.status === value;
-                              return (
-                                <Button
-                                  key={value}
-                                  variant={isActive ? 'default' : 'outline'}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(item.id, value)}
-                                  className={isActive ? activeClass : ''}
-                                >
-                                  {label}
-                                </Button>
-                              );
-                            })}
-                          </div>
+                    {/* Expanded: Status Selection */}
+                    {isExpanded && (
+                      <div className="border-t border-white/[0.06] px-5 pb-5 pt-4 bg-white/[0.01]">
+                        <p className="font-display text-[10px] tracking-[0.08em] uppercase text-[#8E8FA8] font-semibold mb-3">
+                          Select compliance status
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {STATUS_OPTIONS.map(({ value, label, activeClass }) => {
+                            const isActive = item.status === value;
+                            return (
+                              <button
+                                key={value}
+                                onClick={() => handleStatusChange(item.id, value)}
+                                className={`px-3 py-1.5 rounded-lg font-sans text-xs font-medium border transition-all ${
+                                  isActive
+                                    ? activeClass
+                                    : 'bg-white/[0.04] text-[#8E8FA8] border-white/[0.07] hover:bg-white/[0.07] hover:text-[#F0F0F5]'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
 
         {/* Submit Footer */}
         <div className="flex items-center justify-between pb-8 pt-2">
-          <p className="text-sm text-muted-foreground">
+          <p className="font-sans text-xs text-[#55576A]">
             Your progress is saved automatically when you change a status
           </p>
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             {submitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Submitting...
               </>
             ) : (
               <>
-                <Send className="mr-2 h-4 w-4" />
+                <Send className="h-4 w-4" />
                 Submit Assessment
               </>
             )}
-          </Button>
+          </button>
         </div>
       </main>
 
-      {/* Simple Footer */}
-      <footer className="mt-12 border-t">
+      {/* Footer */}
+      <footer className="mt-12 border-t border-white/[0.06]">
         <div className="mx-auto max-w-5xl px-6 py-6">
-          <p className="text-center text-xs text-muted-foreground">
-            Powered by CSF Compass - NIST Cybersecurity Framework 2.0
+          <p className="text-center font-sans text-[11px] text-[#55576A]">
+            Powered by CSF Compass — NIST Cybersecurity Framework 2.0
           </p>
         </div>
       </footer>

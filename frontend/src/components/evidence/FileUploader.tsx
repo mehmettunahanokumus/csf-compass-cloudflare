@@ -122,6 +122,12 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     }
   };
 
+  const borderClass = error
+    ? 'border-red-500/50'
+    : isDragging
+      ? 'border-amber-500/60 bg-amber-500/[0.05]'
+      : 'border-white/[0.12] hover:border-amber-500/40 bg-white/[0.02]';
+
   return (
     <div>
       <div
@@ -130,95 +136,26 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        style={{
-          border: error
-            ? '2px dashed var(--red)'
-            : isDragging
-              ? '2px dashed var(--accent)'
-              : '2px dashed var(--border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '32px 24px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '16px',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          background: isDragging ? 'var(--accent-subtle)' : 'transparent',
-          opacity: disabled ? 0.5 : 1,
-          transition: 'all 0.2s ease',
-        }}
+        className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-4 transition-all cursor-pointer ${borderClass} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         {isUploading ? (
           <>
-            <div
-              style={{
-                width: '80px',
-                height: '80px',
-                borderRadius: '50%',
-                background: 'var(--accent-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Loader2
-                size={48}
-                style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite' }}
-              />
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
             </div>
-            <span
-              style={{
-                fontSize: '14px',
-                color: 'var(--text-2)',
-                fontFamily: 'var(--font-sans)',
-              }}
-            >
+            <span className="font-sans text-sm text-[#8E8FA8]">
               Uploading...
             </span>
-            <div
-              style={{
-                width: '200px',
-                height: '4px',
-                borderRadius: '2px',
-                background: 'var(--gray-subtle)',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  width: '60%',
-                  borderRadius: '2px',
-                  background: 'var(--accent)',
-                  animation: 'uploadProgress 1.5s ease-in-out infinite',
-                }}
-              />
+            <div className="w-48 h-1 bg-white/[0.06] rounded-full overflow-hidden">
+              <div className="h-full w-3/5 bg-amber-500 rounded-full animate-[uploadProgress_1.5s_ease-in-out_infinite]" />
             </div>
           </>
         ) : error ? (
           <>
-            <div
-              style={{
-                width: '80px',
-                height: '80px',
-                borderRadius: '50%',
-                background: 'var(--red-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <AlertCircle size={48} style={{ color: 'var(--red)' }} />
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/15 flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-red-400" />
             </div>
-            <span
-              style={{
-                fontSize: '14px',
-                color: 'var(--red-text)',
-                fontFamily: 'var(--font-sans)',
-                textAlign: 'center',
-                maxWidth: '400px',
-              }}
-            >
+            <span className="font-sans text-sm text-red-400 text-center max-w-[400px]">
               {error}
             </span>
             <button
@@ -226,68 +163,25 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                 e.stopPropagation();
                 setError(null);
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '6px 12px',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                background: 'transparent',
-                color: 'var(--text-2)',
-                fontSize: '12px',
-                fontFamily: 'var(--font-sans)',
-                cursor: 'pointer',
-              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-xs rounded-lg hover:border-white/[0.15] hover:text-[#F0F0F5] transition-all"
             >
-              <X size={12} />
+              <X className="w-3 h-3" />
               Dismiss
             </button>
           </>
         ) : (
           <>
-            <div
-              style={{
-                width: '80px',
-                height: '80px',
-                borderRadius: '50%',
-                background: 'var(--accent-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Upload size={48} style={{ color: 'var(--accent)' }} />
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center group-hover:bg-amber-500/15 transition-colors">
+              <Upload className="w-8 h-8 text-amber-500/60" />
             </div>
-            <span
-              style={{
-                fontSize: '14px',
-                color: 'var(--text-2)',
-                fontFamily: 'var(--font-sans)',
-              }}
-            >
-              Drag and drop files here, or click to browse
+            <span className="font-sans text-sm text-[#8E8FA8]">
+              Drop files here or click to upload
             </span>
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '6px',
-                justifyContent: 'center',
-              }}
-            >
+            <div className="flex flex-wrap gap-1.5 justify-center">
               {acceptedTypes.map((type) => (
                 <span
                   key={type}
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: 'var(--gray-subtle)',
-                    color: 'var(--text-3)',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    fontFamily: 'var(--font-mono)',
-                  }}
+                  className="font-mono text-[10px] font-medium bg-white/[0.05] text-[#55576A] px-2 py-0.5 rounded"
                 >
                   {TYPE_LABELS[type] || type.replace('.', '').toUpperCase()}
                 </span>
@@ -302,7 +196,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
           multiple
           accept={acceptedTypes.join(',')}
           onChange={handleInputChange}
-          style={{ display: 'none' }}
+          className="hidden"
         />
       </div>
 
@@ -311,10 +205,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({
           0% { transform: translateX(-100%); }
           50% { transform: translateX(80%); }
           100% { transform: translateX(250%); }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

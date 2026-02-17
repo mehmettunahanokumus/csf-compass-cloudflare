@@ -37,27 +37,31 @@ export default function ToastComponent({ toast, onClose }: ToastProps) {
     switch (type) {
       case 'success':
         return {
-          bg: 'bg-green-50 border-green-200',
-          icon: <CheckCircle className="w-5 h-5 text-green-600" />,
-          text: 'text-green-800',
+          bg: 'bg-[#0E1018] border-emerald-500/20',
+          icon: <CheckCircle className="w-5 h-5 text-emerald-400" />,
+          text: 'text-emerald-300',
+          accent: 'bg-emerald-500',
         };
       case 'error':
         return {
-          bg: 'bg-red-50 border-red-200',
-          icon: <AlertCircle className="w-5 h-5 text-red-600" />,
-          text: 'text-red-800',
+          bg: 'bg-[#0E1018] border-red-500/20',
+          icon: <AlertCircle className="w-5 h-5 text-red-400" />,
+          text: 'text-red-300',
+          accent: 'bg-red-500',
         };
       case 'warning':
         return {
-          bg: 'bg-amber-50 border-amber-200',
-          icon: <AlertTriangle className="w-5 h-5 text-amber-600" />,
-          text: 'text-amber-800',
+          bg: 'bg-[#0E1018] border-amber-500/20',
+          icon: <AlertTriangle className="w-5 h-5 text-amber-400" />,
+          text: 'text-amber-300',
+          accent: 'bg-amber-500',
         };
       case 'info':
         return {
-          bg: 'bg-blue-50 border-blue-200',
-          icon: <Info className="w-5 h-5 text-blue-600" />,
-          text: 'text-blue-800',
+          bg: 'bg-[#0E1018] border-indigo-500/20',
+          icon: <Info className="w-5 h-5 text-indigo-400" />,
+          text: 'text-indigo-300',
+          accent: 'bg-indigo-500',
         };
     }
   };
@@ -67,19 +71,23 @@ export default function ToastComponent({ toast, onClose }: ToastProps) {
   return (
     <div
       className={`
-        ${styles.bg} ${styles.text} border rounded-lg shadow-lg p-4 mb-3
+        ${styles.bg} border rounded-xl shadow-2xl shadow-black/40 p-4 mb-3
         min-w-[320px] max-w-md
-        flex items-start space-x-3
+        flex items-start gap-3
         animate-slide-in-right
+        relative overflow-hidden
       `}
     >
-      <div className="flex-shrink-0 mt-0.5">{styles.icon}</div>
-      <p className="flex-1 text-sm font-medium">{message}</p>
+      {/* Left accent bar */}
+      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${styles.accent} rounded-l-xl`} />
+
+      <div className="flex-shrink-0 mt-0.5 ml-1">{styles.icon}</div>
+      <p className={`flex-1 font-sans text-sm font-medium ${styles.text}`}>{message}</p>
       <button
         onClick={() => onClose(id)}
-        className="flex-shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity duration-150"
+        className="flex-shrink-0 text-[#55576A] hover:text-[#F0F0F5] transition-colors p-0.5 rounded hover:bg-white/[0.04]"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </div>
   );

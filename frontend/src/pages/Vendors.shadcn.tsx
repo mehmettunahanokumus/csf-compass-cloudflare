@@ -3,71 +3,14 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Plus,
   Building2,
-  Eye,
-  Pencil,
-  Trash2,
-  ClipboardList,
-  AlertTriangle,
-  ShieldAlert,
-  BarChart3,
+  Search,
   Trophy,
   Layout,
 } from "lucide-react";
 import { vendorsApi } from "@/api/vendors";
 import type { Vendor } from "@/types";
 import { getErrorMessage, formatDate } from "@/api/client";
-import { DataTable, type ColumnDef, type RowAction } from "@/components/DataTable";
-import { MetricCard } from "@/components/MetricCard";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/components/ui/utils";
 import NewVendorModal from "@/components/NewVendorModal";
-
-function getCriticalityBadge(level: string) {
-  const configs: Record<string, string> = {
-    critical: "bg-red-500/10 text-red-400 border-red-500/20",
-    high: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-    medium: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    low: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  };
-  return (
-    <Badge variant="outline" className={cn(configs[level] || configs.medium, "capitalize")}>
-      {level || "medium"}
-    </Badge>
-  );
-}
-
-function getRiskScoreDisplay(score: number | undefined) {
-  if (!score || score === 0) {
-    return <span className="text-muted-foreground">-</span>;
-  }
-  const color =
-    score > 70 ? "text-red-500" : score > 40 ? "text-orange-500" : "text-green-500";
-  return <span className={cn("font-semibold tabular-nums", color)}>{score}</span>;
-}
-
-function getStatusBadge(status: string | undefined) {
-  const configs: Record<string, { label: string; className: string }> = {
-    active: { label: "Active", className: "bg-green-500/10 text-green-400 border-green-500/20" },
-    inactive: { label: "Inactive", className: "bg-gray-500/10 text-gray-400 border-gray-500/20" },
-    under_review: { label: "Under Review", className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
-    terminated: { label: "Terminated", className: "bg-red-500/10 text-red-400 border-red-500/20" },
-  };
-  const config = configs[status || "active"] || configs.active;
-  return (
-    <Badge variant="outline" className={config.className}>
-      {config.label}
-    </Badge>
-  );
-}
 
 export default function VendorsShadcn() {
   const navigate = useNavigate();
@@ -131,224 +74,274 @@ export default function VendorsShadcn() {
       ? vendors.reduce((sum, v) => sum + (v.latest_assessment_score ?? 0), 0) / vendors.length
       : 0;
 
-  // DataTable columns
-  const columns: ColumnDef<Vendor>[] = [
-    {
-      key: "name",
-      header: "Vendor Name",
-      render: (vendor) => (
-        <Link
-          to={`/vendors/${vendor.id}`}
-          className="flex items-center gap-2 hover:underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="text-xs font-medium text-primary">
-              {vendor.name.substring(0, 2).toUpperCase()}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <span className="font-medium block truncate">{vendor.name}</span>
-            {vendor.industry && (
-              <span className="text-xs text-muted-foreground">{vendor.industry}</span>
-            )}
-          </div>
-        </Link>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (vendor) => getStatusBadge(vendor.vendor_status),
-    },
-    {
-      key: "risk_score",
-      header: "Risk Score",
-      render: (vendor) => getRiskScoreDisplay(vendor.latest_assessment_score),
-    },
-    {
-      key: "criticality",
-      header: "Criticality",
-      render: (vendor) =>
-        getCriticalityBadge(vendor.risk_tier || vendor.criticality_level || "medium"),
-    },
-    {
-      key: "last_assessment",
-      header: "Last Assessment",
-      render: (vendor) => (
-        <span className="text-muted-foreground text-sm">
-          {vendor.last_assessment_date ? formatDate(vendor.last_assessment_date) : "Never"}
-        </span>
-      ),
-    },
-  ];
-
-  // Row actions
-  const rowActions: RowAction<Vendor>[] = [
-    {
-      label: "View Details",
-      icon: <Eye className="h-4 w-4" />,
-      onClick: (vendor) => navigate(`/vendors/${vendor.id}`),
-    },
-    {
-      label: "Edit",
-      icon: <Pencil className="h-4 w-4" />,
-      onClick: (vendor) => navigate(`/vendors/${vendor.id}/edit`),
-    },
-    {
-      label: "New Assessment",
-      icon: <ClipboardList className="h-4 w-4" />,
-      onClick: (vendor) => navigate(`/assessments/new?vendor=${vendor.id}`),
-    },
-    {
-      label: "Delete",
-      icon: <Trash2 className="h-4 w-4" />,
-      onClick: handleDelete,
-      variant: "destructive",
-    },
-  ];
-
   if (error) {
     return (
-      <Card className="border-destructive bg-destructive/10">
-        <CardContent className="p-4 text-destructive">{error}</CardContent>
-      </Card>
+      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+        <p className="font-sans text-sm text-red-400">{error}</p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fade-in-up space-y-6">
       {/* Page Header */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Vendors</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your third-party vendors (
-            <span className="font-mono">{vendors.length}</span> total)
+          <h1 className="font-display text-2xl font-bold text-[#F0F0F5]">Vendors</h1>
+          <p className="font-sans text-sm text-[#8E8FA8] mt-1">
+            Third-party security posture management
           </p>
         </div>
-        <Button onClick={() => setShowNewModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+        <button
+          onClick={() => setShowNewModal(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
           Add Vendor
-        </Button>
+        </button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard
-          label="Total Vendors"
-          value={vendors.length}
-          icon={Building2}
-          iconColor="text-primary"
-        />
-        <MetricCard
-          label="High Risk"
-          value={highRisk.length}
-          icon={AlertTriangle}
-          iconColor="text-red-500"
-        />
-        <MetricCard
-          label="Average Score"
-          value={avgScore > 0 ? `${avgScore.toFixed(1)}%` : "N/A"}
-          icon={BarChart3}
-          iconColor="text-blue-500"
-        />
-        <MetricCard
-          label="Critical"
-          value={critical.length}
-          icon={ShieldAlert}
-          iconColor="text-orange-500"
-        />
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
+          <div className="font-display text-2xl font-bold text-amber-400 tabular-nums mb-1">
+            {loading ? '—' : vendors.length}
+          </div>
+          <div className="font-sans text-xs text-[#8E8FA8]">Total Vendors</div>
+        </div>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
+          <div className="font-display text-2xl font-bold text-red-400 tabular-nums mb-1">
+            {loading ? '—' : highRisk.length}
+          </div>
+          <div className="font-sans text-xs text-[#8E8FA8]">High Risk</div>
+        </div>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
+          <div className={`font-display text-2xl font-bold tabular-nums mb-1 ${
+            avgScore >= 80 ? 'text-emerald-400' :
+            avgScore >= 50 ? 'text-amber-400' : 'text-red-400'
+          }`}>
+            {loading ? '—' : avgScore > 0 ? `${avgScore.toFixed(1)}%` : 'N/A'}
+          </div>
+          <div className="font-sans text-xs text-[#8E8FA8]">Average Score</div>
+        </div>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-4 hover:border-amber-500/15 transition-all">
+          <div className="font-display text-2xl font-bold text-amber-400 tabular-nums mb-1">
+            {loading ? '—' : critical.length}
+          </div>
+          <div className="font-sans text-xs text-[#8E8FA8]">Critical</div>
+        </div>
       </div>
 
       {/* Quick Actions */}
       <div className="flex gap-3 flex-wrap">
-        <Button variant="outline" size="sm" onClick={() => navigate("/vendors/ranking")}>
-          <Trophy className="h-4 w-4 mr-2" />
+        <button
+          onClick={() => navigate("/vendors/ranking")}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all"
+        >
+          <Trophy className="w-3.5 h-3.5" />
           View Rankings
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => navigate("/vendors/templates")}>
-          <Layout className="h-4 w-4 mr-2" />
+        </button>
+        <button
+          onClick={() => navigate("/vendors/templates")}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all"
+        >
+          <Layout className="w-3.5 h-3.5" />
           Manage Templates
-        </Button>
+        </button>
       </div>
 
-      {/* Criticality Breakdown */}
-      <Card className="bg-card border-border">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-semibold mb-4">Criticality Breakdown</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {(["critical", "high", "medium", "low"] as const).map((level) => {
-              const count = vendors.filter(
-                (v) => (v.criticality_level || v.risk_tier || "medium") === level
-              ).length;
-              return (
-                <div
-                  key={level}
-                  className="flex items-center justify-between p-3 rounded-md border border-border bg-secondary/20"
-                >
-                  {getCriticalityBadge(level)}
-                  <span className="text-lg font-bold font-mono">{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Search + Filter Bar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#55576A]" />
+          <input
+            type="text"
+            placeholder="Search vendors..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-lg font-sans text-sm text-[#F0F0F5] placeholder-[#55576A] focus:outline-none focus:border-amber-500/40 transition-colors"
+          />
+        </div>
 
-      {/* Filter bar */}
-      <Card className="bg-card border-border">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <Select value={filterRiskTier} onValueChange={setFilterRiskTier}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Risk Tiers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Risk Tiers</SelectItem>
-                <SelectItem value="critical">Critical Risk</SelectItem>
-                <SelectItem value="high">High Risk</SelectItem>
-                <SelectItem value="medium">Medium Risk</SelectItem>
-                <SelectItem value="low">Low Risk</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Criticality filter chips */}
+        <div className="flex items-center gap-1.5">
+          {['all', 'critical', 'high', 'medium', 'low'].map((level) => (
+            <button
+              key={level}
+              onClick={() => setFilterRiskTier(level)}
+              className={`px-3 py-1.5 rounded-lg font-sans text-xs font-medium transition-colors ${
+                filterRiskTier === level
+                  ? 'bg-amber-500 text-[#08090E]'
+                  : 'bg-white/[0.04] text-[#8E8FA8] hover:bg-white/[0.07]'
+              }`}
+            >
+              {level.charAt(0).toUpperCase() + level.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Vendors Table */}
       {loading ? (
-        <DataTable
-          title="All Vendors"
-          data={[]}
-          columns={columns}
-          keyExtractor={(v) => v.id}
-          loading={true}
-          loadingRows={5}
-        />
-      ) : filteredVendors.length === 0 ? (
-        <Card className="bg-card border-border">
-          <CardContent className="p-16 text-center">
-            <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground mb-4">
-              {searchTerm || filterRiskTier !== "all"
-                ? "No vendors match your filters"
-                : "No vendors found"}
-            </p>
-            <Button onClick={() => setShowNewModal(true)}>Add Your First Vendor</Button>
-          </CardContent>
-        </Card>
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-8">
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-4 animate-pulse">
+                <div className="w-8 h-8 rounded-lg bg-white/[0.06]" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-40 bg-white/[0.06] rounded" />
+                  <div className="h-3 w-24 bg-white/[0.04] rounded" />
+                </div>
+                <div className="h-5 w-16 bg-white/[0.06] rounded-full" />
+                <div className="h-4 w-24 bg-white/[0.06] rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
-        <DataTable
-          title="All Vendors"
-          data={filteredVendors}
-          columns={columns}
-          rowActions={rowActions}
-          keyExtractor={(v) => v.id}
-          searchPlaceholder="Search vendors..."
-          onSearch={setSearchTerm}
-          searchValue={searchTerm}
-        />
+        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-white/[0.06]">
+                <th className="text-left px-5 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Vendor</th>
+                <th className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Industry</th>
+                <th className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Criticality</th>
+                <th className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Risk Score</th>
+                <th className="text-left px-4 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Last Assessment</th>
+                <th className="text-right px-5 py-3.5 font-display text-[10px] tracking-[0.12em] uppercase text-[#55576A] font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredVendors.map((vendor) => (
+                <tr
+                  key={vendor.id}
+                  className="border-b border-white/[0.04] hover:bg-amber-500/[0.03] transition-colors"
+                >
+                  {/* Vendor name + initials */}
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center flex-shrink-0">
+                        <span className="font-display text-xs font-bold text-amber-400">
+                          {vendor.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <Link to={`/vendors/${vendor.id}`}>
+                          <span className="font-sans text-sm font-medium text-[#F0F0F5] hover:text-amber-400 transition-colors">
+                            {vendor.name}
+                          </span>
+                        </Link>
+                        {vendor.contact_email && (
+                          <div className="font-mono text-[10px] text-[#55576A]">{vendor.contact_email}</div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Industry */}
+                  <td className="px-4 py-4">
+                    <span className="font-sans text-sm text-[#8E8FA8]">{vendor.industry ?? '—'}</span>
+                  </td>
+
+                  {/* Criticality badge */}
+                  <td className="px-4 py-4">
+                    {(vendor.risk_tier || vendor.criticality_level) ? (
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-wide border ${
+                        (vendor.risk_tier || vendor.criticality_level) === 'critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                        (vendor.risk_tier || vendor.criticality_level) === 'high' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                        (vendor.risk_tier || vendor.criticality_level) === 'medium' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
+                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      }`}>
+                        {vendor.risk_tier || vendor.criticality_level || 'medium'}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-wide border bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+                        medium
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Risk score bar */}
+                  <td className="px-4 py-4">
+                    {vendor.latest_assessment_score != null && vendor.latest_assessment_score > 0 ? (
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-24 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${vendor.latest_assessment_score}%`,
+                              background: vendor.latest_assessment_score < 30 ? '#EF4444' :
+                                          vendor.latest_assessment_score < 60 ? '#F59E0B' : '#10B981'
+                            }}
+                          />
+                        </div>
+                        <span className={`font-display text-sm font-semibold tabular-nums ${
+                          vendor.latest_assessment_score < 30 ? 'text-red-400' :
+                          vendor.latest_assessment_score < 60 ? 'text-amber-400' : 'text-emerald-400'
+                        }`}>
+                          {vendor.latest_assessment_score}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[#55576A] font-sans text-sm">—</span>
+                    )}
+                  </td>
+
+                  {/* Last Assessment */}
+                  <td className="px-4 py-4">
+                    <span className="font-sans text-sm text-[#8E8FA8]">
+                      {vendor.last_assessment_date ? formatDate(vendor.last_assessment_date) : 'Never'}
+                    </span>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-5 py-4 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Link to={`/vendors/${vendor.id}`}>
+                        <button className="font-sans text-xs text-[#8E8FA8] hover:text-amber-400 px-3 py-1.5 border border-white/[0.07] hover:border-amber-500/30 rounded-lg transition-all">
+                          View
+                        </button>
+                      </Link>
+                      <button
+                        onClick={() => navigate(`/vendors/${vendor.id}/edit`)}
+                        className="font-sans text-xs text-[#8E8FA8] hover:text-[#F0F0F5] px-3 py-1.5 border border-white/[0.07] hover:border-white/[0.15] rounded-lg transition-all"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(vendor)}
+                        className="font-sans text-xs text-[#55576A] hover:text-red-400 px-3 py-1.5 border border-white/[0.07] hover:border-red-500/30 rounded-lg transition-all"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Empty state */}
+          {filteredVendors.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/15 flex items-center justify-center mb-3">
+                <Building2 className="w-5 h-5 text-amber-500/50" />
+              </div>
+              <p className="font-display text-sm font-semibold text-[#F0F0F5] mb-1">No vendors found</p>
+              <p className="font-sans text-xs text-[#8E8FA8]">
+                {searchTerm || filterRiskTier !== 'all' ? 'Try a different search term' : 'Add your first vendor to get started'}
+              </p>
+              {!searchTerm && filterRiskTier === 'all' && (
+                <button
+                  onClick={() => setShowNewModal(true)}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
+                >
+                  Add Your First Vendor
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* New Vendor Modal */}

@@ -61,7 +61,7 @@ export default function DonutChart({
           cy={centerY}
           r={radius}
           fill="none"
-          className="stroke-border-default"
+          stroke="rgba(255,255,255,0.06)"
           strokeWidth={strokeWidth}
         />
 
@@ -83,6 +83,7 @@ export default function DonutChart({
               strokeWidth={strokeWidth}
               strokeDasharray={`${segment.segmentLength} ${circumference - segment.segmentLength}`}
               strokeDashoffset={-offset}
+              strokeLinecap="round"
               className="transition-all duration-500"
             />
           );
@@ -95,7 +96,8 @@ export default function DonutChart({
             y={centerY}
             textAnchor="middle"
             dominantBaseline="central"
-            className="fill-text-primary font-bold text-3xl transform rotate-90"
+            className="font-display font-bold text-3xl transform rotate-90"
+            fill="#F0F0F5"
             style={{ transformOrigin: `${centerX}px ${centerY}px` }}
           >
             {centerText}
@@ -108,7 +110,8 @@ export default function DonutChart({
             y={centerY + 20}
             textAnchor="middle"
             dominantBaseline="central"
-            className="fill-text-secondary text-sm transform rotate-90"
+            className="font-sans text-sm transform rotate-90"
+            fill="#8E8FA8"
             style={{ transformOrigin: `${centerX}px ${centerY + 20}px` }}
           >
             {centerSubtext}
@@ -117,18 +120,21 @@ export default function DonutChart({
       </svg>
 
       {/* Legend */}
-      <div className="mt-6 space-y-2 w-full">
+      <div className="mt-5 space-y-2.5 w-full">
         {segments.map((segment) => (
-          <div key={segment.label} className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-2">
+          <div key={segment.label} className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <div
-                className="w-3 h-3 rounded-full flex-shrink-0"
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                 style={{ backgroundColor: segment.color }}
               />
-              <span className="text-text-secondary">{segment.label}</span>
+              <span className="font-sans text-xs text-[#8E8FA8]">{segment.label}</span>
             </div>
-            <span className="font-semibold text-text-primary">
-              {segment.value} ({((segment.value / segments.reduce((sum, s) => sum + s.value, 0)) * 100).toFixed(1)}%)
+            <span className="font-mono text-xs font-semibold text-[#F0F0F5] tabular-nums">
+              {segment.value}{' '}
+              <span className="text-[#55576A] font-normal">
+                ({((segment.value / total) * 100).toFixed(1)}%)
+              </span>
             </span>
           </div>
         ))}

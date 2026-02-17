@@ -27,11 +27,11 @@ interface ExecutiveSummaryCardProps {
   isGenerating?: boolean;
 }
 
-const TIER_CONFIG: Record<number, { label: string; color: string; bg: string }> = {
-  1: { label: 'Partial', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
-  2: { label: 'Risk Informed', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
-  3: { label: 'Repeatable', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-  4: { label: 'Adaptive', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+const TIER_CONFIG: Record<number, { label: string; className: string }> = {
+  1: { label: 'Partial', className: 'bg-red-500/10 text-red-400' },
+  2: { label: 'Risk Informed', className: 'bg-amber-500/10 text-amber-400' },
+  3: { label: 'Repeatable', className: 'bg-amber-500/10 text-amber-400' },
+  4: { label: 'Adaptive', className: 'bg-emerald-500/10 text-emerald-400' },
 };
 
 export default function ExecutiveSummaryCard({
@@ -48,71 +48,33 @@ export default function ExecutiveSummaryCard({
 
   if (!hasData) {
     return (
-      <div
-        style={{
-          background: 'var(--card)',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: 'var(--shadow-sm)',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 16,
-        }}
-      >
-        <h3
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 20,
-            fontWeight: 700,
-            color: 'var(--text-1)',
-            alignSelf: 'flex-start',
-          }}
-        >
-          Executive Summary
-        </h3>
-        <div
-          style={{
-            padding: '40px 20px',
-            textAlign: 'center',
-            color: 'var(--text-3)',
-            fontSize: 14,
-          }}
-        >
-          <Brain
-            size={40}
-            style={{ margin: '0 auto 12px', opacity: 0.5, color: 'var(--text-3)' }}
-          />
-          <p style={{ marginBottom: 16 }}>
+      <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+          <h3 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+            Executive Summary
+          </h3>
+        </div>
+        <div className="flex flex-col items-center py-10 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mb-4">
+            <Brain className="w-6 h-6 text-indigo-400/50" />
+          </div>
+          <p className="font-sans text-sm text-[#8E8FA8] mb-6 max-w-xs">
             No executive summary available yet. Generate one using AI analysis.
           </p>
           <button
             onClick={onGenerateAI}
             disabled={isGenerating}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 20px',
-              background: 'var(--navy-900)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: isGenerating ? 'not-allowed' : 'pointer',
-              opacity: isGenerating ? 0.7 : 1,
-              fontFamily: 'var(--font-ui)',
-            }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>
-                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                <Loader2 className="w-4 h-4 animate-spin" />
                 Generating...
               </>
             ) : (
               <>
-                <Brain size={16} />
+                <Brain className="w-4 h-4" />
                 Generate Executive Summary
               </>
             )}
@@ -125,47 +87,17 @@ export default function ExecutiveSummaryCard({
   const tier = data.maturityTier ? TIER_CONFIG[data.maturityTier] : null;
 
   return (
-    <div
-      style={{
-        background: 'var(--card)',
-        borderRadius: 'var(--radius-md)',
-        boxShadow: 'var(--shadow-sm)',
-        padding: 24,
-      }}
-    >
+    <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 16,
-        }}
-      >
-        <h3
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 20,
-            fontWeight: 700,
-            color: 'var(--text-1)',
-          }}
-        >
-          Executive Summary
-        </h3>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
+          <h3 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+            Executive Summary
+          </h3>
+        </div>
         {tier && (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '4px 12px',
-              borderRadius: 999,
-              fontSize: 13,
-              fontWeight: 600,
-              color: tier.color,
-              background: tier.bg,
-            }}
-          >
+          <span className={`font-sans text-[11px] font-semibold px-2.5 py-1 rounded-full ${tier.className}`}>
             Tier {data.maturityTier}: {tier.label}
           </span>
         )}
@@ -173,73 +105,24 @@ export default function ExecutiveSummaryCard({
 
       {/* Summary text */}
       {data.summary && (
-        <p
-          style={{
-            color: 'var(--text-2)',
-            fontSize: 14,
-            lineHeight: 1.6,
-            marginBottom: 20,
-          }}
-        >
+        <p className="font-sans text-sm text-[#8E8FA8] leading-relaxed mb-6">
           {data.summary}
         </p>
       )}
 
       {/* 2x2 section grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: 16,
-        }}
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Strengths */}
         {data.strengths && data.strengths.length > 0 && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--green-subtle)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 10,
-                color: 'var(--green-text)',
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              <CheckCircle size={18} />
+          <div className="p-4 rounded-xl bg-emerald-500/[0.05] border border-emerald-500/10">
+            <div className="flex items-center gap-2 mb-3 text-emerald-400 font-display text-xs font-semibold uppercase tracking-wide">
+              <CheckCircle className="w-4 h-4" />
               Strengths
             </div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <ul className="space-y-1.5">
               {data.strengths.map((item, i) => (
-                <li
-                  key={i}
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--text-2)',
-                    lineHeight: 1.5,
-                    paddingLeft: 16,
-                    position: 'relative',
-                    marginBottom: 4,
-                  }}
-                >
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 8,
-                      width: 5,
-                      height: 5,
-                      borderRadius: '50%',
-                      background: 'var(--green)',
-                    }}
-                  />
+                <li key={i} className="relative pl-4 font-sans text-xs text-[#8E8FA8] leading-relaxed">
+                  <span className="absolute left-0 top-[7px] w-1.5 h-1.5 rounded-full bg-emerald-500/60" />
                   {item}
                 </li>
               ))}
@@ -249,51 +132,15 @@ export default function ExecutiveSummaryCard({
 
         {/* Critical Gaps */}
         {data.criticalGaps && data.criticalGaps.length > 0 && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--red-subtle)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 10,
-                color: 'var(--red-text)',
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              <AlertTriangle size={18} />
+          <div className="p-4 rounded-xl bg-red-500/[0.05] border border-red-500/10">
+            <div className="flex items-center gap-2 mb-3 text-red-400 font-display text-xs font-semibold uppercase tracking-wide">
+              <AlertTriangle className="w-4 h-4" />
               Critical Gaps
             </div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <ul className="space-y-1.5">
               {data.criticalGaps.map((item, i) => (
-                <li
-                  key={i}
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--text-2)',
-                    lineHeight: 1.5,
-                    paddingLeft: 16,
-                    position: 'relative',
-                    marginBottom: 4,
-                  }}
-                >
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 8,
-                      width: 5,
-                      height: 5,
-                      borderRadius: '50%',
-                      background: 'var(--red)',
-                    }}
-                  />
+                <li key={i} className="relative pl-4 font-sans text-xs text-[#8E8FA8] leading-relaxed">
+                  <span className="absolute left-0 top-[7px] w-1.5 h-1.5 rounded-full bg-red-500/60" />
                   {item}
                 </li>
               ))}
@@ -303,51 +150,15 @@ export default function ExecutiveSummaryCard({
 
         {/* Priority Actions */}
         {data.priorityActions && data.priorityActions.length > 0 && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--blue-subtle)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 10,
-                color: 'var(--blue-text)',
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              <ListOrdered size={18} />
+          <div className="p-4 rounded-xl bg-indigo-500/[0.05] border border-indigo-500/10">
+            <div className="flex items-center gap-2 mb-3 text-indigo-400 font-display text-xs font-semibold uppercase tracking-wide">
+              <ListOrdered className="w-4 h-4" />
               Priority Actions
             </div>
-            <ol style={{ listStyle: 'none', padding: 0, margin: 0, counterReset: 'actions' }}>
+            <ol className="space-y-1.5">
               {data.priorityActions.map((item, i) => (
-                <li
-                  key={i}
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--text-2)',
-                    lineHeight: 1.5,
-                    paddingLeft: 20,
-                    position: 'relative',
-                    marginBottom: 4,
-                    counterIncrement: 'actions',
-                  }}
-                >
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: 'var(--blue-text)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
+                <li key={i} className="relative pl-5 font-sans text-xs text-[#8E8FA8] leading-relaxed">
+                  <span className="absolute left-0 font-mono text-[10px] font-bold text-indigo-400">
                     {i + 1}.
                   </span>
                   {item}
@@ -359,69 +170,34 @@ export default function ExecutiveSummaryCard({
 
         {/* Risk Assessment */}
         {data.riskAssessment && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--orange-subtle)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 10,
-                color: 'var(--orange-text)',
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              <ShieldAlert size={18} />
+          <div className="p-4 rounded-xl bg-amber-500/[0.05] border border-amber-500/10">
+            <div className="flex items-center gap-2 mb-3 text-amber-400 font-display text-xs font-semibold uppercase tracking-wide">
+              <ShieldAlert className="w-4 h-4" />
               Risk Assessment
             </div>
-            <p
-              style={{
-                fontSize: 13,
-                color: 'var(--text-2)',
-                lineHeight: 1.6,
-                margin: 0,
-              }}
-            >
+            <p className="font-sans text-xs text-[#8E8FA8] leading-relaxed">
               {data.riskAssessment}
             </p>
           </div>
         )}
       </div>
 
-      {/* Regenerate button at bottom */}
+      {/* Regenerate button */}
       {onGenerateAI && (
-        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="mt-5 pt-5 border-t border-white/[0.05] flex justify-end">
           <button
             onClick={onGenerateAI}
             disabled={isGenerating}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 14px',
-              background: 'transparent',
-              color: 'var(--text-3)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 13,
-              cursor: isGenerating ? 'not-allowed' : 'pointer',
-              fontFamily: 'var(--font-ui)',
-            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-xs rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>
-                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Regenerating...
               </>
             ) : (
               <>
-                <Brain size={14} />
+                <Brain className="w-3.5 h-3.5" />
                 Regenerate
               </>
             )}

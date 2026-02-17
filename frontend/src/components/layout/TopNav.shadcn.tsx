@@ -1,69 +1,67 @@
-import { NavLink, Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  FileCheck,
-  Building2,
-  Plus,
+  Bell,
+  ChevronRight,
   Shield,
 } from 'lucide-react';
 import { SidebarTrigger } from '../ui/sidebar';
-import { Separator } from '../ui/separator';
-import { Button } from '../ui/button';
 
-const navLinks = [
-  { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { name: 'Assessments', path: '/assessments', icon: FileCheck },
-  { name: 'Vendors', path: '/vendors', icon: Building2 },
-];
+const pathTitles: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/assessments': 'Assessments',
+  '/assessments/new': 'New Assessment',
+  '/vendors': 'Vendors',
+  '/analytics': 'Analytics',
+  '/exports': 'Exports',
+  '/organization': 'Organization',
+  '/profile': 'Profile',
+};
+
+function getPageTitle(pathname: string): string {
+  if (pathTitles[pathname]) return pathTitles[pathname];
+  if (pathname.startsWith('/assessments/')) return 'Assessment Detail';
+  if (pathname.startsWith('/vendors/')) return 'Vendor Detail';
+  return 'Dashboard';
+}
 
 export default function TopNav() {
-  return (
-    <header className="flex h-14 items-center gap-2 border-b bg-background px-4">
-      {/* Hamburger trigger - visible on mobile only */}
-      <SidebarTrigger className="md:hidden" />
-      <Separator orientation="vertical" className="mr-2 h-4 md:hidden" />
+  const location = useLocation();
+  const pageTitle = getPageTitle(location.pathname);
 
-      {/* Logo - visible on mobile only (desktop has sidebar logo) */}
+  return (
+    <header className="flex h-[60px] items-center gap-4 border-b border-white/[0.06] bg-[rgba(8,9,14,0.92)] backdrop-blur-md px-4">
+      {/* Hamburger trigger - visible on mobile only */}
+      <SidebarTrigger className="md:hidden text-[#8E8FA8] hover:text-[#F0F0F5]" />
+
+      {/* Mobile logo */}
       <Link
         to="/dashboard"
         className="flex items-center gap-2 md:hidden"
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
-          <Shield className="h-4 w-4 text-primary-foreground" />
+        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+          <Shield className="w-4 h-4 text-amber-500" />
         </div>
-        <span className="text-base font-semibold">CSF Compass</span>
       </Link>
 
-      {/* Desktop nav links - visible on lg+ screens */}
-      <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
-        {navLinks.map((link) => (
-          <NavLink
-            key={link.path}
-            to={link.path}
-            className={({ isActive }) =>
-              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`
-            }
-          >
-            <link.icon className="h-4 w-4" />
-            <span>{link.name}</span>
-          </NavLink>
-        ))}
-      </nav>
+      {/* Breadcrumb */}
+      <div className="hidden md:flex items-center gap-1.5 text-sm">
+        <span className="font-sans text-[#55576A]">CSF Compass</span>
+        <ChevronRight className="w-3.5 h-3.5 text-[#55576A]" />
+        <span className="font-display font-semibold text-[#F0F0F5]">{pageTitle}</span>
+      </div>
 
-      {/* Spacer on mobile */}
-      <div className="flex-1 lg:hidden" />
+      {/* Spacer */}
+      <div className="flex-1" />
 
-      {/* New Assessment button */}
-      <Button asChild size="sm">
-        <Link to="/assessments/new">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">New Assessment</span>
-        </Link>
-      </Button>
+      {/* Right side actions */}
+      <div className="flex items-center gap-2">
+        <button className="w-8 h-8 rounded-lg border border-white/[0.07] bg-white/[0.03] flex items-center justify-center text-[#8E8FA8] hover:text-[#F0F0F5] hover:border-amber-500/30 transition-colors">
+          <Bell className="w-4 h-4" />
+        </button>
+        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+          <span className="font-display text-xs font-bold text-amber-400">D</span>
+        </div>
+      </div>
     </header>
   );
 }
