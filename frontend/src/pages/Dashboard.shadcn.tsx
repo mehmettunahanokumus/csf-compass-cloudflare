@@ -70,9 +70,6 @@ export default function DashboardShadcn() {
 
   // Calculate metrics
   const completedAssessments = assessments.filter((a) => a.status === 'completed');
-  const completionPct = assessments.length > 0
-    ? Math.round((completedAssessments.length / assessments.length) * 100)
-    : 0;
   const avgScore = completedAssessments.length > 0
     ? Math.round(
         completedAssessments.reduce((sum, a) => sum + (a.overall_score ?? 0), 0) /
@@ -82,14 +79,6 @@ export default function DashboardShadcn() {
   const highRiskVendors = vendors.filter(
     (v) => (v.latest_assessment_score ?? 100) < 50
   );
-
-  // Vendor risk distribution (kept for potential future use)
-  const _riskDistribution = [
-    { name: 'Critical', value: vendors.filter((v) => v.criticality_level === 'critical').length, color: '#ef4444' },
-    { name: 'High', value: vendors.filter((v) => v.criticality_level === 'high').length, color: '#f97316' },
-    { name: 'Medium', value: vendors.filter((v) => v.criticality_level === 'medium').length, color: '#eab308' },
-    { name: 'Low', value: vendors.filter((v) => !v.criticality_level || v.criticality_level === 'low').length, color: '#10b981' },
-  ];
 
   // ── Loading state ──
 
