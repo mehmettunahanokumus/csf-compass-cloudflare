@@ -1,6 +1,7 @@
 {
   "name": "csf-compass",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build"
+    "build": "cd frontend && npm install && npm run build",
+    "deploy": "npm run build && npx wrangler deploy"
   }
 }
