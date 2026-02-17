@@ -3,26 +3,26 @@
  */
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import AppLayout from './components/layout/AppShell.new';
-import Dashboard from './pages/Dashboard.new';
-import Assessments from './pages/Assessments.new';
-import AssessmentDetail from './pages/AssessmentDetail.new';
-import AssessmentComparison from './pages/AssessmentComparison.new';
-import AssessmentChecklist from './pages/AssessmentChecklist';
+import AppLayout from './components/layout/AppShell.shadcn';
+import Dashboard from './pages/Dashboard.shadcn';
+import Assessments from './pages/Assessments.shadcn';
+import AssessmentDetail from './pages/AssessmentDetail.shadcn';
+import AssessmentComparison from './pages/AssessmentComparison.shadcn';
+import AssessmentChecklist from './pages/AssessmentChecklist.shadcn';
 import AssessmentReport from './pages/AssessmentReport';
 import NewAssessment from './pages/NewAssessment.new';
-import Vendors from './pages/Vendors.new';
-import VendorDetail from './pages/VendorDetail.new';
+import Vendors from './pages/Vendors.shadcn';
+import VendorDetail from './pages/VendorDetail.shadcn';
 import VendorRanking from './pages/VendorRanking';
 import VendorTemplates from './pages/VendorTemplates';
 import VendorNew from './pages/VendorNew';
 import VendorEdit from './pages/VendorEdit';
-import VendorPortal from './pages/VendorPortal.new';
-import Analytics from './pages/Analytics.new';
-import Exports from './pages/Exports.new';
-import Organization from './pages/Organization.new';
-import Profile from './pages/Profile.new';
-import AssessmentWizard from './pages/AssessmentWizard';
+import VendorPortal from './pages/VendorPortal.shadcn';
+import Analytics from './pages/Analytics.shadcn';
+import Exports from './pages/Exports.shadcn';
+import Organization from './pages/Organization.shadcn';
+import Profile from './pages/Profile.shadcn';
+import AssessmentWizard from './pages/AssessmentWizard.shadcn';
 
 export const router = createBrowserRouter([
   // Public routes (outside AppLayout)

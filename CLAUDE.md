@@ -1,0 +1,967 @@
+# CLAUDE.md - CSF Compass Proje Geçmişi
+
+> Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
+
+**Son Güncelleme:** 2026-02-13
+**Proje Adı:** CSF Compass - Cloudflare Edition
+**Versiyon:** 1.0.0 (Production)
+
+---
+
+## İçindekiler
+
+1. [Proje Özeti](#proje-özeti)
+2. [Mimari Kararlar](#mimari-kararlar)
+3. [Geçmiş ve Dönüm Noktaları](#geçmiş-ve-dönüm-noktaları)
+4. [Teknik Stack ve Bağımlılıklar](#teknik-stack-ve-bağımlılıklar)
+5. [Database Schema ve Migrasyonlar](#database-schema-ve-migrasyonlar)
+6. [API Endpoints](#api-endpoints)
+7. [Frontend Yapısı](#frontend-yapısı)
+8. [Önemli Özellikler](#önemli-özellikler)
+9. [Production Deployment](#production-deployment)
+10. [Bilinen Sorunlar ve Çözümler](#bilinen-sorunlar-ve-çözümler)
+11. [Gelecek İyileştirmeler](#gelecek-iyileştirmeler)
+
+---
+
+## Proje Özeti
+
+CSF Compass, NIST Cybersecurity Framework (CSF) 2.0'a dayalı vendor security assessment yönetim platformudur. Orijinal Supabase tabanlı versiyondan Cloudflare Developer Platform'a tam migration yapılmıştır.
+
+**Temel Amaç:**
+- Organizasyonların kendi güvenlik durumunu değerlendirmesi
+- Vendor'ların (tedarikçilerin) güvenlik değerlendirmesi
+- NIST CSF 2.0 framework'üne göre kapsamlı assessment
+- Vendor self-assessment özelliği (magic link ile)
+- Assessment karşılaştırma ve gap analizi
+
+**Neden Cloudflare?**
+- Global edge network (düşük latency)
+- Uygun maliyet (aylık ~$10-15)
+- Entegre ekosistem (D1, R2, Workers, Pages)
+- Kolay deployment ve scaling
+
+---
+
+## Mimari Kararlar
+
+### 1. Platform Seçimi: Cloudflare
+
+**Önceki Stack:** Supabase (PostgreSQL + Auth + Storage + Edge Functions)
+**Yeni Stack:** Cloudflare (D1 + R2 + Workers + Pages)
+
+**Neden değiştik?**
+- Maliyet optimizasyonu
+- Daha iyi global performans
+- Entegre developer experience
+- Supabase free tier limitasyonları
+
+### 2. Database: D1 (SQLite)
+
+**PostgreSQL → SQLite Dönüşüm Kararları:**
+- **UUID:** TEXT olarak saklanıyor (36 karakter)
+- **Timestamp:** INTEGER olarak (Unix milliseconds)
+- **JSONB:** TEXT olarak (JSON.stringify/parse)
+- **Boolean:** INTEGER (0/1)
+- **Decimal:** REAL (floating point)
+
+**Önemli Not:** SQLite'ın değişken limiti 999. Batch insert'lerde max 25 row kullanıyoruz.
+
+### 3. Authentication: Demo Mode
+
+**Kritik Karar:** İlk versiyonda authentication yok!
+
+**Hardcoded değerler:**
+- Organization ID: `demo-org-123`
+- User ID: `demo-user-456`
+
+**Gelecek Plan:** Cloudflare Access veya custom auth eklenebilir.
+
+### 4. AI Integration: Anthropic Claude
+
+**Model:** Claude Sonnet 4.5
+**Kullanım Alanları:**
+- Evidence analizi (subcategory bazında)
+- Gap analysis (eksiklikleri belirle)
+- Executive summary (yönetici raporu)
+
+**API Key:** Environment variable (`ANTHROPIC_API_KEY`)
+
+### 5. File Storage: R2
+
+**JWT-based Presigned URLs:**
+- Download için token-based güvenlik
+- 1 saatlik geçerlilik süresi
+- httpOnly cookies (vendor portal için)
+
+---
+
+## Geçmiş ve Dönüm Noktaları
+
+### Phase 1: Infrastructure Setup (Gün 1-3)
+**Tamamlanma:** 2026-02-10
+
+✅ Tamamlanan:
+- Repository oluşturuldu (`csf-cloudflare/`)
+- Worker projesi (Hono framework)
+- Frontend projesi (Vite + React + TypeScript)
+- D1 database: `csf-compass-db` (ID: `4dfa232a-bb0e-4576-8a67-ae787ca0f996`)
+- R2 bucket: `csf-evidence-files`
+- KV namespace: Rate limiting için (`RATE_LIMIT_KV`)
+
+**İlk Commit:** `28d4561` - Initial commit: Complete CSF Compass migration to Cloudflare
+
+---
+
+### Phase 2: Database Migration (Gün 4-7)
+**Tamamlanma:** 2026-02-10
+
+✅ Tamamlanan:
+- **Migration 0001:** 14 tablo oluşturuldu
+- **Migration 0002:** CSF 2.0 seed data (6 function, 22 category, 120 subcategory)
+- **Migration 0003:** Demo data (organization, user, 3 vendor, 2 assessment)
+- **Migration 0004:** Vendor invitation tables
+
+**Kritik Çözümler:**
+- **Batch Insert Problemi:** SQLite 999 variable limit
+  - Commit: `1fb0923` - Fix: Batch insert assessment items to avoid SQLite variable limit
+  - Çözüm: 25 row/batch
+- **Boolean Problemi:** SQLite 0/1 kullanımı
+  - Commit: `cfc5aab` - Fix: Use 0 for boolean in SQLite wizard progress
+
+**Database İstatistikleri:**
+- Toplam 14 tablo
+- 6 CSF Function
+- 22 CSF Category
+- 120 CSF Subcategory
+- 3 Demo Vendor
+- 2 Demo Assessment (240 assessment item)
+
+---
+
+### Phase 3: Worker API Development (Gün 8-12)
+**Tamamlanma:** 2026-02-11
+
+✅ Tamamlanan API Endpoints (23 toplam):
+
+**CSF Reference (4 endpoint):**
+- `GET /api/csf/functions`
+- `GET /api/csf/categories`
+- `GET /api/csf/subcategories`
+- `GET /api/csf/subcategories/:id`
+
+**Vendors (6 endpoint):**
+- `GET /api/vendors`
+- `POST /api/vendors`
+- `GET /api/vendors/:id`
+- `PATCH /api/vendors/:id`
+- `DELETE /api/vendors/:id`
+- `GET /api/vendors/:id/stats`
+
+**Assessments (8 endpoint):**
+- `GET /api/assessments`
+- `POST /api/assessments` (auto-creates 120 items + 15 wizard steps)
+- `GET /api/assessments/:id`
+- `PATCH /api/assessments/:id`
+- `DELETE /api/assessments/:id`
+- `GET /api/assessments/:id/items`
+- `PATCH /api/assessments/:id/items/:itemId`
+- `POST /api/assessments/:id/calculate-score`
+
+**Evidence (4 endpoint):**
+- `POST /api/evidence/upload`
+- `GET /api/evidence/download/:token`
+- `DELETE /api/evidence/:id`
+- `GET /api/evidence/item/:itemId`
+
+**AI Services (3 endpoint):**
+- `POST /api/ai/analyze`
+- `POST /api/ai/gap-analysis`
+- `POST /api/ai/executive-summary`
+
+**Vendor Invitations (7 endpoint):**
+- `POST /api/vendor-invitations` (send invitation)
+- `GET /api/vendor-invitations/validate/:token` (validate & consume)
+- `PATCH /api/vendor-invitations/:token/items/:itemId` (update item)
+- `POST /api/vendor-invitations/:token/complete` (submit)
+- `GET /api/vendor-invitations/:orgAssessmentId/comparison` (comparison)
+- `GET /api/assessments/:id/invitation` (get status)
+- `POST /api/vendor-invitations/:invitationId/revoke` (revoke)
+
+---
+
+### Phase 4: Frontend Development (Gün 13-15)
+**Tamamlanma:** 2026-02-11
+
+✅ Tamamlanan:
+- Tailwind CSS setup
+- TypeScript types
+- API client layer (5 service modülü)
+- React Router (7+ route)
+- Layout components (AppLayout, Header, Sidebar)
+- **31 Page Component** (Dashboard, Assessments, Vendors, Analytics, vb.)
+
+**Frontend Özellikleri:**
+- Assessment wizard (15-step guided assessment)
+- Evidence upload (drag & drop, R2 storage)
+- Vendor portal (public, token-based)
+- Assessment comparison (org vs vendor)
+- Dashboard analytics
+- Export functionality
+
+---
+
+### Phase 5: Vendor Self-Assessment Feature (Gün 16-18)
+**Tamamlanma:** 2026-02-11
+
+✅ Security Architecture:
+- **JWT Signing:** Magic link imzalama (`@tsndr/cloudflare-worker-jwt`)
+- **One-Time Token:** Token sadece bir kez kullanılabilir
+- **Session Management:** 24-saatlik httpOnly cookie
+- **Rate Limiting:** KV-based (10 req/min validation, 30 req/min update)
+- **Audit Logging:** Tüm vendor actions loglanıyor
+- **Token Revocation:** Organization tarafından iptal edilebilir
+
+**Güvenlik Katmanları:**
+1. JWT imzalama (7-gün max expiry)
+2. One-time consumption (`token_consumed_at`)
+3. Session cookie (httpOnly + Secure + SameSite=Strict)
+4. Rate limiting (per-IP)
+5. Token revocation
+6. Audit trail (D1'de)
+
+---
+
+### Phase 6: UI Theme Migration (Gün 19-20)
+**Tamamlanma:** 2026-02-12
+
+✅ Tamamlanan:
+- **Renk Paleti:** Teal → Navy Blue
+- **Tipografi:** Plus Jakarta Sans → Inter + Playfair Display
+- **Dark Mode:** Slate Professional theme
+- **Critical Fixes:**
+  - Commit: `cc6ccbc` - Apply Slate Professional theme with critical visibility fixes
+  - Commit: `2a48340` - Apply critical dark mode readability fixes
+
+**Design System Updates:**
+- Navy color scale (50-950)
+- Focus states (navy ring)
+- Shadow depths (5 level)
+- Border radius (8px, 12px, 16px)
+
+---
+
+### Phase 7: Production Deployment (Gün 21)
+**Tamamlanma:** 2026-02-11
+
+✅ Production URLs:
+- **Frontend:** https://a5637370.csf-compass.pages.dev
+- **Worker:** https://csf-compass-worker.mehmettunahanokumus.workers.dev
+
+✅ Deployment Checklist:
+- JWT_SECRET set via `wrangler secret`
+- Database migrations applied
+- Environment variables configured
+- CORS origins whitelisted
+- Rate limiting KV namespace bound
+
+**Production Stats:**
+- Frontend bundle: 338 KB JS, 17 KB CSS
+- Database: 106 CSF subcategories, 240+ assessment items
+- Worker: 23 API endpoints
+- Security: JWT + Session + Rate Limit + Audit Log
+
+---
+
+### Phase 8: Agentic Development (Gün 22)
+**Tamamlanma:** 2026-02-12
+
+Commit: `c86edb5` - Cladude Code Agentic Devs
+
+**Claude Code Integration:**
+- Serena MCP server konfigürasyonu
+- Context7 for library documentation
+- Cloudflare Developer Platform MCP
+
+---
+
+## Teknik Stack ve Bağımlılıklar
+
+### Backend (Worker)
+
+**Runtime:** Cloudflare Workers (Node.js compatible)
+
+**Dependencies:**
+```json
+{
+  "@anthropic-ai/sdk": "^0.74.0",
+  "@tsndr/cloudflare-worker-jwt": "^3.2.1",
+  "drizzle-orm": "^0.45.1",
+  "hono": "^4.11.9"
+}
+```
+
+**Dev Dependencies:**
+```json
+{
+  "@cloudflare/workers-types": "^4.20260210.0",
+  "@types/node": "^25.2.2",
+  "drizzle-kit": "^0.31.9",
+  "typescript": "^5.9.3",
+  "wrangler": "^4.64.0"
+}
+```
+
+**Önemli Worker Kütüphaneleri:**
+- `lib/scoring.ts` - Assessment scoring algorithm
+- `lib/storage.ts` - R2 file operations + JWT presigned URLs
+- `lib/ai.ts` - Anthropic Claude client
+- `lib/invitation-tokens.ts` - JWT magic link generation
+- `lib/rate-limiter.ts` - KV-based rate limiting
+- `lib/audit-logger.ts` - Audit trail logging
+- `lib/assessment-cloning.ts` - Vendor assessment cloning (batch)
+
+---
+
+### Frontend
+
+**Build Tool:** Vite 7.3.1
+**Framework:** React 19.2.0
+
+**Dependencies:**
+```json
+{
+  "axios": "^1.13.5",
+  "framer-motion": "^12.34.0",
+  "lucide-react": "^0.563.0",
+  "react": "^19.2.0",
+  "react-dom": "^19.2.0",
+  "react-router-dom": "^7.13.0"
+}
+```
+
+**Dev Dependencies:**
+```json
+{
+  "@tailwindcss/postcss": "^4.1.18",
+  "tailwindcss": "^4.1.18",
+  "typescript": "~5.9.3",
+  "vite": "^7.3.1"
+}
+```
+
+**Toplam Kod:** ~21,000 satır TypeScript/TSX
+
+---
+
+## Database Schema ve Migrasyonlar
+
+### Core Tables (14 tablo)
+
+1. **organizations** - Organizasyon bilgileri
+2. **profiles** - Kullanıcı profilleri
+3. **vendors** - Vendor listesi (criticality, risk score)
+4. **assessments** - Assessment kayıtları
+5. **vendor_assessment_templates** - Assessment şablonları
+6. **csf_functions** - NIST CSF Functions (6 tane)
+7. **csf_categories** - NIST CSF Categories (22 tane)
+8. **csf_subcategories** - NIST CSF Subcategories (120 tane)
+9. **assessment_items** - Assessment item responses
+10. **assessment_wizard_progress** - Wizard ilerleme durumu
+11. **evidence_files** - R2'de saklanan dosya metadata
+12. **vendor_assessment_invitations** - Magic link invitations
+13. **vendor_audit_log** - Vendor portal audit trail
+14. **action_plan_items** - İyileştirme aksiyon planları
+
+### Migration History
+
+**0001_initial_schema.sql** (2026-02-10)
+- 14 tablo oluşturuldu
+- Indexes ve foreign keys
+
+**0002_seed_csf_data.sql** (2026-02-10)
+- NIST CSF 2.0 data
+- 6 functions, 22 categories, 120 subcategories
+
+**0003_seed_demo_data.sql** (2026-02-10)
+- Demo organization: `demo-org-123`
+- Demo user: `demo-user-456`
+- 3 vendor (CloudHost Pro, PaymentPro, DataBackup)
+- 2 assessment (240 items)
+
+**0004_vendor_invitations.sql** (2026-02-11)
+- `vendor_assessment_invitations` table
+- `vendor_audit_log` table
+- `assessments.linked_assessment_id` field
+
+---
+
+## API Endpoints
+
+### Health Check
+- `GET /health` - Worker status
+
+### CSF Reference Data
+- `GET /api/csf/functions` - List all CSF functions (6)
+- `GET /api/csf/categories?functionId=GV` - List categories (22)
+- `GET /api/csf/subcategories?categoryId=GV.OC` - List subcategories (120)
+- `GET /api/csf/subcategories/:id` - Get specific subcategory
+
+### Vendors
+- `GET /api/vendors?organization_id=xxx` - List vendors
+- `POST /api/vendors` - Create vendor
+- `GET /api/vendors/:id` - Get vendor details
+- `PATCH /api/vendors/:id` - Update vendor
+- `DELETE /api/vendors/:id` - Delete vendor
+- `GET /api/vendors/:id/stats` - Get vendor statistics (assessment count, avg score)
+
+### Assessments
+- `GET /api/assessments?organization_id=xxx&type=organization` - List assessments
+- `POST /api/assessments` - Create assessment (auto-creates 120 items + 15 wizard steps)
+- `GET /api/assessments/:id` - Get assessment with stats
+- `PATCH /api/assessments/:id` - Update assessment
+- `DELETE /api/assessments/:id` - Delete assessment
+- `GET /api/assessments/:id/items?functionId=GV` - Get items with CSF data
+- `PATCH /api/assessments/:id/items/:itemId` - Update item (auto-recalculates score)
+- `POST /api/assessments/:id/calculate-score` - Manual score recalculation
+
+### Evidence
+- `POST /api/evidence/upload` - Upload file to R2 (multipart/form-data)
+- `GET /api/evidence/download/:token` - Download with JWT token
+- `DELETE /api/evidence/:id` - Delete file from R2 and database
+- `GET /api/evidence/item/:itemId` - List files for assessment item
+- `GET /api/evidence/assessment/:assessmentId` - List all files for assessment
+
+### AI Services
+- `POST /api/ai/analyze` - Analyze evidence for subcategory
+- `POST /api/ai/gap-analysis` - Generate gap recommendations
+- `POST /api/ai/executive-summary` - Generate executive summary
+
+### Vendor Invitations (Magic Link)
+- `POST /api/vendor-invitations` - Send invitation (creates magic link)
+- `GET /api/vendor-invitations/validate/:token` - Validate & consume token (public)
+- `PATCH /api/vendor-invitations/:token/items/:itemId` - Update item (public, session auth)
+- `POST /api/vendor-invitations/:token/complete` - Submit assessment (public, session auth)
+- `GET /api/vendor-invitations/:organizationAssessmentId/comparison` - Get comparison
+- `GET /api/assessments/:id/invitation` - Get invitation status
+- `POST /api/vendor-invitations/:invitationId/revoke` - Revoke invitation
+
+**Rate Limits:**
+- Token validation: 10 req/min per IP
+- Status updates: 30 req/min per IP
+
+---
+
+## Frontend Yapısı
+
+### Pages (31 sayfa)
+
+**Main Pages:**
+- `Dashboard.tsx` / `Dashboard.new.tsx` - Ana dashboard (stats, charts)
+- `Assessments.tsx` / `Assessments.new.tsx` - Assessment listesi
+- `Vendors.tsx` / `Vendors.new.tsx` - Vendor listesi
+
+**Assessment Pages:**
+- `NewAssessment.tsx` / `NewAssessment.new.tsx` - Assessment oluştur
+- `AssessmentDetail.tsx` / `AssessmentDetail.new.tsx` - Assessment detayı
+- `AssessmentWizard.tsx` - 15-step guided assessment
+- `AssessmentChecklist.tsx` - Assessment checklist view
+- `AssessmentReport.tsx` - Assessment raporu
+- `AssessmentComparison.tsx` / `AssessmentComparison.new.tsx` - Org vs Vendor karşılaştırma
+
+**Vendor Pages:**
+- `VendorDetail.tsx` / `VendorDetail.new.tsx` - Vendor detayı
+- `VendorEdit.tsx` - Vendor düzenleme
+- `VendorNew.tsx` - Vendor oluşturma
+- `VendorPortal.tsx` / `VendorPortal.new.tsx` - Public vendor portal (magic link)
+- `VendorRanking.tsx` - Vendor risk ranking
+- `VendorTemplates.tsx` - Assessment şablonları
+
+**Other Pages:**
+- `Analytics.tsx` / `Analytics.new.tsx` - Analytics dashboard
+- `Exports.tsx` / `Exports.new.tsx` - Export işlemleri
+- `Organization.tsx` / `Organization.new.tsx` - Organization settings
+- `Profile.tsx` / `Profile.new.tsx` - User profile
+
+**Note:** `.new.tsx` dosyaları, UI migration sırasında oluşturulmuş yeni versiyonlar.
+
+### Components
+
+**Layout:**
+- `AppLayout.tsx` - Ana layout wrapper
+- `AppShell.new.tsx` - Yeni layout shell
+- `Header.tsx` - Top navigation bar
+- `TopNav.new.tsx` - Yeni top nav
+- `Sidebar.tsx` / `Sidebar.new.tsx` - Sidebar navigation
+
+**Assessment:**
+- `AssessmentRow.new.tsx` - Assessment list row
+- `wizard/WizardStepper.tsx` - 15-step stepper
+- `wizard/StepNavigation.tsx` - Wizard navigation buttons
+
+**Vendors:**
+- `vendors/RiskScoreIndicator.tsx` - Risk score badge
+- `vendors/CriticalityBadge.tsx` - Criticality level badge
+- `NewVendorModal.tsx` - Vendor oluşturma modal
+- `SendToVendorModal.tsx` - Vendor invitation modal
+
+**Evidence:**
+- `evidence/EvidenceList.tsx` - Evidence listesi
+- `evidence/FileUploader.tsx` - Drag & drop uploader
+
+**Common:**
+- `SkeletonLoader.tsx` - Loading skeleton
+- `ToastContext.tsx` - Toast notification context
+
+### API Services
+
+**Location:** `frontend/src/api/`
+
+- `assessments.ts` - Assessment CRUD
+- `vendors.ts` - Vendor CRUD
+- `csf.ts` - CSF reference data
+- `evidence.ts` - Evidence upload/download
+- `ai.ts` - AI services
+- `vendor-invitations.ts` - Vendor portal (separate axios instance with `withCredentials`)
+
+---
+
+## Önemli Özellikler
+
+### 1. Assessment Wizard
+
+**15-Step Guided Assessment:**
+
+1. Governance & Risk Management
+2. Entra ID & Identity Protection
+3. Microsoft Defender for Cloud
+4. AWS Security Posture
+5. SaaS Application Security
+6. Endpoint Protection
+7. Network Security
+8. Data Protection
+9. Logging & Monitoring
+10. Incident Response Procedures
+11. Vulnerability Management
+12. Backup & Recovery
+13. Threat Intelligence
+14. Access Reviews & Governance
+15. Business Continuity Planning
+
+**Özellikler:**
+- Drag & drop evidence upload
+- Real-time progress tracking
+- Save draft functionality
+- Step validation
+- Progress percentage
+
+### 2. Vendor Self-Assessment
+
+**Magic Link Flow:**
+1. Organization creates vendor assessment
+2. Click "Send to Vendor"
+3. Generate JWT-signed magic link (7-day expiry)
+4. Vendor clicks link → token validates → session cookie created (24h)
+5. Vendor fills assessment (session cookie authentication)
+6. Vendor submits → notification to organization
+7. Organization views comparison (side-by-side)
+
+**Security Features:**
+- JWT signing (cannot be forged)
+- One-time token consumption
+- Session-based authentication after first use
+- Rate limiting (KV-based)
+- Token revocation
+- Comprehensive audit logging
+
+### 3. Assessment Scoring
+
+**Algorithm:** `lib/scoring.ts`
+
+**Formula:**
+```
+Score = (
+  (Not Assessed × 0) +
+  (Not Met × 0) +
+  (Partially Met × 0.5) +
+  (Met × 1)
+) / Total Items × 100
+```
+
+**Automatic Recalculation:**
+- Triggered on item update
+- Updates `assessment.overall_score`
+
+### 4. Evidence Management
+
+**R2 Storage:**
+- Multipart upload support
+- JWT-based presigned download URLs (1-hour expiry)
+- File metadata in D1
+- Automatic cleanup on assessment delete
+
+**Supported Files:**
+- PDFs, screenshots, documents
+- Max file size: 100MB (configurable)
+
+### 5. AI Analysis
+
+**Anthropic Claude Sonnet 4.5:**
+
+**Evidence Analysis:**
+- Analyzes uploaded files per subcategory
+- Provides compliance status
+- Identifies gaps
+- Suggests improvements
+
+**Gap Analysis:**
+- Cross-subcategory gap identification
+- Prioritized recommendations
+- Action items
+
+**Executive Summary:**
+- High-level overview
+- Key risks
+- Compliance percentage
+- Top priorities
+
+---
+
+## Production Deployment
+
+### Frontend (Cloudflare Pages)
+
+**URL:** https://a5637370.csf-compass.pages.dev
+
+**Build Command:** `npm run build`
+**Output Directory:** `dist`
+**Bundle Size:** 338 KB JS, 17 KB CSS
+
+**Environment Variables:**
+```
+VITE_API_URL=https://csf-compass-worker.mehmettunahanokumus.workers.dev
+```
+
+**SPA Routing:** `_redirects` file handles client-side routing
+
+### Worker (Cloudflare Workers)
+
+**URL:** https://csf-compass-worker.mehmettunahanokumus.workers.dev
+
+**Deployment Command:** `npm run deploy` (wrangler deploy)
+
+**Bindings:**
+- `DB` - D1 database (csf-compass-db)
+- `EVIDENCE_BUCKET` - R2 bucket (csf-evidence-files)
+- `RATE_LIMIT_KV` - KV namespace (rate limiting)
+
+**Secrets (wrangler secret):**
+- `JWT_SECRET` - Magic link imzalama
+- `ANTHROPIC_API_KEY` - AI servisleri
+
+**Environment Variables:**
+```toml
+ENVIRONMENT = "production"
+ALLOWED_ORIGINS = "https://a5637370.csf-compass.pages.dev,..."
+FRONTEND_URL = "https://a5637370.csf-compass.pages.dev"
+```
+
+### Database (D1)
+
+**Database ID:** `4dfa232a-bb0e-4576-8a67-ae787ca0f996`
+**Region:** EEUR (Eastern Europe)
+
+**Migration Command:**
+```bash
+npx wrangler d1 migrations apply csf-compass-db
+```
+
+**Current Version:** 4 migrations applied
+
+### Cost Estimate
+
+**Aylık Maliyet:**
+- Cloudflare Workers: $5/month (Paid Plan)
+- D1 Database: $0/month (Free Tier limits dahilinde)
+- R2 Storage: ~$0.15/month (10GB)
+- Pages: $0/month (Free)
+- KV: $0/month (Free Tier limits dahilinde)
+- Anthropic API: ~$5/month (100 analiz)
+
+**Toplam:** ~$10-15/month
+
+---
+
+## Bilinen Sorunlar ve Çözümler
+
+### 1. SQLite Variable Limit (999)
+
+**Problem:** Batch insert sırasında 999 değişken limiti aşılıyor.
+
+**Çözüm:**
+- Assessment items: 25 row/batch
+- Wizard progress: 15 row/batch
+- Commits: `1fb0923`, `795e732`, `77df507`, `16a3526`
+
+### 2. Boolean Values in SQLite
+
+**Problem:** SQLite'da boolean tipi yok.
+
+**Çözüm:**
+- INTEGER(0, 1) kullan
+- Drizzle ORM `{ mode: 'boolean' }` kullan
+- Commit: `cfc5aab`
+
+### 3. Dark Mode Readability
+
+**Problem:** Dark mode'da text contrast düşük.
+
+**Çözüm:**
+- Slate Professional theme
+- Navy color scale adjustments
+- Commits: `cc6ccbc`, `2a48340`
+
+### 4. Session Cookie CORS
+
+**Problem:** httpOnly cookies cross-origin çalışmıyor.
+
+**Çözüm:**
+- ALLOWED_ORIGINS whitelist
+- `credentials: true` in CORS
+- Same-origin deployment (Pages + Worker)
+
+---
+
+## Gelecek İyileştirmeler
+
+### Kısa Vadeli (1-3 ay)
+
+1. **Email Integration**
+   - Cloudflare Email Workers
+   - Automatic invitation emails
+   - Reminder system (7 days before expiry)
+
+2. **Authentication**
+   - Cloudflare Access integration
+   - User registration/login
+   - Role-based permissions
+
+3. **Bulk Invitations**
+   - CSV upload for multiple vendors
+   - Batch magic link generation
+   - Progress tracking
+
+4. **PDF Export**
+   - Assessment reports
+   - Comparison reports
+   - Executive summaries
+
+### Orta Vadeli (3-6 ay)
+
+1. **Advanced Analytics**
+   - Trend analysis (time-series)
+   - Industry benchmarking
+   - Custom dashboards
+
+2. **Notification System**
+   - Assessment due dates
+   - Vendor compliance alerts
+   - Webhook integrations
+
+3. **Template System**
+   - Custom assessment templates
+   - Subcategory selection
+   - Template sharing
+
+4. **Discussion/Comments**
+   - Item-level comments
+   - Vendor Q&A
+   - Collaboration features
+
+### Uzun Vadeli (6-12 ay)
+
+1. **Multi-Organization Support**
+   - Workspace concept
+   - Organization switching
+   - Cross-org comparison
+
+2. **Compliance Frameworks**
+   - ISO 27001
+   - SOC 2
+   - GDPR mapping
+
+3. **API & Integrations**
+   - Public API
+   - Zapier integration
+   - SIEM connectors
+
+4. **Mobile App**
+   - React Native
+   - Offline mode
+   - Push notifications
+
+---
+
+## Developer Notes
+
+### Local Development
+
+**Worker:**
+```bash
+cd worker
+npm run dev  # http://localhost:8787
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm run dev  # http://localhost:5173
+```
+
+**Database:**
+```bash
+# Create migration
+npm run generate
+
+# Apply locally
+npm run db:migrate:local
+
+# Query
+npx wrangler d1 execute csf-compass-db --local --command "SELECT * FROM assessments"
+```
+
+### Deployment Workflow
+
+1. Make changes
+2. Test locally
+3. Commit & push
+4. Deploy worker: `cd worker && npm run deploy`
+5. Deploy frontend: `cd frontend && npm run build && npx wrangler pages deploy dist`
+6. Verify production
+
+### Important Files to Know
+
+**Backend:**
+- `worker/src/index.ts` - Main entry point
+- `worker/src/db/schema.ts` - Database schema (Drizzle ORM)
+- `worker/src/routes/*.ts` - API route handlers
+- `worker/src/lib/*.ts` - Business logic libraries
+- `worker/wrangler.toml` - Cloudflare configuration
+
+**Frontend:**
+- `frontend/src/main.tsx` - App entry point
+- `frontend/src/App.tsx` - Root component
+- `frontend/src/types/index.ts` - TypeScript types
+- `frontend/src/api/*.ts` - API client services
+- `frontend/src/pages/*.tsx` - Page components
+- `frontend/tailwind.config.js` - Design system
+
+**Migrations:**
+- `worker/migrations/*.sql` - Database migrations
+
+**Documentation:**
+- `IMPLEMENTATION.md` - Full implementation guide
+- `VENDOR_SELF_ASSESSMENT_IMPLEMENTATION.md` - Vendor feature docs
+- `DEPLOYMENT_SUCCESS.md` - Deployment checklist
+- `UI_MIGRATION_PLAN.md` - UI modernization plan
+- `TESTING_GUIDE.md` - Testing procedures
+- `INTERACTIVE_TEST.md` - Interactive testing guide
+
+---
+
+## Quick Reference
+
+### Common Commands
+
+```bash
+# Worker dev server
+cd worker && npm run dev
+
+# Frontend dev server
+cd frontend && npm run dev
+
+# Deploy worker
+cd worker && npm run deploy
+
+# Build & deploy frontend
+cd frontend && npm run build && npx wrangler pages deploy dist
+
+# Database migration (production)
+cd worker && npm run db:migrate
+
+# Database migration (local)
+cd worker && npm run db:migrate:local
+
+# Query database (production)
+npx wrangler d1 execute csf-compass-db --command "SELECT * FROM vendors"
+
+# Query database (local)
+npx wrangler d1 execute csf-compass-db --local --command "SELECT * FROM vendors"
+
+# View worker logs
+npx wrangler tail
+
+# Set secret
+npx wrangler secret put JWT_SECRET
+
+# List secrets
+npx wrangler secret list
+```
+
+### Useful Queries
+
+```sql
+-- Assessment stats
+SELECT
+  a.id,
+  a.name,
+  a.status,
+  a.overall_score,
+  COUNT(ai.id) as total_items,
+  SUM(CASE WHEN ai.status = 'met' THEN 1 ELSE 0 END) as met_items
+FROM assessments a
+LEFT JOIN assessment_items ai ON ai.assessment_id = a.id
+GROUP BY a.id;
+
+-- Vendor invitation audit trail
+SELECT * FROM vendor_audit_log
+WHERE invitation_id = 'xxx'
+ORDER BY created_at DESC;
+
+-- CSF subcategories by function
+SELECT
+  f.name as function_name,
+  c.name as category_name,
+  COUNT(s.id) as subcategory_count
+FROM csf_functions f
+JOIN csf_categories c ON c.function_id = f.id
+JOIN csf_subcategories s ON s.category_id = c.id
+GROUP BY f.id, c.id;
+```
+
+---
+
+## Change Log
+
+### 2026-02-13
+- CLAUDE.md created for project context
+
+### 2026-02-12
+- Agentic development integration (Claude Code)
+- UI theme migration complete (Navy Blue)
+
+### 2026-02-11
+- Production deployment successful
+- Vendor self-assessment feature complete
+- JWT security implemented
+
+### 2026-02-10
+- Database migrations complete
+- Worker API complete
+- Frontend foundation complete
+
+---
+
+**End of CLAUDE.md**
+
+_This document is maintained for Claude Code to quickly understand project context. Update after major changes._
