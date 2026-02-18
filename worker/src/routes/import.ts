@@ -14,7 +14,6 @@ import {
   company_groups,
   vendors,
   assessments,
-  assessment_items,
   csf_subcategories,
 } from '../db/schema';
 import { updateAssessmentScore } from '../lib/scoring';
@@ -35,6 +34,7 @@ interface ImportCompany {
 interface ImportPayload {
   organization_id: string;
   group_name: string;
+  group_id?: string; // If provided, add to existing group instead of creating new one
   group_description?: string;
   companies: ImportCompany[];
   assessment_name: string;
@@ -116,19 +116,24 @@ app.post('/confirm', async (c) => {
     const now = new Date();
     const assessmentDate = body.assessment_date ? new Date(body.assessment_date) : now;
 
-    // 1. Create company group
-    const newGroup = await db
-      .insert(company_groups)
-      .values({
-        organization_id: body.organization_id,
-        name: body.group_name,
-        description: body.group_description || null,
-        created_at: now,
-        updated_at: now,
-      })
-      .returning();
-
-    const groupId = newGroup[0].id;
+    // 1. Create company group or use existing one
+    let groupId: string;
+    if (body.group_id) {
+      // Use existing group
+      groupId = body.group_id;
+    } else {
+      const newGroup = await db
+        .insert(company_groups)
+        .values({
+          organization_id: body.organization_id,
+          name: body.group_name,
+          description: body.group_description || null,
+          created_at: now,
+          updated_at: now,
+        })
+        .returning();
+      groupId = newGroup[0].id;
+    }
     const results = [];
 
     // 2. For each company: create vendor + assessment + items
@@ -167,18 +172,23 @@ app.post('/confirm', async (c) => {
       // Filter valid items
       const validItems = company.items.filter(item => validSubcategoryIds.has(item.subcategory_id));
 
-      // Batch insert assessment items (25 per batch - SQLite 999 variable limit)
-      const BATCH_SIZE = 25;
+      // Batch insert assessment items using raw SQL to stay under D1's 100 bound parameter limit
+      // 5 columns × 19 rows = 95 params < 100 limit
+      const BATCH_SIZE = 19;
       for (let i = 0; i < validItems.length; i += BATCH_SIZE) {
         const batch = validItems.slice(i, i + BATCH_SIZE);
-        await db.insert(assessment_items).values(
-          batch.map(item => ({
-            assessment_id: assessmentId,
-            subcategory_id: item.subcategory_id,
-            status: item.status,
-            notes: item.notes || null,
-          }))
-        );
+        const placeholders = batch.map(() => '(?, ?, ?, ?, ?)').join(', ');
+        const params: (string | null)[] = [];
+        batch.forEach(item => {
+          params.push(crypto.randomUUID());
+          params.push(assessmentId);
+          params.push(item.subcategory_id);
+          params.push(item.status);
+          params.push(item.notes || null);
+        });
+        await c.env.DB.prepare(
+          `INSERT INTO assessment_items (id, assessment_id, subcategory_id, status, notes) VALUES ${placeholders}`
+        ).bind(...params).run();
       }
 
       // Calculate and update score
@@ -206,7 +216,7 @@ app.post('/confirm', async (c) => {
       group_name: body.group_name,
       companies_imported: results.length,
       results,
-    }, 201);
+    }, body.group_id ? 200 : 201);
   } catch (error) {
     console.error('Error confirming import:', error);
     return c.json({ error: 'Failed to execute import' }, 500);
