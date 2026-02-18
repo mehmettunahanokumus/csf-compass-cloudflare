@@ -1,26 +1,3 @@
-name = "csf-compass-worker"
-main = "worker/src/index.ts"
+name = "csf-compass"
+pages_build_output_dir = "frontend/dist"
 compatibility_date = "2024-01-01"
-
-# D1 Database binding
-[[d1_databases]]
-binding = "DB"
-database_name = "csf-compass-db"
-database_id = "4dfa232a-bb0e-4576-8a67-ae787ca0f996"
-
-# R2 Storage binding
-[[r2_buckets]]
-binding = "EVIDENCE_BUCKET"
-bucket_name = "csf-evidence-files"
-
-# KV namespace for rate limiting
-[[kv_namespaces]]
-binding = "RATE_LIMIT_KV"
-id = "d10ab5d0eff347c1946f8889e657bbd0"
-
-# Environment variables
-# Secrets: Set via wrangler secret put ANTHROPIC_API_KEY and wrangler secret put JWT_SECRET
-[vars]
-ENVIRONMENT = "production"
-ALLOWED_ORIGINS = "https://a5637370.csf-compass.pages.dev,https://1a820af8.csf-compass.pages.dev,https://96cf8704.csf-compass.pages.dev,https://607275df.csf-compass.pages.dev,https://b849f2eb.csf-compass.pages.dev,https://62fdd2ec.csf-compass.pages.dev,https://0ca10645.csf-compass.pages.dev,https://10a88821.csf-compass.pages.dev,https://55d23782.csf-compass.pages.dev,https://154e3d9f.csf-compass.pages.dev,https://3023e404.csf-compass.pages.dev,https://1e5fa394.csf-compass.pages.dev,https://csf-compass.pages.dev,http://localhost:5173"
-FRONTEND_URL = "https://a5637370.csf-compass.pages.dev"
