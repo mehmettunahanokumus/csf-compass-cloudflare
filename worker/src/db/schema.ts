@@ -46,6 +46,22 @@ export const profiles = sqliteTable('profiles', {
 }));
 
 /**
+ * Company Groups table
+ */
+export const company_groups = sqliteTable('company_groups', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organization_id: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  industry: text('industry'),
+  logo_url: text('logo_url'),
+  created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updated_at: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (table) => ({
+  orgIdx: index('idx_company_groups_org').on(table.organization_id),
+}));
+
+/**
  * Vendors table
  */
 export const vendors = sqliteTable('vendors', {
@@ -65,6 +81,9 @@ export const vendors = sqliteTable('vendors', {
   last_assessment_date: integer('last_assessment_date', { mode: 'timestamp_ms' }),
   next_assessment_due: integer('next_assessment_due', { mode: 'timestamp_ms' }),
 
+  // Group membership
+  group_id: text('group_id'),
+
   // Metadata
   notes: text('notes'),
   created_by: text('created_by').references(() => profiles.id),
@@ -75,6 +94,7 @@ export const vendors = sqliteTable('vendors', {
   criticalityIdx: index('idx_vendors_criticality').on(table.criticality_level),
   statusIdx: index('idx_vendors_status').on(table.vendor_status),
   riskScoreIdx: index('idx_vendors_risk_score').on(table.risk_score),
+  groupIdx: index('idx_vendors_group').on(table.group_id),
   uniqueNamePerOrg: uniqueIndex('unique_vendor_name_per_org').on(table.organization_id, table.name),
 }));
 
@@ -412,3 +432,6 @@ export type NewVendorAssessmentInvitation = typeof vendor_assessment_invitations
 
 export type VendorAuditLog = typeof vendor_audit_log.$inferSelect;
 export type NewVendorAuditLog = typeof vendor_audit_log.$inferInsert;
+
+export type CompanyGroup = typeof company_groups.$inferSelect;
+export type NewCompanyGroup = typeof company_groups.$inferInsert;

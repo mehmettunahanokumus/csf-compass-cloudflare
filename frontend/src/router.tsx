@@ -23,6 +23,9 @@ import Exports from './pages/Exports.shadcn';
 import Organization from './pages/Organization.shadcn';
 import Profile from './pages/Profile.shadcn';
 import AssessmentWizard from './pages/AssessmentWizard.shadcn';
+import CompanyGroups from './pages/CompanyGroups.shadcn';
+import CompanyGroupDetail from './pages/CompanyGroupDetail.shadcn';
+import AssessmentHistoryComparison from './pages/AssessmentHistoryComparison.shadcn';
 
 export const router = createBrowserRouter([
   // Public routes (outside AppLayout)
@@ -95,6 +98,18 @@ export const router = createBrowserRouter([
       {
         path: 'vendors/:id',
         element: <VendorDetail />,
+      },
+      {
+        path: 'vendors/:vendorId/compare',
+        element: <AssessmentHistoryComparison />,
+      },
+      {
+        path: 'company-groups',
+        element: <CompanyGroups />,
+      },
+      {
+        path: 'company-groups/:id',
+        element: <CompanyGroupDetail />,
       },
       {
         path: 'analytics',

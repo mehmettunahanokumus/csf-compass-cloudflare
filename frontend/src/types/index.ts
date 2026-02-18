@@ -290,3 +290,81 @@ export interface ComparisonData {
   invitation: VendorAssessmentInvitation | null;
   comparison_items: ComparisonItem[];
 }
+
+// Company Groups
+export interface CompanyGroup {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  industry?: string;
+  logo_url?: string;
+  vendor_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroupSummary {
+  group: CompanyGroup;
+  csf_functions: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    sort_order: number;
+  }>;
+  vendors: Array<{
+    vendor: Vendor;
+    latest_assessment: Assessment | null;
+    function_scores: Record<string, number>;
+    overall_score: number | null;
+  }>;
+}
+
+// Assessment Comparison
+export interface AssessmentComparisonItem {
+  subcategory_id: string;
+  subcategory_name: string;
+  category_id: string;
+  category_name: string;
+  function_id: string;
+  function_name: string;
+  assessment1_status: string;
+  assessment2_status: string;
+  delta: number;
+  changed: boolean;
+}
+
+export interface AssessmentComparison {
+  assessment1: Assessment;
+  assessment2: Assessment;
+  score_delta: number;
+  summary: {
+    improved: number;
+    declined: number;
+    unchanged: number;
+    total: number;
+  };
+  items: AssessmentComparisonItem[];
+}
+
+// Import
+export interface ImportPreviewCompany {
+  name: string;
+  valid_items: number;
+  invalid_subcategory_ids: string[];
+  status_counts: {
+    compliant: number;
+    partial: number;
+    non_compliant: number;
+    not_assessed: number;
+  };
+  estimated_score: number;
+}
+
+export interface ImportPreview {
+  group_name: string;
+  company_count: number;
+  assessment_name: string;
+  companies: ImportPreviewCompany[];
+  warnings: string[];
+}

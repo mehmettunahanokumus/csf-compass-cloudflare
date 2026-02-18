@@ -30,6 +30,108 @@ import { updateAssessmentScore, getAssessmentStats } from '../lib/scoring';
 const app = new Hono<{ Bindings: Env }>();
 
 /**
+ * GET /compare?ids=id1,id2
+ * Compare two assessments item by item
+ */
+app.get('/compare', async (c) => {
+  try {
+    const db = createDbClient(c.env.DB);
+    const idsParam = c.req.query('ids');
+
+    if (!idsParam) {
+      return c.json({ error: 'ids query parameter is required (comma-separated)' }, 400);
+    }
+
+    const ids = idsParam.split(',').map(id => id.trim()).filter(Boolean);
+    if (ids.length < 2) {
+      return c.json({ error: 'At least 2 assessment IDs required' }, 400);
+    }
+
+    // Get both assessments
+    const assessment1 = await db.select().from(assessments).where(eq(assessments.id, ids[0])).limit(1);
+    const assessment2 = await db.select().from(assessments).where(eq(assessments.id, ids[1])).limit(1);
+
+    if (!assessment1.length || !assessment2.length) {
+      return c.json({ error: 'One or more assessments not found' }, 404);
+    }
+
+    // Get items for assessment 1
+    const items1 = await db
+      .select({
+        subcategory_id: assessment_items.subcategory_id,
+        status: assessment_items.status,
+        notes: assessment_items.notes,
+        subcategory_name: csf_subcategories.name,
+        category_id: csf_categories.id,
+        category_name: csf_categories.name,
+        function_id: csf_functions.id,
+        function_name: csf_functions.name,
+      })
+      .from(assessment_items)
+      .innerJoin(csf_subcategories, eq(assessment_items.subcategory_id, csf_subcategories.id))
+      .innerJoin(csf_categories, eq(csf_subcategories.category_id, csf_categories.id))
+      .innerJoin(csf_functions, eq(csf_categories.function_id, csf_functions.id))
+      .where(eq(assessment_items.assessment_id, ids[0]));
+
+    // Get items for assessment 2
+    const items2 = await db
+      .select({
+        subcategory_id: assessment_items.subcategory_id,
+        status: assessment_items.status,
+        notes: assessment_items.notes,
+      })
+      .from(assessment_items)
+      .where(eq(assessment_items.assessment_id, ids[1]));
+
+    // Build comparison
+    const items2Map: Record<string, string> = {};
+    for (const item of items2) {
+      items2Map[item.subcategory_id] = item.status ?? 'not_assessed';
+    }
+
+    const statusScore = (s: string | null) => {
+      if (s === 'compliant') return 1;
+      if (s === 'partial') return 0.5;
+      return 0;
+    };
+
+    const comparison = items1.map(item => {
+      const status1 = item.status ?? 'not_assessed';
+      const status2 = items2Map[item.subcategory_id] ?? 'not_assessed';
+      const delta = statusScore(status2) - statusScore(status1);
+
+      return {
+        subcategory_id: item.subcategory_id,
+        subcategory_name: item.subcategory_name,
+        category_id: item.category_id,
+        category_name: item.category_name,
+        function_id: item.function_id,
+        function_name: item.function_name,
+        assessment1_status: status1,
+        assessment2_status: status2,
+        delta, // positive = improved, negative = declined, 0 = same
+        changed: status1 !== status2,
+      };
+    });
+
+    const improved = comparison.filter(c => c.delta > 0).length;
+    const declined = comparison.filter(c => c.delta < 0).length;
+    const unchanged = comparison.filter(c => c.delta === 0).length;
+
+    return c.json({
+      assessment1: assessment1[0],
+      assessment2: assessment2[0],
+      score_delta: (assessment2[0].overall_score ?? 0) - (assessment1[0].overall_score ?? 0),
+      summary: { improved, declined, unchanged, total: comparison.length },
+      items: comparison,
+    });
+  } catch (error) {
+    console.error('Error comparing assessments:', error);
+    return c.json({ error: 'Failed to compare assessments' }, 500);
+  }
+});
+
+/**
  * GET /api/assessments?organization_id=xxx&type=organization
  * List assessments for an organization
  */

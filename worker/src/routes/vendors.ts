@@ -31,11 +31,27 @@ app.get('/', async (c) => {
       return c.json({ error: 'organization_id is required' }, 400);
     }
 
-    const vendorList = await db
-      .select()
-      .from(vendors)
-      .where(eq(vendors.organization_id, organizationId))
-      .orderBy(desc(vendors.created_at));
+    const groupId = c.req.query('group_id');
+
+    let vendorList;
+    if (groupId) {
+      vendorList = await db
+        .select()
+        .from(vendors)
+        .where(
+          and(
+            eq(vendors.organization_id, organizationId),
+            eq(vendors.group_id, groupId)
+          )
+        )
+        .orderBy(desc(vendors.created_at));
+    } else {
+      vendorList = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.organization_id, organizationId))
+        .orderBy(desc(vendors.created_at));
+    }
 
     return c.json(vendorList);
   } catch (error) {

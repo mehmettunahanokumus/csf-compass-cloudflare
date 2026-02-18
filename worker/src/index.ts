@@ -10,6 +10,8 @@ import evidenceRouter from './routes/evidence';
 import csfRouter from './routes/csf';
 import aiRouter from './routes/ai';
 import vendorInvitationsRouter from './routes/vendor-invitations';
+import companyGroupsRouter from './routes/company-groups';
+import importRouter from './routes/import';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -85,6 +87,8 @@ app.route('/api/evidence', evidenceRouter);
 app.route('/api/csf', csfRouter);
 app.route('/api/ai', aiRouter);
 app.route('/api/vendor-invitations', vendorInvitationsRouter);
+app.route('/api/company-groups', companyGroupsRouter);
+app.route('/api/import', importRouter);
 
 // 404 handler
 app.notFound((c) => {

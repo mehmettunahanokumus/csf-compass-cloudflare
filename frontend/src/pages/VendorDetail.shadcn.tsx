@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Edit2, Trash2, ClipboardList, Globe, Mail, User, Phone, Plus, X } from 'lucide-react';
+import { Edit2, Trash2, ClipboardList, Globe, Mail, User, Phone, Plus, X, GitCompare } from 'lucide-react';
 import { vendorsApi } from '../api/vendors';
 import { assessmentsApi } from '../api/assessments';
 import type { Vendor, Assessment, VendorStats } from '../types';
@@ -57,6 +57,7 @@ export default function VendorDetail() {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
 
   const [editForm, setEditForm] = useState({
     name: '', website: '', contact_email: '', contact_name: '', description: '',
@@ -421,6 +422,37 @@ export default function VendorDetail() {
         </div>
       )}
 
+      {/* Score Trend Mini Chart */}
+      {assessments.length >= 2 && (
+        <div style={{ ...cardStyle, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
+            <span style={sectionLabel}>Score Trend</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 80 }}>
+            {assessments.slice(-5).map((a) => {
+              const s = a.overall_score ?? 0;
+              const barH = Math.max(4, (s / 100) * 72);
+              const color = s >= 80 ? T.success : s >= 50 ? T.warning : T.danger;
+              return (
+                <div key={a.id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted }}>
+                    {a.overall_score != null ? `${Math.round(a.overall_score)}%` : '—'}
+                  </span>
+                  <div style={{
+                    width: '100%', maxWidth: 48, height: barH, borderRadius: 4,
+                    background: color, opacity: 0.8, transition: 'height 0.3s',
+                  }} />
+                  <span style={{ fontFamily: T.fontSans, fontSize: 9, color: T.textMuted, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 60 }}>
+                    {a.name.length > 10 ? a.name.slice(0, 10) + '...' : a.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Assessment History */}
       <div style={{ ...cardStyle, padding: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -428,16 +460,36 @@ export default function VendorDetail() {
             <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
             <span style={sectionLabel}>Assessment History</span>
           </div>
-          <Link to={`/assessments/new?vendor=${id}`} style={{ textDecoration: 'none' }}>
-            <button style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
-              background: T.card, border: `1px solid ${T.border}`,
-              fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, cursor: 'pointer',
-            }}>
-              <ClipboardList size={12} /> New Assessment
-            </button>
-          </Link>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {compareIds.length === 2 && (
+              <button
+                onClick={() => navigate(`/vendors/${id}/compare?assessment1=${compareIds[0]}&assessment2=${compareIds[1]}`)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+                  background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+                  fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.accent, cursor: 'pointer',
+                }}
+              >
+                <GitCompare size={12} /> Compare Selected
+              </button>
+            )}
+            <Link to={`/assessments/new?vendor=${id}`} style={{ textDecoration: 'none' }}>
+              <button style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+                background: T.card, border: `1px solid ${T.border}`,
+                fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, cursor: 'pointer',
+              }}>
+                <ClipboardList size={12} /> New Assessment
+              </button>
+            </Link>
+          </div>
         </div>
+
+        {assessments.length >= 2 && (
+          <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, marginBottom: 12 }}>
+            Select 2 assessments to compare ({compareIds.length}/2 selected)
+          </p>
+        )}
 
         {assessments.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0' }}>
@@ -467,57 +519,78 @@ export default function VendorDetail() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {assessments.map((assessment) => {
               const aScore = assessment.overall_score;
+              const isSelected = compareIds.includes(assessment.id);
               return (
-                <Link key={assessment.id} to={`/assessments/${assessment.id}`} style={{ textDecoration: 'none' }}>
-                  <div style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    gap: 16, padding: '14px 16px', borderRadius: 10,
-                    background: T.bg, border: `1px solid ${T.border}`, transition: 'all 0.14s',
-                  }}
-                    onMouseEnter={e => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.borderColor = T.accentBorder;
-                      el.style.background = T.accentLight;
+                <div key={assessment.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {assessments.length >= 2 && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        setCompareIds(prev => {
+                          if (prev.includes(assessment.id)) return prev.filter(x => x !== assessment.id);
+                          if (prev.length >= 2) return [prev[1], assessment.id];
+                          return [...prev, assessment.id];
+                        });
+                      }}
+                      style={{ width: 16, height: 16, accentColor: '#6366F1', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                  )}
+                  <Link to={`/assessments/${assessment.id}`} style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      gap: 16, padding: '14px 16px', borderRadius: 10,
+                      background: isSelected ? T.accentLight : T.bg,
+                      border: `1px solid ${isSelected ? T.accentBorder : T.border}`,
+                      transition: 'all 0.14s',
                     }}
-                    onMouseLeave={e => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.borderColor = T.border;
-                      el.style.background = T.bg;
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary, margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {assessment.name}
-                      </h3>
-                      {assessment.description && (
-                        <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {assessment.description}
+                      onMouseEnter={e => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.borderColor = T.accentBorder;
+                        el.style.background = T.accentLight;
+                      }}
+                      onMouseLeave={e => {
+                        const el = e.currentTarget as HTMLElement;
+                        if (!isSelected) {
+                          el.style.borderColor = T.border;
+                          el.style.background = T.bg;
+                        }
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h3 style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary, margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {assessment.name}
+                        </h3>
+                        {assessment.description && (
+                          <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {assessment.description}
+                          </p>
+                        )}
+                        <p style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted, margin: 0 }}>
+                          Started {formatDate(assessment.created_at)}
+                          {assessment.completed_at && ` · Completed ${formatDate(assessment.completed_at)}`}
                         </p>
-                      )}
-                      <p style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted, margin: 0 }}>
-                        Started {formatDate(assessment.created_at)}
-                        {assessment.completed_at && ` · Completed ${formatDate(assessment.completed_at)}`}
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                      <span style={{
-                        fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-                        ...(assessment.status === 'completed'
-                          ? { background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` }
-                          : assessment.status === 'in_progress'
-                          ? { background: T.accentLight, color: T.accent, border: `1px solid ${T.accentBorder}` }
-                          : { background: '#F1F5F9', color: T.textSecondary, border: `1px solid ${T.border}` }),
-                      }}>
-                        {assessment.status === 'in_progress' ? 'In Progress' : assessment.status}
-                      </span>
-                      {aScore != null && (
-                        <span style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: scoreColor(aScore) }}>
-                          {aScore.toFixed(1)}%
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                        <span style={{
+                          fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+                          ...(assessment.status === 'completed'
+                            ? { background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` }
+                            : assessment.status === 'in_progress'
+                            ? { background: T.accentLight, color: T.accent, border: `1px solid ${T.accentBorder}` }
+                            : { background: '#F1F5F9', color: T.textSecondary, border: `1px solid ${T.border}` }),
+                        }}>
+                          {assessment.status === 'in_progress' ? 'In Progress' : assessment.status}
                         </span>
-                      )}
+                        {aScore != null && (
+                          <span style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: scoreColor(aScore) }}>
+                            {aScore.toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               );
             })}
           </div>
