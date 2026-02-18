@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-13
+**Son Güncelleme:** 2026-02-18
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -65,7 +65,7 @@ CSF Compass, NIST Cybersecurity Framework (CSF) 2.0'a dayalı vendor security as
 - **Boolean:** INTEGER (0/1)
 - **Decimal:** REAL (floating point)
 
-**Önemli Not:** SQLite'ın değişken limiti 999. Batch insert'lerde max 25 row kullanıyoruz.
+**Önemli Not:** Cloudflare D1'in bound parameter limiti **100 per query** (SQLite'ın 999 limitinden farklı!). Raw SQL batch insert'lerde max **19 row** kullanıyoruz (5 col × 19 = 95 params < 100 limit).
 
 ### 3. Authentication: Demo Mode
 
@@ -285,6 +285,79 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 
 ---
 
+### Phase 9: Company Groups + Historical Comparison + Excel Import (Gün 23)
+**Tamamlanma:** 2026-02-18
+
+✅ Tamamlanan:
+
+**Yeni Özellikler:**
+- **Company Groups (Grup Şirketleri):** Holding/bağlı ortaklık yapısını modelleme
+- **Historical Assessment Comparison:** İki assessment'ı subkategori bazında karşılaştırma
+- **Excel Import:** Mevcut Excel değerlendirmelerini sisteme aktarma
+- **XYZ Holding Demo Data:** Gerçek Excel verisinden 11 şirket import edildi
+
+**Backend Değişiklikleri:**
+- `worker/migrations/0005_company_groups.sql` — `company_groups` tablosu + `vendors.group_id`
+- `worker/src/db/schema.ts` — `company_groups` table, `group_id` field vendors'a eklendi
+- `worker/src/routes/company-groups.ts` — CRUD + summary endpoint (CSF function bazında)
+- `worker/src/routes/import.ts` — Preview + confirm import (Excel → JSON → DB)
+- `worker/src/routes/assessments.ts` — `GET /compare?ids=id1,id2` endpoint eklendi
+- `worker/src/routes/vendors.ts` — `group_id` query param filter eklendi
+- `worker/src/index.ts` — Yeni route'lar register edildi
+
+**Frontend Değişiklikleri:**
+- `frontend/src/types/index.ts` — `CompanyGroup`, `GroupSummary`, `AssessmentComparison` tipleri
+- `frontend/src/api/company-groups.ts` — Company groups API client
+- `frontend/src/api/import.ts` — Import API client
+- `frontend/src/pages/CompanyGroups.shadcn.tsx` — Grup listesi + oluşturma modal
+- `frontend/src/pages/CompanyGroupDetail.shadcn.tsx` — Grup detayı + CSF karşılaştırma tablosu
+- `frontend/src/pages/AssessmentHistoryComparison.shadcn.tsx` — İki assessment yan yana karşılaştırma
+- `frontend/src/components/import/ExcelImportModal.tsx` — 4-step Excel import modal
+- `frontend/src/router.tsx` — `/company-groups`, `/company-groups/:id`, `/vendors/:id/compare` route'ları
+- `frontend/src/components/layout/Sidebar.shadcn.tsx` — "Groups" menü öğesi eklendi
+- `frontend/src/pages/VendorDetail.shadcn.tsx` — Assessment comparison checkbox + skor trend grafiği
+
+**Excel Import Süreci:**
+- Kullanıcının `CSF_Assessment-2023.xlsx` dosyası analiz edildi (XYZ Holding, 2023 değerlendirmesi)
+- CSF 1.1 → CSF 2.0 ID mapping tablosu oluşturuldu (107 subcategory)
+- Durum XYZ Holding Yorum kolonundan türetildi (OK→compliant, OK?→partial, boş→not_assessed)
+- Sonuç: 3 compliant, 54 partial, 63 not_assessed (120 item)
+- 10 bağlı şirket için rastgele gerçekçi skorlar üretildi (%26-81 aralığı)
+- Tüm 11 şirket production'a başarıyla import edildi
+
+**Kritik Bulunan Sorun & Çözüm:**
+- **D1 Bound Parameter Limiti:** Cloudflare D1, sorgu başına max **100 bound parameter** destekliyor
+- Drizzle ORM batch insert: 5 col × 25 row = 125 params → **BAŞARISIZ**
+- Çözüm: Raw SQL ile 5 col × 19 row = 95 params → **BAŞARILI**
+- `import.ts` route'u `c.env.DB.prepare(...).bind(...params).run()` kullanacak şekilde güncellendi
+- Ek özellik: `group_id` optional field → mevcut gruba şirket ekleme (batch import için)
+
+**CI/CD:**
+- `.github/workflows/deploy.yml` — Otomatik deploy GitHub Actions workflow'u eklendi
+
+**Import Edilen Demo Data (Production DB):**
+
+| Şirket | Skor | Kaynak |
+|--------|------|--------|
+| XYZ Holding A.Ş. | 25.0% | Gerçek Excel verisi |
+| XYZ Enerji A.Ş. | 71.7% | Rastgele üretildi |
+| XYZ Finans A.Ş. | 62.5% | Rastgele üretildi |
+| XYZ Lojistik A.Ş. | 47.5% | Rastgele üretildi |
+| XYZ Teknoloji A.Ş. | 80.8% | Rastgele üretildi |
+| XYZ Gayrimenkul A.Ş. | 37.5% | Rastgele üretildi |
+| XYZ Sigorta A.Ş. | 69.6% | Rastgele üretildi |
+| XYZ Sağlık A.Ş. | 47.9% | Rastgele üretildi |
+| XYZ Perakende A.Ş. | 26.2% | Rastgele üretildi |
+| XYZ İnşaat A.Ş. | 42.1% | Rastgele üretildi |
+| XYZ Medya A.Ş. | 57.5% | Rastgele üretildi |
+
+**Commits:**
+- `5f57a86` — feat: Company groups + historical comparison + Excel import
+- `78c4063` — fix: Use raw SQL for assessment_items insert (D1 100 param limit)
+- `8a20801` — ci: Add GitHub Actions workflow for automatic deploy on push
+
+---
+
 ## Teknik Stack ve Bağımlılıklar
 
 ### Backend (Worker)
@@ -356,22 +429,23 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 
 ## Database Schema ve Migrasyonlar
 
-### Core Tables (14 tablo)
+### Core Tables (15 tablo)
 
 1. **organizations** - Organizasyon bilgileri
 2. **profiles** - Kullanıcı profilleri
-3. **vendors** - Vendor listesi (criticality, risk score)
-4. **assessments** - Assessment kayıtları
-5. **vendor_assessment_templates** - Assessment şablonları
-6. **csf_functions** - NIST CSF Functions (6 tane)
-7. **csf_categories** - NIST CSF Categories (22 tane)
-8. **csf_subcategories** - NIST CSF Subcategories (120 tane)
-9. **assessment_items** - Assessment item responses
-10. **assessment_wizard_progress** - Wizard ilerleme durumu
-11. **evidence_files** - R2'de saklanan dosya metadata
-12. **vendor_assessment_invitations** - Magic link invitations
-13. **vendor_audit_log** - Vendor portal audit trail
-14. **action_plan_items** - İyileştirme aksiyon planları
+3. **company_groups** - Holding/grup şirketi entity'si *(Migration 0005 ile eklendi)*
+4. **vendors** - Vendor listesi (criticality, risk score, group_id FK)
+5. **assessments** - Assessment kayıtları
+6. **vendor_assessment_templates** - Assessment şablonları
+7. **csf_functions** - NIST CSF Functions (6 tane)
+8. **csf_categories** - NIST CSF Categories (22 tane)
+9. **csf_subcategories** - NIST CSF Subcategories (120 tane)
+10. **assessment_items** - Assessment item responses
+11. **assessment_wizard_progress** - Wizard ilerleme durumu
+12. **evidence_files** - R2'de saklanan dosya metadata
+13. **vendor_assessment_invitations** - Magic link invitations
+14. **vendor_audit_log** - Vendor portal audit trail
+15. **action_plan_items** - İyileştirme aksiyon planları
 
 ### Migration History
 
@@ -393,6 +467,11 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `vendor_assessment_invitations` table
 - `vendor_audit_log` table
 - `assessments.linked_assessment_id` field
+
+**0005_company_groups.sql** (2026-02-18)
+- `company_groups` table (id, organization_id, name, description, industry, logo_url, timestamps)
+- `vendors.group_id` TEXT column (nullable FK → company_groups.id ON DELETE SET NULL)
+- Index: `idx_company_groups_org`, `idx_vendors_group`
 
 ---
 
@@ -450,6 +529,35 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - Token validation: 10 req/min per IP
 - Status updates: 30 req/min per IP
 
+### Company Groups
+- `GET /api/company-groups?organization_id=xxx` — Grup listesi (vendor_count dahil)
+- `POST /api/company-groups` — Grup oluştur
+- `GET /api/company-groups/:id` — Grup detayı + üye vendor'lar
+- `PATCH /api/company-groups/:id` — Grup güncelle
+- `DELETE /api/company-groups/:id` — Grup sil (vendor'lar orphan kalır, group_id=null)
+- `GET /api/company-groups/:id/summary` — CSF function bazında şirket karşılaştırması
+
+### Import
+- `POST /api/import/preview` — Payload doğrula, tahmini skorları döndür (DB write yok)
+- `POST /api/import/confirm` — Grup + vendor + assessment + item'ları oluştur
+
+**Import Payload:**
+```json
+{
+  "organization_id": "demo-org-123",
+  "group_name": "XYZ Holding Grubu",
+  "group_id": "optional-existing-group-id",
+  "companies": [
+    { "name": "Şirket A", "items": [{ "subcategory_id": "ID.AM-01", "status": "compliant", "notes": "..." }] }
+  ],
+  "assessment_name": "2023 Değerlendirmesi",
+  "assessment_date": "2023-12-31"
+}
+```
+
+### Assessment Compare
+- `GET /api/assessments/compare?ids=id1,id2` — İki assessment'ı subkategori bazında karşılaştır (delta, improved/declined/unchanged sayıları)
+
 ---
 
 ## Frontend Yapısı
@@ -483,7 +591,12 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `Organization.tsx` / `Organization.new.tsx` - Organization settings
 - `Profile.tsx` / `Profile.new.tsx` - User profile
 
-**Note:** `.new.tsx` dosyaları, UI migration sırasında oluşturulmuş yeni versiyonlar.
+**Company Group Pages:** *(Phase 9)*
+- `CompanyGroups.shadcn.tsx` — Grup listesi, vendor sayısı, ortalama skor, yeni grup modal
+- `CompanyGroupDetail.shadcn.tsx` — Grup özeti + CSF function karşılaştırma tablosu (şirketler sütun olarak)
+- `AssessmentHistoryComparison.shadcn.tsx` — İki assessment yan yana, delta göstergesi (↑↓)
+
+**Note:** `.new.tsx` dosyaları, UI migration sırasında oluşturulmuş yeni versiyonlar. `.shadcn.tsx` dosyaları en güncel versiyonlardır.
 
 ### Components
 
@@ -523,6 +636,8 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `evidence.ts` - Evidence upload/download
 - `ai.ts` - AI services
 - `vendor-invitations.ts` - Vendor portal (separate axios instance with `withCredentials`)
+- `company-groups.ts` - Company groups CRUD + summary *(Phase 9)*
+- `import.ts` - Excel import preview + confirm *(Phase 9)*
 
 ---
 
@@ -694,16 +809,31 @@ npx wrangler d1 migrations apply csf-compass-db
 
 ## Bilinen Sorunlar ve Çözümler
 
-### 1. SQLite Variable Limit (999)
+### 1. D1 Bound Parameter Limit (100) — KRİTİK
+
+**Problem:** Cloudflare D1'in bound parameter limiti sorgu başına **100**'dür (SQLite'ın 999 limitinden farklı!). Drizzle ORM batch insert tüm kolonları dahil eder.
+
+**Tespiti:**
+- Drizzle ORM `db.insert(assessment_items).values(batch)`: 5 param × 25 row = 125 → **BAŞARISIZ**
+- Hata: `"Error: Failed query: insert into..."` (D1 genel hata mesajı)
+- `wrangler tail` ile tespit edildi
+
+**Çözüm:**
+- Raw SQL kullan: `c.env.DB.prepare(...).bind(...params).run()`
+- Max **19 row/batch** (5 col × 19 = 95 params < 100 limit)
+- Wizard progress: 15 row/batch (mevcut — hâlâ güvenli)
+- Commit: `78c4063`
+
+### 2. SQLite Variable Limit (999) — Eski Sorun
 
 **Problem:** Batch insert sırasında 999 değişken limiti aşılıyor.
 
 **Çözüm:**
-- Assessment items: 25 row/batch
+- Assessment items: 25 row/batch (Drizzle ORM, D1'in gerçek 100 limit'ini bulmadan önce)
 - Wizard progress: 15 row/batch
 - Commits: `1fb0923`, `795e732`, `77df507`, `16a3526`
 
-### 2. Boolean Values in SQLite
+### 3. Boolean Values in SQLite
 
 **Problem:** SQLite'da boolean tipi yok.
 
@@ -712,7 +842,7 @@ npx wrangler d1 migrations apply csf-compass-db
 - Drizzle ORM `{ mode: 'boolean' }` kullan
 - Commit: `cfc5aab`
 
-### 3. Dark Mode Readability
+### 4. Dark Mode Readability
 
 **Problem:** Dark mode'da text contrast düşük.
 
@@ -721,7 +851,16 @@ npx wrangler d1 migrations apply csf-compass-db
 - Navy color scale adjustments
 - Commits: `cc6ccbc`, `2a48340`
 
-### 4. Session Cookie CORS
+### 5. ON DELETE SET NULL — Orphan Vendor Sorunu
+
+**Problem:** `company_groups` silindiğinde `vendors.group_id` NULL olur ama vendor silinmez. Yeniden import denendiğinde `unique_vendor_name_per_org` constraint ihlali oluşur.
+
+**Çözüm:**
+- Import öncesi orphan vendor'ları temizle: `DELETE FROM vendors WHERE group_id IS NULL AND name LIKE 'XYZ%'`
+- Import route'una `group_id` optional field eklendi — mevcut gruba şirket eklemek için
+- İleride: Import route'a transaction + rollback eklenebilir
+
+### 6. Session Cookie CORS
 
 **Problem:** httpOnly cookies cross-origin çalışmıyor.
 
@@ -942,6 +1081,16 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-18
+- **Phase 9 tamamlandı:** Company Groups + Historical Comparison + Excel Import
+- Migration 0005: `company_groups` tablosu, `vendors.group_id`
+- Yeni API routes: `/api/company-groups`, `/api/import`, `/api/assessments/compare`
+- Yeni frontend sayfaları: CompanyGroups, CompanyGroupDetail, AssessmentHistoryComparison
+- ExcelImportModal componenti eklendi
+- XYZ Holding Grubu (11 şirket, 1.320 assessment item) production'a import edildi
+- **Kritik keşif:** D1 bound parameter limiti = 100/query (raw SQL çözümü: 19 row/batch)
+- CI/CD: GitHub Actions workflow eklendi
 
 ### 2026-02-13
 - CLAUDE.md created for project context
