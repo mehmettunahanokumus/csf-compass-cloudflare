@@ -41,6 +41,7 @@ export interface Vendor {
   last_assessment_date?: number;
   next_assessment_due?: number;
   notes?: string;
+  group_id?: string;
   created_by?: string;
   created_at: number;
   updated_at: number;

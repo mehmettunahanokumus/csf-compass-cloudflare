@@ -373,19 +373,41 @@ export default function Dashboard() {
                     onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
                   >
                     <td style={{ padding: '13px 20px' }}>
-                      <span style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary }}>
+                      <span style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary, display: 'block' }}>
                         {a.name}
                       </span>
+                      {a.vendor && (
+                        <span style={{
+                          display: 'inline-block', marginTop: 4,
+                          fontSize: 11, fontWeight: 500, fontFamily: T.fontSans,
+                          padding: '1px 6px', borderRadius: 4,
+                          background: '#F1F5F9', color: T.textSecondary,
+                          maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {a.vendor.name}
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '13px 20px' }}>
-                      <span style={{
-                        display: 'inline-block', padding: '2px 8px', borderRadius: 5,
-                        fontFamily: T.fontMono, fontSize: 10, color: T.textSecondary,
-                        background: '#F1F5F9', border: `1px solid ${T.border}`,
-                        letterSpacing: '0.03em',
-                      }}>
-                        {a.assessment_type}
-                      </span>
+                      {(() => {
+                        const isOrg = a.assessment_type === 'organization';
+                        const isGroup = !isOrg && !!a.vendor?.group_id;
+                        const tag = isOrg
+                          ? { label: 'Self', bg: 'rgba(99,102,241,0.12)', color: '#6366F1' }
+                          : isGroup
+                          ? { label: 'Group Company', bg: 'rgba(59,130,246,0.12)', color: '#3B82F6' }
+                          : { label: 'Vendor', bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' };
+                        return (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            fontSize: 11, fontWeight: 600, fontFamily: T.fontSans,
+                            padding: '2px 7px', borderRadius: 4,
+                            background: tag.bg, color: tag.color,
+                          }}>
+                            {tag.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td style={{ padding: '13px 20px' }}>
                       <span style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: scoreColor(a.overall_score) }}>

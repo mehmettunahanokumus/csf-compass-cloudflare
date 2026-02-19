@@ -87,14 +87,25 @@ function AssessmentCard({ assessment, onView, onDelete, onSendToVendor }: CardPr
     >
       {/* Top row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{
-          display: 'inline-block', padding: '2px 8px', borderRadius: 5,
-          fontFamily: T.fontMono, fontSize: 10, fontWeight: 500,
-          background: '#F1F5F9', color: T.textSecondary, border: `1px solid ${T.border}`,
-          letterSpacing: '0.04em', textTransform: 'uppercase',
-        }}>
-          {assessment.assessment_type}
-        </span>
+        {(() => {
+          const isOrg = assessment.assessment_type === 'organization';
+          const isGroup = !isOrg && !!assessment.vendor?.group_id;
+          const tag = isOrg
+            ? { label: 'Self', bg: 'rgba(99,102,241,0.12)', color: '#6366F1' }
+            : isGroup
+            ? { label: 'Group Company', bg: 'rgba(59,130,246,0.12)', color: '#3B82F6' }
+            : { label: 'Vendor', bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' };
+          return (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              fontSize: 11, fontWeight: 600, fontFamily: T.fontSans,
+              padding: '2px 7px', borderRadius: 4,
+              background: tag.bg, color: tag.color,
+            }}>
+              {tag.label}
+            </span>
+          );
+        })()}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <StatusPill status={assessment.status} />
           {/* Kebab menu */}
@@ -176,11 +187,22 @@ function AssessmentCard({ assessment, onView, onDelete, onSendToVendor }: CardPr
         {assessment.name}
       </div>
 
-      {/* Vendor */}
-      {assessment.vendor
-        ? <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, marginBottom: 16 }}>{assessment.vendor.name}</div>
-        : <div style={{ height: 16 }} />
-      }
+      {/* Company tag */}
+      {assessment.vendor ? (
+        <div style={{ marginBottom: 16 }}>
+          <span style={{
+            display: 'inline-block',
+            fontSize: 11, fontWeight: 500, fontFamily: T.fontSans,
+            padding: '2px 7px', borderRadius: 4,
+            background: '#F1F5F9', color: T.textSecondary,
+            maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {assessment.vendor.name}
+          </span>
+        </div>
+      ) : (
+        <div style={{ height: 16 }} />
+      )}
 
       {/* Score + bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>

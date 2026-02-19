@@ -231,23 +231,40 @@ export default function AssessmentDetail() {
             </h1>
             <span style={statusBadgeStyle(assessment.status)}>{statusLabel(assessment.status)}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.textMuted }}>
               Created {formatDate(assessment.created_at)}
             </span>
+            {(() => {
+              const isOrg = assessment.assessment_type === 'organization';
+              const isGroup = !isOrg && !!assessment.vendor?.group_id;
+              const tag = isOrg
+                ? { label: 'Self', bg: 'rgba(99,102,241,0.12)', color: '#6366F1' }
+                : isGroup
+                ? { label: 'Group Company', bg: 'rgba(59,130,246,0.12)', color: '#3B82F6' }
+                : { label: 'Vendor', bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' };
+              return (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  fontSize: 11, fontWeight: 600, fontFamily: T.fontSans,
+                  padding: '2px 7px', borderRadius: 4,
+                  background: tag.bg, color: tag.color,
+                }}>
+                  {tag.label}
+                </span>
+              );
+            })()}
             {assessment.vendor && (
-              <>
-                <span style={{ color: T.textMuted }}>·</span>
-                <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>{assessment.vendor.name}</span>
-              </>
+              <span style={{
+                display: 'inline-block',
+                fontSize: 11, fontWeight: 500, fontFamily: T.fontSans,
+                padding: '2px 7px', borderRadius: 4,
+                background: '#F1F5F9', color: T.textSecondary,
+                maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {assessment.vendor.name}
+              </span>
             )}
-            <span style={{
-              fontFamily: T.fontMono, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em',
-              padding: '2px 8px', borderRadius: 6,
-              background: '#F1F5F9', border: `1px solid ${T.border}`, color: T.textMuted,
-            }}>
-              {assessment.assessment_type}
-            </span>
           </div>
         </div>
 

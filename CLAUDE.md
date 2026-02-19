@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19 (Phase 18)
+**Son Güncelleme:** 2026-02-19 (Phase 19)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,53 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 19: Analytics Page — Real Data + Working Date Filter (Gün 33)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Kök Neden:** `Analytics.shadcn.tsx` tamamen statik hardcoded demo verileri kullanıyordu. `useState`, `useEffect`, API çağrısı, date filter state'i yoktu. Header'daki "Last 6 months" sadece statik bir `<div>`'di, interaktif değildi.
+
+**Yeniden Yazım — Gerçek API Verisi:**
+- `GET /api/assessments?organization_id=demo-org-123` — mount'ta tüm assessments yükleniyor
+- `GET /api/vendors?organization_id=demo-org-123&exclude_grouped=true` — tüm vendors
+- `GET /api/assessments/:id/items` — seçili range'deki en son org assessment'ın items'ları (radar + gap için)
+- Assessments client-side `assessment_type` alanına göre org/vendor olarak ayrılıyor
+
+**Date Range Filter (5 seçenek):**
+- Last 7 days, Last 30 days (default), Last 90 days, Last 12 months, Custom range
+- Dropdown: chevron animasyon, dışarı tıklamada kapanma (`mousedown` event listener + `useRef`)
+- Custom range: FROM/TO date picker + Apply butonu
+- `getRangeDates()` → `{ from: number; to: number }` (Unix ms)
+
+**Tüm Chart'lar Range'e Reaktif:**
+- `filteredAssessments` = `allAssessments.filter(a => a.created_at >= from && a.created_at <= to)`
+- **Trend (AreaChart):** Filtered assessments → aylık gruplama → org/vendor avg score line
+- **Radar:** Latest org assessment items → function bazında avg (compliant=100, partial=50, non_compliant=0)
+- **Gap Analysis (horizontal BarChart):** Latest items → top 5 kategori by non_compliant+partial count
+- **Vendor Risk:** Vendors + filtered vendor assessments → her vendor için en son skor
+- **Score by CSF Function (BarChart):** Radar ile aynı items, bar chart görünümü
+- **KPIs:** Filtered data'dan hesaplanan avg score, completed count, open gaps, high-risk vendor count; prev period comparison (önceki dönemin avg'ı ile delta hesabı)
+
+**"No data for this period" State:**
+- Orange banner: range'de hiç assessment yoksa
+- Her chart bağımsız: dashed border + BarChart3 ikonu + mesaj
+- Gap chart akıllı mesaj: "no data" vs "no gaps found — great compliance!" vs "no org assessment in range"
+
+**Loading States:**
+- Initial load: KPI skeleton (shimmer animasyon) + chart spinner
+- Item yükleme: Radar, Gap, Score by Function chart'larında spinner overlay
+- Race condition koruması: `fetchIdRef` sayaç — stale fetch sonuçları atılıyor
+
+**Animasyonlar:**
+- `@keyframes analytics-shimmer` — KPI skeleton için
+- `@keyframes analytics-spin` — chart spinner için
+- `ANIM_CSS` string sabiti olarak dosya sonunda, `<style>` tag'ine inject ediliyor
+
+**Dosya:** `frontend/src/pages/Analytics.shadcn.tsx` — tam yeniden yazım (~350 satır)
 
 ---
 
@@ -1460,6 +1507,16 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 19)
+- **Phase 19 tamamlandı:** Analytics sayfası tamamen yeniden yazıldı — statik demo verilerden gerçek API datasına geçildi
+- Kök neden: sayfa 100% hardcoded statik verilerdi, hiç useState/useEffect/API call yoktu
+- 3 API endpoint entegrasyonu (assessments, vendors, assessment items)
+- 5 seçenekli date range filter (7d/30d/90d/12m/custom), dropdown, outside-click kapanma
+- Tüm 5 chart (Radar, Trend, Vendor Risk, Gap, CSF Bar) range değişince yeniden render oluyor
+- "No data for this period" — her chart için bağımsız empty state
+- Loading skeleton (shimmer) + chart spinner; race condition koruması (fetchIdRef)
+- Default range: Last 30 days
 
 ### 2026-02-19 (Phase 18)
 - **Phase 18 tamamlandı:** Company Group Subsidiary CRUD tam implementasyonu
