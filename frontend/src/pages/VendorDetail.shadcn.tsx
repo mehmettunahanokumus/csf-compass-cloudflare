@@ -59,6 +59,9 @@ export default function VendorDetail() {
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -79,7 +82,14 @@ export default function VendorDetail() {
   }, [assessments, statusFilter, dateFrom, dateTo]);
 
   const [editForm, setEditForm] = useState({
-    name: '', website: '', contact_email: '', contact_name: '', description: '',
+    name: '',
+    industry: '',
+    website: '',
+    contact_email: '',
+    contact_name: '',
+    contact_phone: '',
+    notes: '',
+    vendor_status: 'active' as 'active' | 'inactive' | 'under_review' | 'terminated',
     criticality_level: 'medium' as 'low' | 'medium' | 'high' | 'critical',
   });
 
@@ -98,18 +108,37 @@ export default function VendorDetail() {
       setStats(statsData);
       setAssessments(assessmentsData.filter((a) => a.vendor_id === id));
       setEditForm({
-        name: vendorData.name, website: vendorData.website || '',
-        contact_email: vendorData.contact_email || '', contact_name: vendorData.contact_name || '',
-        description: vendorData.description || '',
-        criticality_level: vendorData.criticality_level || vendorData.risk_tier || 'medium',
+        name: vendorData.name,
+        industry: vendorData.industry || '',
+        website: vendorData.website || '',
+        contact_email: vendorData.contact_email || '',
+        contact_name: vendorData.contact_name || '',
+        contact_phone: vendorData.contact_phone || '',
+        notes: vendorData.notes || '',
+        vendor_status: (vendorData.vendor_status || 'active') as 'active' | 'inactive' | 'under_review' | 'terminated',
+        criticality_level: (vendorData.criticality_level || vendorData.risk_tier || 'medium') as 'low' | 'medium' | 'high' | 'critical',
       });
     } catch (err) { setError(getErrorMessage(err)); } finally { setLoading(false); }
   };
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) return;
-    try { await vendorsApi.update(id, editForm); setEditing(false); loadData(); } catch (err) { alert(getErrorMessage(err)); }
+    if (!id || !vendor) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await vendorsApi.update(id, editForm);
+      // Optimistic: update vendor state immediately so badge reflects new value
+      setVendor({ ...vendor, ...updated });
+      setEditing(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      loadData(); // background refresh for computed fields
+    } catch (err) {
+      setSaveError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -153,7 +182,7 @@ export default function VendorDetail() {
     );
   }
 
-  const tier = vendor.risk_tier || vendor.criticality_level || 'medium';
+  const tier = vendor.criticality_level || vendor.risk_tier || 'medium';
   const latestScore = vendor.latest_assessment_score;
   const avatarColor = getAvatarColor(vendor.name);
 
@@ -168,6 +197,17 @@ export default function VendorDetail() {
         <span style={{ color: T.textMuted, fontSize: 12 }}>/</span>
         <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>{vendor.name}</span>
       </div>
+
+      {/* Success toast */}
+      {saveSuccess && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+          background: T.successLight, border: `1px solid ${T.successBorder}`, borderRadius: 10,
+          fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.success,
+        }}>
+          ✓ Profile saved successfully
+        </div>
+      )}
 
       {/* Header card */}
       <div style={{ ...cardStyle, padding: 24 }}>
@@ -248,9 +288,9 @@ export default function VendorDetail() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
-              <span style={sectionLabel}>Edit Vendor</span>
+              <span style={sectionLabel}>Edit Profile</span>
             </div>
-            <button onClick={() => setEditing(false)} style={{
+            <button onClick={() => { setEditing(false); setSaveError(null); }} style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: T.textMuted,
             }}>
               <X size={16} />
@@ -258,59 +298,158 @@ export default function VendorDetail() {
           </div>
           <form onSubmit={handleEdit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              {[
-                { key: 'name', label: 'Vendor Name *', placeholder: '', required: true },
-                { key: 'website', label: 'Website', placeholder: 'https://example.com', type: 'url' },
-                { key: 'contact_email', label: 'Contact Email', placeholder: 'contact@vendor.com', type: 'email' },
-                { key: 'contact_name', label: 'Contact Name', placeholder: 'John Doe' },
-              ].map((field) => (
-                <div key={field.key}>
-                  <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
-                    {field.label}
-                  </label>
-                  <input
-                    type={field.type || 'text'}
-                    value={(editForm as any)[field.key]}
-                    onChange={(e) => setEditForm({ ...editForm, [field.key]: e.target.value })}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                    style={inputStyle}
-                  />
-                </div>
-              ))}
+              {/* Name */}
               <div>
-                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Company Name *
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  required
+                  style={inputStyle}
+                />
+              </div>
+              {/* Industry */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Industry
+                </label>
+                <input
+                  type="text"
+                  value={editForm.industry}
+                  onChange={e => setEditForm({ ...editForm, industry: e.target.value })}
+                  placeholder="e.g. Technology, Finance, Energy"
+                  style={inputStyle}
+                />
+              </div>
+              {/* Website */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Website
+                </label>
+                <input
+                  type="url"
+                  value={editForm.website}
+                  onChange={e => setEditForm({ ...editForm, website: e.target.value })}
+                  placeholder="https://example.com"
+                  style={inputStyle}
+                />
+              </div>
+              {/* Contact Email */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Contact Email
+                </label>
+                <input
+                  type="email"
+                  value={editForm.contact_email}
+                  onChange={e => setEditForm({ ...editForm, contact_email: e.target.value })}
+                  placeholder="contact@company.com"
+                  style={inputStyle}
+                />
+              </div>
+              {/* Contact Name */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Contact Name
+                </label>
+                <input
+                  type="text"
+                  value={editForm.contact_name}
+                  onChange={e => setEditForm({ ...editForm, contact_name: e.target.value })}
+                  placeholder="Jane Smith"
+                  style={inputStyle}
+                />
+              </div>
+              {/* Contact Phone */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Contact Phone
+                </label>
+                <input
+                  type="tel"
+                  value={editForm.contact_phone}
+                  onChange={e => setEditForm({ ...editForm, contact_phone: e.target.value })}
+                  placeholder="+90 212 000 0000"
+                  style={inputStyle}
+                />
+              </div>
+              {/* Criticality Level */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
                   Criticality Level
                 </label>
                 <select
                   value={editForm.criticality_level}
-                  onChange={(e) => setEditForm({ ...editForm, criticality_level: e.target.value as any })}
+                  onChange={e => setEditForm({ ...editForm, criticality_level: e.target.value as 'low' | 'medium' | 'high' | 'critical' })}
                   style={{ ...inputStyle, cursor: 'pointer' }}
                 >
-                  {[['low','Low'],['medium','Medium'],['high','High'],['critical','Critical']].map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
                 </select>
               </div>
+              {/* Vendor Status */}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Status
+                </label>
+                <select
+                  value={editForm.vendor_status}
+                  onChange={e => setEditForm({ ...editForm, vendor_status: e.target.value as 'active' | 'inactive' | 'under_review' | 'terminated' })}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="under_review">Under Review</option>
+                  <option value="terminated">Terminated</option>
+                </select>
+              </div>
+              {/* Notes */}
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
-                  Description
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Notes
                 </label>
                 <textarea
-                  value={editForm.description}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  value={editForm.notes}
+                  onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
                   rows={3}
-                  placeholder="Brief description of the vendor's services..."
+                  placeholder="Internal notes about this company..."
                   style={{ ...inputStyle, resize: 'none' }}
                 />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
-              <button type="submit" style={{
-                padding: '9px 20px', borderRadius: 8, background: T.accent, border: 'none',
-                fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
+
+            {/* Error message */}
+            {saveError && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, padding: '10px 14px',
+                background: T.dangerLight, border: `1px solid ${T.dangerBorder}`, borderRadius: 8,
+                fontFamily: T.fontSans, fontSize: 12, color: T.danger,
               }}>
-                Save Changes
+                <span style={{ fontWeight: 600 }}>Save failed:</span> {saveError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+              <button
+                type="submit"
+                disabled={saving}
+                style={{
+                  padding: '9px 20px', borderRadius: 8,
+                  background: saving ? T.accentLight : T.accent,
+                  border: `1px solid ${saving ? T.accentBorder : T.accent}`,
+                  fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+                  color: saving ? T.accent : '#FFF',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {saving ? 'Saving…' : 'Save Changes'}
               </button>
-              <button type="button" onClick={() => setEditing(false)} style={{
+              <button type="button" onClick={() => { setEditing(false); setSaveError(null); }} style={{
                 padding: '9px 20px', borderRadius: 8, background: T.card, border: `1px solid ${T.border}`,
                 fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, cursor: 'pointer',
               }}>
@@ -371,13 +510,13 @@ export default function VendorDetail() {
                   </div>
                 );
               })}
-              {vendor.description && (
+              {vendor.notes && (
                 <div style={{ gridColumn: '1 / -1' }}>
                   <p style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, margin: '0 0 6px' }}>
-                    Description
+                    Notes
                   </p>
                   <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, margin: 0, lineHeight: 1.6 }}>
-                    {vendor.description}
+                    {vendor.notes}
                   </p>
                 </div>
               )}
