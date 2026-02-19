@@ -57,10 +57,10 @@ export default function CompanyGroups() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
           <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 24, fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
-            Company Groups
+            Group Companies
           </h1>
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-            Manage holding structures and subsidiary portfolios
+            Internal subsidiaries and group entities under your organization
           </p>
         </div>
         <button
@@ -74,7 +74,7 @@ export default function CompanyGroups() {
           }}
         >
           <Plus size={15} />
-          New Group
+          Add Subsidiary
         </button>
       </div>
 
@@ -90,7 +90,7 @@ export default function CompanyGroups() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 18, fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
-                New Company Group
+                Add Group Company
               </h2>
               <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
                 <X size={18} />
@@ -124,7 +124,7 @@ export default function CompanyGroups() {
                 disabled={creating || !form.name.trim()}
                 style={{ padding: '8px 16px', background: '#6366F1', border: 'none', borderRadius: 8, color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: creating || !form.name.trim() ? 0.6 : 1 }}
               >
-                {creating ? 'Creating...' : 'Create Group'}
+                {creating ? 'Adding...' : 'Add Company'}
               </button>
             </div>
           </div>
@@ -151,7 +151,7 @@ export default function CompanyGroups() {
         }}>
           <Building2 size={40} style={{ color: 'var(--text-3)', margin: '0 auto 16px' }} />
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--text-2)', margin: 0 }}>
-            No company groups yet. Create your first group to organize subsidiaries.
+            No group companies yet. Add your first subsidiary to get started.
           </p>
         </div>
       ) : (

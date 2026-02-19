@@ -155,7 +155,7 @@ export default function Vendors() {
             Third-party security posture management
           </p>
           <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textFaint, marginTop: 4, fontStyle: 'italic' }}>
-            Group companies are managed under the Groups menu.
+            Group companies (subsidiaries) are managed under Group Companies.
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

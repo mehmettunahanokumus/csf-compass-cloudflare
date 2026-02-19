@@ -22,7 +22,7 @@ const navSections = [
       { name: 'Dashboard',   path: '/dashboard',   icon: LayoutDashboard },
       { name: 'Assessments', path: '/assessments',  icon: FileCheck       },
       { name: 'Vendors',     path: '/vendors',      icon: Building2       },
-      { name: 'Groups',      path: '/company-groups', icon: Network         },
+      { name: 'Group Companies', path: '/company-groups', icon: Network      },
     ],
   },
   {

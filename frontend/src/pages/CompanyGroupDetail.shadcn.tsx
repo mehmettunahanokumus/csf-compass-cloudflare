@@ -76,7 +76,7 @@ export default function CompanyGroupDetail() {
           style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontFamily: 'Manrope, sans-serif', fontSize: 13, padding: 0, marginBottom: 16 }}
         >
           <ArrowLeft size={14} />
-          Back to Groups
+          Back to Group Companies
         </button>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
