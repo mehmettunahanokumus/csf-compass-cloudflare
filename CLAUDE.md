@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-21
+**Son Güncelleme:** 2026-02-21 (Phase 13)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -482,6 +482,56 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/Vendors.shadcn.tsx`
 
 **Commit:** `ae6e472` — refactor: Rename Groups → Group Companies throughout UI
+
+---
+
+### Phase 13: Wizard Implementation Guide + Checklist Enhanced Details (Gün 27)
+**Tamamlanma:** 2026-02-21
+
+✅ Tamamlanan:
+
+**Feature 1 — AssessmentWizard: Collapsible Implementation Guide**
+- Her wizard adımının info banner'ına `📘 Implementation Guide` toggle butonu eklendi
+- Tıklayınca araç bazlı kanıt toplama rehberi açılır (3-4 araç/adım)
+- `STEP_GUIDANCE` constant: 15 adım × 3-4 araç = ~50 tool-specific guidance entry
+- Örnek araçlar: Entra ID, Okta, CrowdStrike, AWS Security Hub, Splunk, Qualys, KnowBe4, vb.
+- Stil: `T.accentLight` arka plan, `3px solid T.accent` sol kenar, `T.accentBorder` border
+- Adım değişiminde `useEffect` ile otomatik kapanır (`setShowGuide(false)`)
+
+**STEP_GUIDANCE araç başvuruları (her adım için):**
+
+| Adım | Araçlar |
+|------|---------|
+| 0 — Governance & Policy | SharePoint, Azure Policy, AWS Organizations, ServiceNow GRC |
+| 1 — IAM | Entra ID/Azure AD, Okta, Google Workspace, AWS IAM |
+| 2 — Endpoint & Cloud Security | Microsoft Defender, CrowdStrike, SentinelOne, Palo Alto XDR |
+| 3 — Cloud Infrastructure | AWS Security Hub, Defender for Cloud, Google SCC, Terraform |
+| 4 — Network Security | Cisco/Meraki, Palo Alto, FortiGate, AWS/Azure VPC |
+| 5 — Endpoint Protection | Intune+Defender, CrowdStrike, Symantec, Carbon Black |
+| 6 — Data Protection | Microsoft Purview, AWS Macie, Google DLP, Varonis |
+| 7 — Access Control | Azure PIM, CyberArk, BeyondTrust, Active Directory |
+| 8 — Security Monitoring | Microsoft Sentinel, Splunk, QRadar, Elastic SIEM |
+| 9 — Incident Response | ServiceNow/Jira, PagerDuty, Palo Alto XSOAR |
+| 10 — Backup & Recovery | Veeam, Azure/AWS Backup, Commvault |
+| 11 — Vulnerability Mgmt | Qualys VMDR, Tenable/Nessus, Rapid7, Defender VM |
+| 12 — Vendor Risk | ServiceNow GRC, OneTrust/BitSight, SAP Ariba |
+| 13 — Security Awareness | KnowBe4, Proofpoint, Mimecast |
+| 14 — Business Continuity | ServiceNow BCM, Fusion Risk, IBM OpenPages |
+
+**Feature 2 — AssessmentChecklist: Enhanced ℹ️ Details Panel**
+- ChevronDown icon butonu → `ℹ️ Details` metin butonu olarak değiştirildi
+- Expanded panel 3 kademeli yapıya dönüştürüldü:
+  1. **Control ID badge** (accent rengi, monospace) + **tam kontrol adı** (subcategory.name)
+  2. **Açıklama** (subcategory.description, DB'den)
+  3. **Evidence examples** kutusu (policies, audit logs, SOC 2, ISO 27001 vb.)
+  4. **Function-specific auditor tip** sarı warning kutusunda — CSF function prefix'ine göre (GV/ID/PR/DE/RS/RC)
+- `getTipForItem(subcategoryId)` fonksiyonu: 6 CSF fonksiyonu için özel denetçi ipuçları
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/AssessmentWizard.shadcn.tsx` — STEP_GUIDANCE const (15 adım), showGuide state, useEffect reset, guide UI
+- `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
+
+**Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
 
 ---
 
@@ -1211,6 +1261,11 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-21 (Phase 13)
+- **Phase 13 tamamlandı:** Wizard Implementation Guide + Checklist Enhanced Details
+- AssessmentWizard: `📘 Implementation Guide` collapsible per step; STEP_GUIDANCE[15] with 3-4 tool-specific entries per step; auto-collapse on step navigation
+- AssessmentChecklist: `ℹ️ Details` text button replaces ChevronDown icon; expanded panel now shows control ID badge + name, description, evidence examples, and function-specific auditor tip (getTipForItem — GV/ID/PR/DE/RS/RC)
 
 ### 2026-02-21
 - **Phase 12 tamamlandı:** Groups → Group Companies conceptual rename
