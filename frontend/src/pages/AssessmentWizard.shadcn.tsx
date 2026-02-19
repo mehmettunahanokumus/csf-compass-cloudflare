@@ -70,6 +70,113 @@ const STEP_DESCRIPTIONS = [
   'Upload BCP/DR plans, business impact analyses, and recovery documentation. Covers organizational resilience planning.',
 ];
 
+const STEP_GUIDANCE: Array<Array<{ tool: string; steps: string }>> = [
+  // 0 — Governance & Policy
+  [
+    { tool: 'SharePoint / OneDrive', steps: 'Export security policies from SharePoint Admin Center → Policies → Compliance.' },
+    { tool: 'Azure Policy / AWS Organizations', steps: 'Download compliance reports from Azure Policy Compliance dashboard or AWS Organizations → Policies → SCPs.' },
+    { tool: 'GRC Tools (ServiceNow, OneTrust)', steps: 'Export policy library, risk register, and control framework reports from your GRC platform.' },
+  ],
+  // 1 — Identity & Access Management
+  [
+    { tool: 'Microsoft Entra ID / Azure AD', steps: 'Azure Portal → Entra ID → Security → Authentication methods. Export MFA registration report and Conditional Access policies.' },
+    { tool: 'Okta', steps: 'Admin Console → Security → Multifactor → Factor Enrollment. Export authentication policy screenshots.' },
+    { tool: 'Google Workspace', steps: 'Admin Console → Security → 2-Step Verification → Enforcement status. Download enrollment report.' },
+    { tool: 'AWS IAM', steps: 'IAM → Account settings → Credential report. Also export IAM Access Analyzer findings.' },
+  ],
+  // 2 — Endpoint & Cloud Security
+  [
+    { tool: 'Microsoft Defender for Endpoint', steps: 'security.microsoft.com → Devices → Device inventory. Export compliance status and security baseline report.' },
+    { tool: 'CrowdStrike Falcon', steps: 'Falcon Console → Endpoint Security → Prevention Policies. Export policy configuration and coverage report.' },
+    { tool: 'SentinelOne', steps: 'Management Console → Sentinels → Policy. Export agent deployment and coverage report.' },
+    { tool: 'Palo Alto Cortex XDR', steps: 'XDR Console → Endpoint Management → Policies. Export installed agents and policy compliance status.' },
+  ],
+  // 3 — Cloud Infrastructure Security
+  [
+    { tool: 'AWS Security Hub', steps: 'AWS Console → Security Hub → Summary. Export findings and CIS/PCI-DSS compliance standards status.' },
+    { tool: 'Microsoft Defender for Cloud', steps: 'Azure Portal → Defender for Cloud → Regulatory Compliance. Export compliance dashboard as PDF.' },
+    { tool: 'Google Security Command Center', steps: 'GCP Console → Security → Security Command Center → Findings. Export active findings and asset inventory.' },
+    { tool: 'Terraform / IaC', steps: 'Export infrastructure-as-code configs showing security group rules, encryption settings, and IAM policies.' },
+  ],
+  // 4 — Network Security
+  [
+    { tool: 'Cisco / Meraki', steps: 'Meraki Dashboard → Security & SD-WAN → Firewall. Export firewall rules and network topology diagram.' },
+    { tool: 'Palo Alto Networks', steps: 'Panorama / Firewall → Policies → Security. Export security policy ruleset and zone configuration.' },
+    { tool: 'Fortinet FortiGate', steps: 'FortiGate → Policy & Objects → Firewall Policy. Export policies and logging reports.' },
+    { tool: 'AWS / Azure VPC', steps: 'Export VPC Security Group rules and NACLs (AWS) or NSGs (Azure) from cloud console or Terraform state.' },
+  ],
+  // 5 — Endpoint Protection
+  [
+    { tool: 'Microsoft Defender Antivirus (Intune)', steps: 'Intune → Devices → Configuration Profiles. Export antivirus policy settings and device compliance report.' },
+    { tool: 'CrowdStrike Falcon', steps: 'Falcon → Prevention Policies → Policy Settings. Export coverage report and real-time response policy.' },
+    { tool: 'Symantec / Broadcom Endpoint', steps: 'SEPM Console → Reports → Attacks and Threats. Export protection status summary.' },
+    { tool: 'Carbon Black / VMware', steps: 'Carbon Black → Enforce → Policies. Export policy details and sensor coverage report.' },
+  ],
+  // 6 — Data Protection
+  [
+    { tool: 'Microsoft Purview', steps: 'Compliance Portal → Data loss prevention → Policies. Export DLP policy list and incident reports.' },
+    { tool: 'AWS Macie', steps: 'AWS Console → Macie → Summary. Export sensitive data discovery findings and S3 bucket classification.' },
+    { tool: 'Google Cloud DLP', steps: 'GCP Console → Data Loss Prevention → Inspection → Jobs. Export job findings and info type statistics.' },
+    { tool: 'Varonis / Forcepoint', steps: 'Export data classification reports and access permission audits from your DLP platform.' },
+  ],
+  // 7 — Access Control & Privileges
+  [
+    { tool: 'Microsoft Azure PIM', steps: 'Azure Portal → Entra ID → Privileged Identity Management → Roles. Export role assignment history and access reviews.' },
+    { tool: 'CyberArk', steps: 'CyberArk PVWA → Reports → Privileged Account Inventory. Export account discovery and session recording reports.' },
+    { tool: 'BeyondTrust / Delinea', steps: 'Admin console → Reports → Privileged Accounts. Export least-privilege policy and role assignments.' },
+    { tool: 'Active Directory / Group Policy', steps: 'AD Users & Computers → Group Policy → Security Settings. Export GPO settings and privileged group membership.' },
+  ],
+  // 8 — Security Monitoring
+  [
+    { tool: 'Microsoft Sentinel', steps: 'Azure Portal → Microsoft Sentinel → Analytics. Export active detection rules, workbooks, and incident statistics.' },
+    { tool: 'Splunk', steps: 'Splunk → Search & Reporting → Reports. Export saved searches, alert policies, and dashboard configs.' },
+    { tool: 'IBM QRadar', steps: 'QRadar Console → Reports → Generate Report. Export offense summary and log source inventory.' },
+    { tool: 'Elastic SIEM', steps: 'Kibana → Security → Rules. Export detection rule inventory and alert statistics.' },
+  ],
+  // 9 — Incident Response
+  [
+    { tool: 'ServiceNow / Jira', steps: 'Export incident tracking records, response timelines, and post-incident review documents.' },
+    { tool: 'PagerDuty / OpsGenie', steps: 'Incidents → Analytics. Export incident frequency and mean time to response (MTTR) metrics.' },
+    { tool: 'Palo Alto XSOAR', steps: 'Export playbook inventory and automated response statistics from XSOAR console.' },
+    { tool: 'Generic', steps: 'Upload IR policy PDFs, tabletop exercise reports, and documented post-incident reviews.' },
+  ],
+  // 10 — Backup & Recovery
+  [
+    { tool: 'Veeam Backup & Replication', steps: 'Veeam Console → Reports → Backup Jobs. Export backup success rates and restore point statistics.' },
+    { tool: 'Azure Backup / AWS Backup', steps: 'Azure Portal → Backup center → Reports (or AWS Backup → Reports). Export job history and coverage summary.' },
+    { tool: 'Commvault', steps: 'Command Center → Reports → Backup Job Summary. Export RPO/RTO metrics and data protection statistics.' },
+    { tool: 'Generic', steps: 'Upload backup policy documents, most recent restoration test results, and recovery runbooks.' },
+  ],
+  // 11 — Vulnerability Management
+  [
+    { tool: 'Qualys VMDR', steps: 'Qualys → VM → Reports → Patch Report or Vulnerability Report. Export by severity and asset group.' },
+    { tool: 'Tenable.io / Nessus', steps: 'Tenable → Scans → Export (CSV or PDF). Include vulnerability severity distribution and remediation status.' },
+    { tool: 'Rapid7 InsightVM', steps: 'InsightVM → Reports → Generate. Export risk score trend and top vulnerabilities by CVSS.' },
+    { tool: 'Microsoft Defender VM', steps: 'security.microsoft.com → Vulnerability Management → Dashboard. Export exposure score and top recommendations.' },
+  ],
+  // 12 — Vendor Risk Management
+  [
+    { tool: 'ServiceNow GRC', steps: 'GRC → Vendor Risk Management → Assessments. Export vendor risk scores and assessment completion status.' },
+    { tool: 'OneTrust / BitSight', steps: 'Third-party risk module → Vendors. Export risk ratings, questionnaire responses, and monitoring alerts.' },
+    { tool: 'SAP Ariba / Coupa', steps: 'Supplier risk dashboard → Export supplier compliance and certification records.' },
+    { tool: 'Generic', steps: 'Upload vendor questionnaires, third-party audit reports (SOC 2, ISO 27001), and SLAs with security clauses.' },
+  ],
+  // 13 — Security Awareness Training
+  [
+    { tool: 'KnowBe4', steps: 'Training → Users → Training Status. Export campaign completion report and phishing simulation click rates.' },
+    { tool: 'Proofpoint Security Awareness', steps: 'Dashboard → Reports → User Progress. Export training completion and vulnerability assessment results.' },
+    { tool: 'Mimecast Awareness Training', steps: 'Reports → Training Progress. Export module completion and risk score by department.' },
+    { tool: 'Generic LMS', steps: 'Export training completion certificates, course roster reports, and phishing simulation results from your LMS.' },
+  ],
+  // 14 — Business Continuity
+  [
+    { tool: 'ServiceNow BCM', steps: 'BCM → Business Impact Analysis → Export. Download BIA results and continuity plan summaries.' },
+    { tool: 'Fusion Risk Management', steps: 'Export recovery plans, dependency maps, and test exercise reports from Fusion platform.' },
+    { tool: 'IBM OpenPages', steps: 'BCM module → Reports. Export operational resilience metrics and recovery objective documentation.' },
+    { tool: 'Generic', steps: 'Upload BCP/DRP documents, business impact analysis (BIA), DR test results, and RTO/RPO documentation.' },
+  ],
+];
+
 const STEP_ICONS = [
   Shield, KeyRound, ShieldCheck, Cloud, Network, Monitor, Database,
   Fingerprint, Activity, AlertTriangle, HardDrive, Bug, Users,
@@ -98,6 +205,9 @@ export default function AssessmentWizardShadcn() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
+  useEffect(() => { setShowGuide(false); }, [currentStep]);
 
   useEffect(() => {
     if (!id) return;
@@ -340,6 +450,37 @@ export default function AssessmentWizardShadcn() {
               <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, marginTop: 4, lineHeight: 1.6 }}>
                 {STEP_DESCRIPTIONS[currentStep]}
               </p>
+
+              {/* Implementation Guide toggle */}
+              <button
+                onClick={() => setShowGuide(g => !g)}
+                style={{
+                  marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.accent,
+                }}
+              >
+                📘 Implementation Guide
+                <ChevronRight size={12} style={{ transition: 'transform 0.2s', transform: showGuide ? 'rotate(90deg)' : 'none' }} />
+              </button>
+
+              {showGuide && (
+                <div style={{
+                  marginTop: 10, padding: '12px 14px', borderRadius: 8,
+                  background: T.accentLight, borderLeft: `3px solid ${T.accent}`,
+                  border: `1px solid ${T.accentBorder}`,
+                }}>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.textPrimary, margin: '0 0 8px' }}>
+                    How to collect this evidence from your tools:
+                  </p>
+                  {STEP_GUIDANCE[currentStep]?.map((g, i) => (
+                    <div key={i} style={{ marginBottom: i < STEP_GUIDANCE[currentStep].length - 1 ? 8 : 0 }}>
+                      <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 700, color: T.accent }}>{g.tool}</span>
+                      <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>{' — '}{g.steps}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

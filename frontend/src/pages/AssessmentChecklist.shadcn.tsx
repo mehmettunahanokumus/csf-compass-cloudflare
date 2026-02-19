@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Search, ChevronDown } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 import { assessmentsApi } from '../api/assessments';
 import { csfApi } from '../api/csf';
 import { getErrorMessage } from '../api/client';
@@ -28,6 +28,19 @@ function statusLabel(status: string) {
     not_assessed: 'Not Assessed', not_applicable: 'N/A',
   };
   return map[status] || status.replace('_', ' ');
+}
+
+function getTipForItem(subcategoryId: string | undefined): string {
+  const prefix = subcategoryId?.split('.')[0] || '';
+  const tips: Record<string, string> = {
+    GV: 'Tip: Policy documents, board approvals, risk register exports, and compliance framework mappings are strong evidence for Govern controls.',
+    ID: 'Tip: Asset inventory exports, vulnerability scan results, and data flow diagrams are commonly accepted for Identify controls.',
+    PR: 'Tip: Configuration baselines, access control reports, encryption settings, and training completion records support Protect controls.',
+    DE: 'Tip: SIEM alert rules, anomaly detection configs, log retention policies, and monitoring dashboards cover Detect controls.',
+    RS: 'Tip: Incident response plan, playbooks, MTTR metrics, and post-incident reviews are required for Respond controls.',
+    RC: 'Tip: Business continuity plans, DR test results, RTO/RPO documentation, and backup job reports support Recover controls.',
+  };
+  return tips[prefix] || 'Tip: Policies, configuration exports, audit logs, and third-party certifications are common evidence types for this control.';
 }
 
 export default function AssessmentChecklist() {
@@ -347,18 +360,15 @@ export default function AssessmentChecklist() {
                           onClick={() => toggleExpand(item.id)}
                           title={isExpanded ? 'Hide details' : 'Show details'}
                           style={{
-                            width: 28, height: 28, borderRadius: 6,
+                            padding: '4px 10px', borderRadius: 6, whiteSpace: 'nowrap',
                             background: isExpanded ? T.accentLight : 'transparent',
                             border: `1px solid ${isExpanded ? T.accentBorder : T.border}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
                             color: isExpanded ? T.accent : T.textMuted,
                             cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
                           }}
                         >
-                          <ChevronDown size={14} style={{
-                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s ease',
-                          }} />
+                          ℹ️ Details
                         </button>
                         <div style={{ width: 180 }}>
                           <select
@@ -387,30 +397,44 @@ export default function AssessmentChecklist() {
                         borderTop: `1px solid ${T.borderLight || T.border}`,
                       }}>
                         <div style={{
-                          padding: '12px 16px', borderRadius: 8,
+                          padding: '14px 16px', borderRadius: 8,
                           background: T.card, border: `1px solid ${T.border}`,
+                          display: 'flex', flexDirection: 'column', gap: 10,
                         }}>
-                          <p style={{
-                            fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
-                            color: T.textPrimary, margin: '0 0 6px',
-                          }}>
-                            {item.subcategory?.id} — Details
-                          </p>
-                          <p style={{
-                            fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary,
-                            margin: '0 0 10px', lineHeight: 1.65,
-                          }}>
+                          {/* ID + name header */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{
+                              fontFamily: T.fontMono, fontSize: 11, fontWeight: 700, color: T.accent,
+                              background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+                              padding: '2px 6px', borderRadius: 4,
+                            }}>
+                              {item.subcategory?.id}
+                            </span>
+                            <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.textPrimary }}>
+                              {item.subcategory?.name || item.subcategory?.id}
+                            </span>
+                          </div>
+                          {/* Description */}
+                          <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.65 }}>
                             {detailText}
                           </p>
-                          <p style={{
-                            fontFamily: T.fontSans, fontSize: 11, color: T.textMuted,
-                            margin: 0, lineHeight: 1.5,
-                            padding: '8px 12px', borderRadius: 6,
+                          {/* Evidence examples */}
+                          <div style={{
+                            fontFamily: T.fontSans, fontSize: 11, color: T.textSecondary,
+                            lineHeight: 1.5, padding: '8px 12px', borderRadius: 6,
                             background: T.bg, border: `1px solid ${T.borderLight || T.border}`,
                           }}>
-                            <span style={{ fontWeight: 600 }}>Example evidence:</span>{' '}
-                            policies, screenshots, audit logs, configuration exports, compliance reports, or third-party certifications.
-                          </p>
+                            <span style={{ fontWeight: 600, color: T.textPrimary }}>Example evidence: </span>
+                            policies, screenshots, audit logs, configuration exports, compliance reports, or third-party certifications (SOC 2, ISO 27001).
+                          </div>
+                          {/* Function-specific tip */}
+                          <div style={{
+                            fontFamily: T.fontSans, fontSize: 11, color: T.warning,
+                            lineHeight: 1.5, padding: '8px 12px', borderRadius: 6,
+                            background: T.warningLight, border: `1px solid ${T.warningBorder}`,
+                          }}>
+                            {getTipForItem(item.subcategory?.id)}
+                          </div>
                         </div>
                       </div>
                     )}
