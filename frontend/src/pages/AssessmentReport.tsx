@@ -4,10 +4,10 @@
  * Exports: PDF (browser print) · Excel (SheetJS xlsx)
  */
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  ChevronLeft, FileDown, Download,
+  ChevronLeft, Download,
   ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -202,6 +202,44 @@ export default function AssessmentReport() {
     XLSX.writeFile(wb, `assessment-report-${safeName}-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }, [items, findings, distribution, overallScore, assessment]);
 
+  // ── export dropdown ────────────────────────────────────────────────────────
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const exportCsv = useCallback(() => {
+    const BOM = '\uFEFF';
+    const rows = [
+      ['Function', 'Category', 'Control ID', 'Control Name', 'Status', 'Notes'],
+      ...items.map(item => [
+        item.function?.name   || '',
+        item.category?.name   || '',
+        item.subcategory?.id  || '',
+        item.subcategory?.name || '',
+        statusLabel(item.status || 'not_assessed'),
+        item.notes || '',
+      ]),
+    ];
+    const csv = BOM + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = (assessment?.name || 'export').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
+    a.download = `assessment-${safeName}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [items, assessment]);
+
   // ── toggle helpers ─────────────────────────────────────────────────────────
   const toggleFunction = (fId: string) => {
     setExpandedFunctions(prev => {
@@ -278,23 +316,61 @@ export default function AssessmentReport() {
             <ChevronLeft size={14} /> Back to Assessment
           </Link>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          {/* Export dropdown */}
+          <div style={{ position: 'relative' }} ref={exportDropdownRef}>
             <button
-              onClick={exportExcel}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: T.card, border: `1px solid ${T.border}`, fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.textSecondary, cursor: 'pointer', transition: 'all 0.14s' }}
-              onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = T.accentBorder; el.style.color = T.textPrimary; }}
-              onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = T.border; el.style.color = T.textSecondary; }}
-            >
-              <FileDown size={13} /> Export Excel
-            </button>
-            <button
-              onClick={() => window.print()}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: T.accent, border: 'none', fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: '#fff', cursor: 'pointer', transition: 'opacity 0.14s' }}
+              onClick={() => setExportOpen(o => !o)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '7px 14px', borderRadius: 8,
+                background: T.accent, border: 'none',
+                fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: '#fff',
+                cursor: 'pointer', transition: 'opacity 0.14s',
+              }}
               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
             >
-              <Download size={13} /> Export PDF
+              <Download size={13} /> Generate Report
+              <ChevronDown size={12} style={{ opacity: 0.7 }} />
             </button>
+
+            {exportOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                background: T.card, border: `1px solid ${T.border}`,
+                borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.13)',
+                overflow: 'hidden', minWidth: 220, zIndex: 200,
+              }}>
+                {[
+                  { fmt: 'pdf',  label: 'Export as PDF',          action: () => { window.print(); setExportOpen(false); },    bg: T.dangerLight,  color: T.danger,  border: T.dangerBorder  },
+                  { fmt: 'xlsx', label: 'Export as Excel (.xlsx)', action: () => { exportExcel(); setExportOpen(false); },     bg: T.successLight, color: T.success, border: T.successBorder },
+                  { fmt: 'csv',  label: 'Export as CSV',           action: () => { exportCsv(); setExportOpen(false); },      bg: T.accentLight,  color: T.accent,  border: T.accentBorder  },
+                ].map(({ fmt, label, action, bg, color, border }, i, arr) => (
+                  <button
+                    key={fmt}
+                    onClick={action}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      width: '100%', padding: '10px 14px',
+                      background: 'transparent', border: 'none',
+                      borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : 'none',
+                      fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
+                      cursor: 'pointer', textAlign: 'left' as const,
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.bg}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                  >
+                    <span style={{
+                      fontFamily: T.fontMono, fontSize: 9, fontWeight: 700,
+                      padding: '2px 6px', borderRadius: 3,
+                      background: bg, color, border: `1px solid ${border}`,
+                      flexShrink: 0, minWidth: 36, textAlign: 'center' as const,
+                    }}>{fmt.toUpperCase()}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   FileText, FileSpreadsheet, Loader2, Download, AlertCircle,
-  Building2, Users, BarChart2,
+  Building2, Users, BarChart2, ChevronDown,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -9,18 +9,28 @@ import autoTable from 'jspdf-autotable';
 import axios from 'axios';
 import { assessmentsApi } from '../api/assessments';
 import { companyGroupsApi } from '../api/company-groups';
-import type { Assessment, AssessmentItem, Vendor } from '../types';
+import type { Assessment, AssessmentItem, Vendor, CompanyGroup } from '../types';
 import { T, card } from '../tokens';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 const ORG_ID = 'demo-org-123';
 
-// ── jsPDF helpers ────────────────────────────────────────────────────────────
+type FormatType = 'pdf' | 'xlsx' | 'csv';
+type ReportKey = 'org_summary' | 'vendor_risk' | 'assessment_detail' | 'group_overview';
+
+// ── Format metadata ───────────────────────────────────────────────────────────
+
+const FMT: Record<FormatType, { label: string; desc: string; bg: string; color: string; border: string }> = {
+  pdf:  { label: 'PDF',   desc: 'Professional PDF document',    bg: T.dangerLight,  color: T.danger,  border: T.dangerBorder  },
+  xlsx: { label: 'Excel', desc: 'Multi-sheet workbook (.xlsx)', bg: T.successLight, color: T.success, border: T.successBorder },
+  csv:  { label: 'CSV',   desc: 'Plain text export (.csv)',     bg: T.accentLight,  color: T.accent,  border: T.accentBorder  },
+};
+
+// ── jsPDF: Assessment PDF ─────────────────────────────────────────────────────
 
 function buildAssessmentPDF(assessment: Assessment, items: AssessmentItem[], doc: jsPDF) {
   const W = doc.internal.pageSize.getWidth();
 
-  // Header bar
   doc.setFillColor(79, 70, 229);
   doc.rect(0, 0, W, 30, 'F');
   doc.setTextColor(255, 255, 255);
@@ -28,19 +38,13 @@ function buildAssessmentPDF(assessment: Assessment, items: AssessmentItem[], doc
   doc.setFontSize(15);
   doc.text(assessment.name, 15, 19);
 
-  // Meta row
   doc.setFillColor(245, 247, 255);
   doc.rect(0, 30, W, 16, 'F');
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  const metaParts: string[] = [];
-  metaParts.push(`Framework: NIST CSF 2.0`);
-  metaParts.push(`Status: ${assessment.status}`);
-  metaParts.push(`Generated: ${new Date().toLocaleDateString()}`);
-  doc.text(metaParts.join('   ·   '), 15, 41);
+  doc.text(`Framework: NIST CSF 2.0   ·   Status: ${assessment.status}   ·   Generated: ${new Date().toLocaleDateString()}`, 15, 41);
 
-  // Score
   const score = assessment.overall_score ?? 0;
   const sR = score >= 80 ? 22 : score >= 50 ? 217 : 239;
   const sG = score >= 80 ? 163 : score >= 50 ? 119 : 68;
@@ -54,7 +58,6 @@ function buildAssessmentPDF(assessment: Assessment, items: AssessmentItem[], doc
   doc.setTextColor(100, 116, 139);
   doc.text('Overall Compliance Score', 15, 82);
 
-  // Stat boxes
   const total = items.length;
   const compliant = items.filter(i => i.status === 'compliant').length;
   const partial = items.filter(i => i.status === 'partial').length;
@@ -63,10 +66,10 @@ function buildAssessmentPDF(assessment: Assessment, items: AssessmentItem[], doc
   const bW = (W - 30) / 4;
   const bY = 90;
   [
-    { label: 'Compliant', value: compliant, r: 22, g: 163, b: 74 },
-    { label: 'Partial', value: partial, r: 217, g: 119, b: 6 },
-    { label: 'Non-Compliant', value: nonCompliant, r: 239, g: 68, b: 68 },
-    { label: 'Not Assessed', value: notAssessed, r: 100, g: 116, b: 139 },
+    { label: 'Compliant',     value: compliant,    r: 22,  g: 163, b: 74  },
+    { label: 'Partial',       value: partial,      r: 217, g: 119, b: 6   },
+    { label: 'Non-Compliant', value: nonCompliant, r: 239, g: 68,  b: 68  },
+    { label: 'Not Assessed',  value: notAssessed,  r: 100, g: 116, b: 139 },
   ].forEach((s, i) => {
     const x = 15 + i * bW;
     doc.setFillColor(s.r, s.g, s.b);
@@ -80,7 +83,6 @@ function buildAssessmentPDF(assessment: Assessment, items: AssessmentItem[], doc
     doc.text(s.label, x + (bW - 5) / 2, bY + 17, { align: 'center' });
   });
 
-  // Function breakdown
   const fnMap: Record<string, { name: string; c: number; p: number; nc: number; na: number; tot: number }> = {};
   for (const item of items) {
     const fn = item.function?.name || item.subcategory_id.split('.')[0] || '?';
@@ -110,10 +112,7 @@ function buildAssessmentPDF(assessment: Assessment, items: AssessmentItem[], doc
     columnStyles: { 5: { halign: 'center', fontStyle: 'bold' } },
   });
 
-  // Findings
-  const findings = items
-    .filter(i => i.status === 'non_compliant' || i.status === 'partial')
-    .slice(0, 30);
+  const findings = items.filter(i => i.status === 'non_compliant' || i.status === 'partial').slice(0, 30);
   if (findings.length === 0) return;
 
   const afterFn = (doc as any).lastAutoTable?.finalY ?? 180;
@@ -141,16 +140,213 @@ function buildAssessmentPDF(assessment: Assessment, items: AssessmentItem[], doc
   });
 }
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── jsPDF: Vendor Risk PDF ────────────────────────────────────────────────────
 
-type ReportKey = 'org_summary' | 'vendor_risk' | 'assessment_detail' | 'group_overview';
+function buildVendorRiskPDF(vendors: Vendor[]): jsPDF {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+
+  doc.setFillColor(79, 70, 229);
+  doc.rect(0, 0, W, 28, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('Vendor Risk Report', 15, 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(`Generated: ${new Date().toLocaleDateString()}   ·   Total Vendors: ${vendors.length}`, 15, 25);
+
+  autoTable(doc, {
+    startY: 34,
+    head: [['Vendor Name', 'Industry', 'Criticality', 'Status', 'Compliance Score']],
+    body: vendors.map(v => [
+      v.name,
+      v.industry ?? 'N/A',
+      v.criticality_level ?? v.risk_tier ?? 'N/A',
+      v.vendor_status ?? 'N/A',
+      v.latest_assessment_score != null ? `${v.latest_assessment_score.toFixed(1)}%` : 'N/A',
+    ]),
+    styles: { fontSize: 9, font: 'helvetica', cellPadding: 4 },
+    headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  return doc;
+}
+
+// ── jsPDF: Group Overview PDF ─────────────────────────────────────────────────
+
+function buildGroupOverviewPDF(groups: CompanyGroup[], groupDetails: (any | null)[]): jsPDF {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+
+  doc.setFillColor(79, 70, 229);
+  doc.rect(0, 0, W, 28, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('Group Companies Overview', 15, 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(`Generated: ${new Date().toLocaleDateString()}   ·   Groups: ${groups.length}`, 15, 25);
+
+  // Groups summary
+  autoTable(doc, {
+    startY: 34,
+    head: [['Group Name', 'Industry', 'Companies', 'Avg Score']],
+    body: groups.map(g => {
+      const detail = groupDetails.find((d: any) => d?.id === g.id);
+      const vendors: Vendor[] = detail?.vendors ?? [];
+      const scored = vendors.filter((v: Vendor) => v.latest_assessment_score != null);
+      const avg = scored.length > 0 ? scored.reduce((s: number, v: Vendor) => s + v.latest_assessment_score!, 0) / scored.length : null;
+      return [g.name, g.industry ?? 'N/A', g.vendor_count ?? vendors.length, avg != null ? `${avg.toFixed(1)}%` : 'N/A'];
+    }),
+    styles: { fontSize: 9, cellPadding: 4 },
+    headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  // All companies table
+  const afterGroups = (doc as any).lastAutoTable?.finalY ?? 80;
+  const cY = afterGroups + 14;
+  if (cY < doc.internal.pageSize.getHeight() - 40) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text('All Companies', 15, cY);
+
+    const companyRows: string[][] = [];
+    for (let i = 0; i < groups.length; i++) {
+      const vendors: Vendor[] = groupDetails[i]?.vendors ?? [];
+      for (const v of vendors) {
+        companyRows.push([
+          v.name, groups[i].name,
+          v.industry ?? 'N/A',
+          v.criticality_level ?? v.risk_tier ?? 'N/A',
+          v.latest_assessment_score != null ? `${v.latest_assessment_score.toFixed(1)}%` : 'N/A',
+        ]);
+      }
+    }
+
+    autoTable(doc, {
+      startY: cY + 4,
+      head: [['Company Name', 'Group', 'Industry', 'Criticality', 'Score']],
+      body: companyRows,
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+  }
+
+  return doc;
+}
+
+// ── Excel: Assessment workbook ────────────────────────────────────────────────
+
+function buildAssessmentExcel(assessment: Assessment, items: AssessmentItem[]): XLSX.WorkBook {
+  const wb = XLSX.utils.book_new();
+  const dist = { compliant: 0, partial: 0, non_compliant: 0, not_assessed: 0 };
+  items.forEach(i => { if (i.status in dist) dist[i.status as keyof typeof dist]++; });
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Assessment Report', assessment.name],
+    ['Generated', new Date().toLocaleDateString()],
+    ['Overall Score', `${(assessment.overall_score ?? 0).toFixed(1)}%`],
+    [],
+    ['Metric', 'Count', '% of Total'],
+    ['Total Controls',  items.length,               '100%'],
+    ['Compliant',       dist.compliant,     items.length ? `${((dist.compliant     / items.length) * 100).toFixed(1)}%` : '0%'],
+    ['Partial',         dist.partial,       items.length ? `${((dist.partial       / items.length) * 100).toFixed(1)}%` : '0%'],
+    ['Non-Compliant',   dist.non_compliant, items.length ? `${((dist.non_compliant / items.length) * 100).toFixed(1)}%` : '0%'],
+    ['Not Assessed',    dist.not_assessed,  items.length ? `${((dist.not_assessed  / items.length) * 100).toFixed(1)}%` : '0%'],
+  ]), 'Summary');
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Function', 'Category', 'Control ID', 'Control Name', 'Status', 'Notes'],
+    ...items.map(i => [
+      i.function?.name || '', i.category?.name || '',
+      i.subcategory_id || '', i.subcategory?.name || '',
+      i.status === 'compliant' ? 'Compliant' : i.status === 'partial' ? 'Partial' : i.status === 'non_compliant' ? 'Non-Compliant' : i.status === 'not_applicable' ? 'N/A' : 'Not Assessed',
+      i.notes || '',
+    ]),
+  ]), 'All Controls');
+
+  const findings = items.filter(i => i.status === 'non_compliant' || i.status === 'partial');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Control ID', 'Control Name', 'Function', 'Category', 'Status', 'Notes'],
+    ...findings.map(i => [
+      i.subcategory_id || '', i.subcategory?.name || '',
+      i.function?.name || '', i.category?.name || '',
+      i.status === 'non_compliant' ? 'Non-Compliant' : 'Partial',
+      i.notes || '',
+    ]),
+  ]), 'Findings');
+
+  return wb;
+}
+
+// ── CSV helpers ───────────────────────────────────────────────────────────────
+
+function makeAssessmentCsv(items: AssessmentItem[]): string {
+  const BOM = '\uFEFF';
+  const sl = (s: string) => s === 'compliant' ? 'Compliant' : s === 'partial' ? 'Partial' : s === 'non_compliant' ? 'Non-Compliant' : s === 'not_applicable' ? 'N/A' : 'Not Assessed';
+  const rows = [
+    ['Function', 'Category', 'Control ID', 'Control Name', 'Status', 'Notes'],
+    ...items.map(i => [i.function?.name || '', i.category?.name || '', i.subcategory_id || '', i.subcategory?.name || '', sl(i.status || 'not_assessed'), i.notes || '']),
+  ];
+  return BOM + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+}
+
+function makeVendorsCsv(vendors: Vendor[]): string {
+  const BOM = '\uFEFF';
+  const rows = [
+    ['Vendor Name', 'Industry', 'Criticality', 'Status', 'Risk Score', 'Latest Compliance Score'],
+    ...vendors.map(v => [
+      v.name,
+      v.industry ?? 'N/A',
+      v.criticality_level ?? v.risk_tier ?? 'N/A',
+      v.vendor_status ?? 'N/A',
+      v.risk_score != null ? String(v.risk_score) : 'N/A',
+      v.latest_assessment_score != null ? `${v.latest_assessment_score.toFixed(1)}%` : 'N/A',
+    ]),
+  ];
+  return BOM + rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+}
+
+function makeGroupsCsv(groups: CompanyGroup[], groupDetails: (any | null)[]): string {
+  const BOM = '\uFEFF';
+  const rows = [
+    ['Company Name', 'Group', 'Industry', 'Criticality', 'Compliance Score'],
+  ];
+  for (let i = 0; i < groups.length; i++) {
+    const vendors: Vendor[] = groupDetails[i]?.vendors ?? [];
+    for (const v of vendors) {
+      rows.push([
+        v.name, groups[i].name,
+        v.industry ?? 'N/A',
+        v.criticality_level ?? v.risk_tier ?? 'N/A',
+        v.latest_assessment_score != null ? `${v.latest_assessment_score.toFixed(1)}%` : 'N/A',
+      ]);
+    }
+  }
+  return BOM + rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+}
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Report definitions ────────────────────────────────────────────────────────
 
 interface Report {
   key: ReportKey;
   Icon: React.ElementType;
   title: string;
   description: string;
-  format: 'PDF' | 'Excel';
   needsAssessment?: boolean;
 }
 
@@ -160,40 +356,39 @@ const REPORTS: Report[] = [
     Icon: BarChart2,
     title: 'Organization Compliance Summary',
     description: 'Overall compliance score, CSF function breakdown, and top findings from the latest organization assessment.',
-    format: 'PDF',
   },
   {
     key: 'vendor_risk',
     Icon: Users,
     title: 'Vendor Risk Report',
-    description: 'Excel workbook listing all vendors with risk levels, criticality ratings, and latest assessment compliance scores.',
-    format: 'Excel',
+    description: 'All vendors with risk levels, criticality ratings, and latest assessment compliance scores.',
   },
   {
     key: 'assessment_detail',
     Icon: FileText,
     title: 'Assessment Detail Export',
-    description: 'Full PDF report for a selected assessment — includes all controls, function scores, and findings.',
-    format: 'PDF',
+    description: 'Full report for a selected assessment — includes all controls, function scores, and findings.',
     needsAssessment: true,
   },
   {
     key: 'group_overview',
     Icon: Building2,
     title: 'Group Companies Overview',
-    description: 'Excel workbook with all group subsidiaries, compliance scores by company, and assessment history.',
-    format: 'Excel',
+    description: 'All group subsidiaries with compliance scores by company and assessment history.',
   },
 ];
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Exports() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [selectedAssessment, setSelectedAssessment] = useState('');
   const [loadingKey, setLoadingKey] = useState<ReportKey | null>(null);
+  const [loadingFmt, setLoadingFmt] = useState<FormatType | null>(null);
   const [errors, setErrors] = useState<Partial<Record<ReportKey, string>>>({});
+  const [openDropdown, setOpenDropdown] = useState<ReportKey | null>(null);
+  const dropdownRefs = useRef<Partial<Record<ReportKey, HTMLDivElement | null>>>({});
 
   useEffect(() => {
     assessmentsApi.list()
@@ -202,18 +397,33 @@ export default function Exports() {
       .finally(() => setLoadingData(false));
   }, []);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (openDropdown) {
+        const ref = dropdownRefs.current[openDropdown];
+        if (ref && !ref.contains(e.target as Node)) setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openDropdown]);
+
   const setError = (key: ReportKey, msg: string) =>
     setErrors(prev => ({ ...prev, [key]: msg }));
   const clearError = (key: ReportKey) =>
     setErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
 
-  const handleGenerate = async (key: ReportKey) => {
+  const handleGenerate = async (key: ReportKey, fmt: FormatType) => {
     clearError(key);
     setLoadingKey(key);
+    setLoadingFmt(fmt);
+    const today = new Date().toISOString().slice(0, 10);
+
     try {
       switch (key) {
 
-        // ── a) Organization Compliance Summary (PDF) ──────────────────────
+        // ── Organization Compliance Summary ─────────────────────────────────
         case 'org_summary': {
           const allA = await assessmentsApi.list();
           const orgA = allA
@@ -222,126 +432,125 @@ export default function Exports() {
           if (orgA.length === 0) { setError(key, 'No organization assessments found'); break; }
           const latest = orgA[0];
           const items = await assessmentsApi.getItems(latest.id);
-          const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-          buildAssessmentPDF(latest, items, doc);
           const safeName = latest.name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-          doc.save(`org-compliance-summary-${safeName}-${new Date().toISOString().slice(0, 10)}.pdf`);
+
+          if (fmt === 'pdf') {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            buildAssessmentPDF(latest, items, doc);
+            doc.save(`org-compliance-summary-${safeName}-${today}.pdf`);
+          } else if (fmt === 'xlsx') {
+            const wb = buildAssessmentExcel(latest, items);
+            XLSX.writeFile(wb, `org-compliance-summary-${safeName}-${today}.xlsx`);
+          } else {
+            downloadCsv(makeAssessmentCsv(items), `org-compliance-summary-${safeName}-${today}.csv`);
+          }
           break;
         }
 
-        // ── b) Vendor Risk Report (Excel) ─────────────────────────────────
+        // ── Vendor Risk Report ──────────────────────────────────────────────
         case 'vendor_risk': {
-          const res = await axios.get(`${API_URL}/api/vendors`, {
-            params: { organization_id: ORG_ID },
-          });
+          const res = await axios.get(`${API_URL}/api/vendors`, { params: { organization_id: ORG_ID } });
           const allVendors: Vendor[] = res.data;
           if (allVendors.length === 0) { setError(key, 'No vendors found'); break; }
 
-          const header = ['Vendor Name', 'Industry', 'Criticality', 'Status', 'Risk Score', 'Latest Assessment Score', 'Last Assessment Date'];
-          const rows = allVendors.map(v => [
-            v.name,
-            v.industry ?? 'N/A',
-            v.criticality_level ?? v.risk_tier ?? 'N/A',
-            v.vendor_status ?? 'N/A',
-            v.risk_score != null ? v.risk_score : 'N/A',
-            v.latest_assessment_score != null ? `${v.latest_assessment_score.toFixed(1)}%` : 'N/A',
-            v.last_assessment_date ? new Date(v.last_assessment_date).toLocaleDateString() : 'N/A',
-          ]);
-
-          const wb = XLSX.utils.book_new();
-          const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-          ws['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 24 }, { wch: 22 }];
-          XLSX.utils.book_append_sheet(wb, ws, 'Vendors');
-
-          // Summary sheet
-          const scoreVendors = allVendors.filter(v => v.latest_assessment_score != null);
-          const avgScore = scoreVendors.length > 0
-            ? scoreVendors.reduce((s, v) => s + (v.latest_assessment_score!), 0) / scoreVendors.length
-            : null;
-          const summaryWs = XLSX.utils.aoa_to_sheet([
-            ['Metric', 'Value'],
-            ['Total Vendors', allVendors.length],
-            ['Active Vendors', allVendors.filter(v => v.vendor_status === 'active').length],
-            ['Critical Vendors', allVendors.filter(v => v.criticality_level === 'critical').length],
-            ['Average Compliance Score', avgScore != null ? `${avgScore.toFixed(1)}%` : 'N/A'],
-            ['Report Generated', new Date().toLocaleString()],
-          ]);
-          XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
-
-          XLSX.writeFile(wb, `vendor-risk-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+          if (fmt === 'pdf') {
+            const doc = buildVendorRiskPDF(allVendors);
+            doc.save(`vendor-risk-report-${today}.pdf`);
+          } else if (fmt === 'xlsx') {
+            const header = ['Vendor Name', 'Industry', 'Criticality', 'Status', 'Risk Score', 'Latest Assessment Score', 'Last Assessment Date'];
+            const rows = allVendors.map(v => [
+              v.name, v.industry ?? 'N/A',
+              v.criticality_level ?? v.risk_tier ?? 'N/A',
+              v.vendor_status ?? 'N/A',
+              v.risk_score != null ? v.risk_score : 'N/A',
+              v.latest_assessment_score != null ? `${v.latest_assessment_score.toFixed(1)}%` : 'N/A',
+              v.last_assessment_date ? new Date(v.last_assessment_date).toLocaleDateString() : 'N/A',
+            ]);
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+            ws['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 24 }, { wch: 22 }];
+            XLSX.utils.book_append_sheet(wb, ws, 'Vendors');
+            const scoreVendors = allVendors.filter(v => v.latest_assessment_score != null);
+            const avgScore = scoreVendors.length > 0 ? scoreVendors.reduce((s, v) => s + v.latest_assessment_score!, 0) / scoreVendors.length : null;
+            const summaryWs = XLSX.utils.aoa_to_sheet([
+              ['Metric', 'Value'],
+              ['Total Vendors', allVendors.length],
+              ['Active Vendors', allVendors.filter(v => v.vendor_status === 'active').length],
+              ['Critical Vendors', allVendors.filter(v => v.criticality_level === 'critical').length],
+              ['Average Compliance Score', avgScore != null ? `${avgScore.toFixed(1)}%` : 'N/A'],
+              ['Report Generated', new Date().toLocaleString()],
+            ]);
+            XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+            XLSX.writeFile(wb, `vendor-risk-report-${today}.xlsx`);
+          } else {
+            downloadCsv(makeVendorsCsv(allVendors), `vendor-risk-report-${today}.csv`);
+          }
           break;
         }
 
-        // ── c) Assessment Detail Export (PDF) ─────────────────────────────
+        // ── Assessment Detail Export ────────────────────────────────────────
         case 'assessment_detail': {
           if (!selectedAssessment) { setError(key, 'Please select an assessment'); break; }
           const assessment = assessments.find(a => a.id === selectedAssessment);
           if (!assessment) { setError(key, 'Assessment not found'); break; }
           const items = await assessmentsApi.getItems(selectedAssessment);
-          const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-          buildAssessmentPDF(assessment, items, doc);
           const safeName = assessment.name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-          doc.save(`assessment-${safeName}-${new Date().toISOString().slice(0, 10)}.pdf`);
+
+          if (fmt === 'pdf') {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            buildAssessmentPDF(assessment, items, doc);
+            doc.save(`assessment-${safeName}-${today}.pdf`);
+          } else if (fmt === 'xlsx') {
+            const wb = buildAssessmentExcel(assessment, items);
+            XLSX.writeFile(wb, `assessment-${safeName}-${today}.xlsx`);
+          } else {
+            downloadCsv(makeAssessmentCsv(items), `assessment-${safeName}-${today}.csv`);
+          }
           break;
         }
 
-        // ── d) Group Companies Overview (Excel) ───────────────────────────
+        // ── Group Companies Overview ────────────────────────────────────────
         case 'group_overview': {
           const groupsRes = await companyGroupsApi.list(ORG_ID);
-          const groups = groupsRes.data;
+          const groups: CompanyGroup[] = groupsRes.data;
           if (groups.length === 0) { setError(key, 'No group companies found'); break; }
 
-          // Fetch detail for each group to get vendor list
           const groupDetails = await Promise.all(
             groups.map(g => companyGroupsApi.get(g.id).then(r => r.data).catch(() => null))
           );
 
-          // Groups sheet
-          const groupHeader = ['Group Name', 'Industry', 'Companies', 'Avg Score'];
-          const groupRows: (string | number)[][] = [];
-          for (const g of groups) {
-            const detail = groupDetails.find(d => d?.id === g.id);
-            const vendors: Vendor[] = detail?.vendors ?? [];
-            const scoredVendors = vendors.filter((v: Vendor) => v.latest_assessment_score != null);
-            const avg = scoredVendors.length > 0
-              ? scoredVendors.reduce((s: number, v: Vendor) => s + v.latest_assessment_score!, 0) / scoredVendors.length
-              : null;
-            groupRows.push([
-              g.name,
-              g.industry ?? 'N/A',
-              g.vendor_count ?? vendors.length,
-              avg != null ? `${avg.toFixed(1)}%` : 'N/A',
-            ]);
-          }
-
-          // Companies sheet (all vendors across all groups)
-          const companyHeader = ['Company Name', 'Group', 'Industry', 'Criticality', 'Latest Score', 'Risk Score'];
-          const companyRows: (string | number)[][] = [];
-          for (let i = 0; i < groups.length; i++) {
-            const detail = groupDetails[i];
-            const vendors: Vendor[] = detail?.vendors ?? [];
-            for (const v of vendors) {
-              companyRows.push([
-                v.name,
-                groups[i].name,
-                v.industry ?? 'N/A',
-                v.criticality_level ?? v.risk_tier ?? 'N/A',
-                v.latest_assessment_score != null ? `${v.latest_assessment_score.toFixed(1)}%` : 'N/A',
-                v.risk_score != null ? v.risk_score : 'N/A',
-              ]);
+          if (fmt === 'pdf') {
+            const doc = buildGroupOverviewPDF(groups, groupDetails);
+            doc.save(`group-companies-overview-${today}.pdf`);
+          } else if (fmt === 'xlsx') {
+            const groupHeader = ['Group Name', 'Industry', 'Companies', 'Avg Score'];
+            const groupRows: (string | number)[][] = [];
+            for (const g of groups) {
+              const detail = groupDetails.find((d: any) => d?.id === g.id);
+              const vendors: Vendor[] = detail?.vendors ?? [];
+              const scoredV = vendors.filter((v: Vendor) => v.latest_assessment_score != null);
+              const avg = scoredV.length > 0 ? scoredV.reduce((s: number, v: Vendor) => s + v.latest_assessment_score!, 0) / scoredV.length : null;
+              groupRows.push([g.name, g.industry ?? 'N/A', g.vendor_count ?? vendors.length, avg != null ? `${avg.toFixed(1)}%` : 'N/A']);
             }
+            const companyHeader = ['Company Name', 'Group', 'Industry', 'Criticality', 'Latest Score', 'Risk Score'];
+            const companyRows: (string | number)[][] = [];
+            for (let i = 0; i < groups.length; i++) {
+              const vendors: Vendor[] = groupDetails[i]?.vendors ?? [];
+              for (const v of vendors) {
+                companyRows.push([v.name, groups[i].name, v.industry ?? 'N/A', v.criticality_level ?? v.risk_tier ?? 'N/A', v.latest_assessment_score != null ? `${v.latest_assessment_score.toFixed(1)}%` : 'N/A', v.risk_score != null ? v.risk_score : 'N/A']);
+              }
+            }
+            const wb = XLSX.utils.book_new();
+            const groupsWs = XLSX.utils.aoa_to_sheet([groupHeader, ...groupRows]);
+            groupsWs['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 12 }, { wch: 14 }];
+            XLSX.utils.book_append_sheet(wb, groupsWs, 'Groups');
+            const companiesWs = XLSX.utils.aoa_to_sheet([companyHeader, ...companyRows]);
+            companiesWs['!cols'] = [{ wch: 30 }, { wch: 25 }, { wch: 18 }, { wch: 14 }, { wch: 16 }, { wch: 12 }];
+            XLSX.utils.book_append_sheet(wb, companiesWs, 'Companies');
+            XLSX.writeFile(wb, `group-companies-overview-${today}.xlsx`);
+          } else {
+            downloadCsv(makeGroupsCsv(groups, groupDetails), `group-companies-overview-${today}.csv`);
           }
-
-          const wb = XLSX.utils.book_new();
-          const groupsWs = XLSX.utils.aoa_to_sheet([groupHeader, ...groupRows]);
-          groupsWs['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 12 }, { wch: 14 }];
-          XLSX.utils.book_append_sheet(wb, groupsWs, 'Groups');
-
-          const companiesWs = XLSX.utils.aoa_to_sheet([companyHeader, ...companyRows]);
-          companiesWs['!cols'] = [{ wch: 30 }, { wch: 25 }, { wch: 18 }, { wch: 14 }, { wch: 16 }, { wch: 12 }];
-          XLSX.utils.book_append_sheet(wb, companiesWs, 'Companies');
-
-          XLSX.writeFile(wb, `group-companies-overview-${new Date().toISOString().slice(0, 10)}.xlsx`);
           break;
         }
       }
@@ -349,20 +558,15 @@ export default function Exports() {
       setError(key, err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setLoadingKey(null);
+      setLoadingFmt(null);
     }
   };
 
   const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '7px 10px',
-    borderRadius: 7,
-    background: T.bg,
-    border: `1px solid ${T.border}`,
-    fontFamily: T.fontSans,
-    fontSize: 12,
-    color: T.textPrimary,
-    cursor: 'pointer',
-    outline: 'none',
+    width: '100%', padding: '7px 10px', borderRadius: 7,
+    background: T.bg, border: `1px solid ${T.border}`,
+    fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
+    cursor: 'pointer', outline: 'none',
   };
 
   return (
@@ -374,7 +578,7 @@ export default function Exports() {
           Reporting Center
         </h1>
         <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, marginTop: 4 }}>
-          Generate and download compliance reports, risk summaries, and audit packages
+          Generate and download compliance reports in PDF, Excel, or CSV format
         </p>
       </div>
 
@@ -384,41 +588,33 @@ export default function Exports() {
           const { Icon } = report;
           const isLoading = loadingKey === report.key;
           const err = errors[report.key];
-          const isPDF = report.format === 'PDF';
-          const fmtColor = isPDF ? T.danger : T.success;
-          const fmtBg = isPDF ? T.dangerLight : T.successLight;
-          const fmtBorder = isPDF ? T.dangerBorder : T.successBorder;
-          const iconColor = isPDF ? T.danger : T.success;
-          const iconBg = isPDF ? T.dangerLight : T.successLight;
+          const isOpen = openDropdown === report.key;
 
           return (
             <div
               key={report.key}
-              style={{
-                ...card,
-                padding: '22px 24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 0,
-                transition: 'box-shadow 0.15s',
-              }}
+              style={{ ...card, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 0 }}
             >
-              {/* Top row: icon + format badge */}
+              {/* Top row: icon + format badges */}
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div style={{
                   width: 42, height: 42, borderRadius: 12,
-                  background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
+                  background: T.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
-                  <Icon size={20} style={{ color: iconColor }} />
+                  <Icon size={20} style={{ color: T.accent }} />
                 </div>
-                <span style={{
-                  fontFamily: T.fontMono, fontSize: 10, fontWeight: 600,
-                  padding: '3px 9px', borderRadius: 5,
-                  background: fmtBg, color: fmtColor, border: `1px solid ${fmtBorder}`,
-                }}>
-                  {isPDF ? 'PDF' : 'Excel'}
-                </span>
+                {/* Format chips */}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['pdf', 'xlsx', 'csv'] as FormatType[]).map(f => (
+                    <span key={f} style={{
+                      fontFamily: T.fontMono, fontSize: 9, fontWeight: 700,
+                      padding: '2px 6px', borderRadius: 4,
+                      background: FMT[f].bg, color: FMT[f].color, border: `1px solid ${FMT[f].border}`,
+                    }}>
+                      {FMT[f].label.toUpperCase()}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {/* Title */}
@@ -431,7 +627,7 @@ export default function Exports() {
                 {report.description}
               </div>
 
-              {/* Assessment selector (if needed) */}
+              {/* Assessment selector */}
               {report.needsAssessment && (
                 <div style={{ marginBottom: 10 }}>
                   <label style={{ display: 'block', fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, color: T.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>
@@ -456,34 +652,85 @@ export default function Exports() {
               {/* Error */}
               {err && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: T.fontSans, fontSize: 11, color: T.danger, marginBottom: 8 }}>
-                  <AlertCircle size={12} />
-                  {err}
+                  <AlertCircle size={12} /> {err}
                 </div>
               )}
 
-              {/* Generate button */}
-              <button
-                onClick={() => handleGenerate(report.key)}
-                disabled={isLoading || loadingData}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                  padding: '9px 16px', borderRadius: 8,
-                  background: isLoading ? T.accentLight : T.accent,
-                  color: isLoading ? T.accent : '#FFF',
-                  border: `1px solid ${isLoading ? T.accentBorder : T.accent}`,
-                  fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
-                  cursor: isLoading || loadingData ? 'not-allowed' : 'pointer',
-                  opacity: loadingData && !isLoading ? 0.6 : 1,
-                  transition: 'all 0.15s',
-                  marginTop: 'auto',
-                }}
+              {/* Generate dropdown */}
+              <div
+                style={{ position: 'relative', marginTop: 'auto' }}
+                ref={el => { dropdownRefs.current[report.key] = el; }}
               >
-                {isLoading ? (
-                  <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Generating…</>
-                ) : (
-                  <><Download size={14} /> Generate & Download</>
+                <button
+                  onClick={() => !isLoading && setOpenDropdown(isOpen ? null : report.key)}
+                  disabled={isLoading || loadingData}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                    padding: '9px 16px', borderRadius: 8, width: '100%',
+                    background: isLoading ? T.accentLight : T.accent,
+                    color: isLoading ? T.accent : '#FFF',
+                    border: `1px solid ${isLoading ? T.accentBorder : T.accent}`,
+                    fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+                    cursor: isLoading || loadingData ? 'not-allowed' : 'pointer',
+                    opacity: loadingData && !isLoading ? 0.6 : 1,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                      Generating{loadingFmt ? ` ${loadingFmt.toUpperCase()}` : ''}…
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} /> Generate
+                      <ChevronDown size={13} style={{ opacity: 0.7, marginLeft: 2 }} />
+                    </>
+                  )}
+                </button>
+
+                {/* Dropdown menu */}
+                {isOpen && !isLoading && (
+                  <div style={{
+                    position: 'absolute', bottom: 'calc(100% + 4px)', left: 0, right: 0,
+                    background: T.card, border: `1px solid ${T.border}`,
+                    borderRadius: 10, boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
+                    overflow: 'hidden', zIndex: 200,
+                  }}>
+                    {(['pdf', 'xlsx', 'csv'] as FormatType[]).map((fmt, i, arr) => (
+                      <button
+                        key={fmt}
+                        onClick={() => { setOpenDropdown(null); handleGenerate(report.key, fmt); }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          width: '100%', padding: '10px 14px',
+                          background: 'transparent', border: 'none',
+                          borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : 'none',
+                          fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
+                          cursor: 'pointer', textAlign: 'left' as const,
+                        }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.bg}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                      >
+                        <span style={{
+                          fontFamily: T.fontMono, fontSize: 9, fontWeight: 700,
+                          padding: '2px 6px', borderRadius: 3,
+                          background: FMT[fmt].bg, color: FMT[fmt].color, border: `1px solid ${FMT[fmt].border}`,
+                          flexShrink: 0, minWidth: 38, textAlign: 'center' as const,
+                        }}>{FMT[fmt].label.toUpperCase()}</span>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 12 }}>
+                            Export as {FMT[fmt].label}
+                          </div>
+                          <div style={{ fontSize: 10, color: T.textMuted, marginTop: 1 }}>
+                            {FMT[fmt].desc}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 )}
-              </button>
+              </div>
             </div>
           );
         })}
@@ -491,8 +738,7 @@ export default function Exports() {
 
       {/* Info note */}
       <div style={{
-        ...card,
-        padding: '14px 18px',
+        ...card, padding: '14px 18px',
         display: 'flex', alignItems: 'flex-start', gap: 12,
         background: T.successLight, border: `1px solid ${T.successBorder}`,
       }}>
