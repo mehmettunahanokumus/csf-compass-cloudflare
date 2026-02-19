@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Edit2, Trash2, ClipboardList, Globe, Mail, User, Phone, Plus, X, GitCompare } from 'lucide-react';
 import { vendorsApi } from '../api/vendors';
@@ -8,6 +8,7 @@ import { getErrorMessage, formatDate } from '../api/client';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 import { T, card, sectionLabel } from '../tokens';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const cardStyle = card;
 
@@ -58,6 +59,24 @@ export default function VendorDetail() {
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const filteredAssessments = useMemo(() => {
+    return assessments.filter((a) => {
+      if (statusFilter && a.status !== statusFilter) return false;
+      if (dateFrom) {
+        const from = new Date(dateFrom).getTime();
+        if ((a.created_at as number) < from) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo).getTime() + 86400000;
+        if ((a.created_at as number) > to) return false;
+      }
+      return true;
+    });
+  }, [assessments, statusFilter, dateFrom, dateTo]);
 
   const [editForm, setEditForm] = useState({
     name: '', website: '', contact_email: '', contact_name: '', description: '',
@@ -415,36 +434,64 @@ export default function VendorDetail() {
         </div>
       )}
 
-      {/* Score Trend Mini Chart */}
-      {assessments.length >= 2 && (
-        <div style={{ ...cardStyle, padding: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
-            <span style={sectionLabel}>Score Trend</span>
+      {/* Score Trend Line Chart */}
+      {assessments.length >= 2 && (() => {
+        const chartData = [...assessments]
+          .sort((a, b) => (a.created_at as number) - (b.created_at as number))
+          .map((a) => ({
+            name: a.name.length > 14 ? a.name.slice(0, 14) + '…' : a.name,
+            score: a.overall_score != null ? Math.round(a.overall_score * 10) / 10 : null,
+          }))
+          .filter((d) => d.score != null);
+        return (
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, flexShrink: 0 }} />
+              <span style={sectionLabel}>Score Trend</span>
+            </div>
+            <ResponsiveContainer width="100%" height={160}>
+              <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                <defs>
+                  <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366F1" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontFamily: T.fontSans, fontSize: 10, fill: T.textMuted }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fontFamily: T.fontMono, fontSize: 10, fill: T.textMuted }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `${v}%`}
+                  width={36}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: T.card, border: `1px solid ${T.border}`,
+                    borderRadius: 8, fontFamily: T.fontSans, fontSize: 12,
+                  }}
+                  formatter={(v: number) => [`${v}%`, 'Score']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#6366F1"
+                  strokeWidth={2}
+                  fill="url(#scoreGrad)"
+                  dot={{ fill: '#6366F1', strokeWidth: 0, r: 4 }}
+                  activeDot={{ r: 6, fill: '#6366F1' }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 80 }}>
-            {assessments.slice(-5).map((a) => {
-              const s = a.overall_score ?? 0;
-              const barH = Math.max(4, (s / 100) * 72);
-              const color = s >= 80 ? T.success : s >= 50 ? T.warning : T.danger;
-              return (
-                <div key={a.id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted }}>
-                    {a.overall_score != null ? `${Math.round(a.overall_score)}%` : '—'}
-                  </span>
-                  <div style={{
-                    width: '100%', maxWidth: 48, height: barH, borderRadius: 4,
-                    background: color, opacity: 0.8, transition: 'height 0.3s',
-                  }} />
-                  <span style={{ fontFamily: T.fontSans, fontSize: 9, color: T.textMuted, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 60 }}>
-                    {a.name.length > 10 ? a.name.slice(0, 10) + '...' : a.name}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Assessment History */}
       <div style={{ ...cardStyle, padding: 24 }}>
@@ -478,7 +525,49 @@ export default function VendorDetail() {
           </div>
         </div>
 
-        {assessments.length >= 2 && (
+        {/* Filters */}
+        {assessments.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ ...inputStyle, width: 130, padding: '5px 10px', fontSize: 12 }}
+            >
+              <option value="">All statuses</option>
+              <option value="completed">Completed</option>
+              <option value="in_progress">In Progress</option>
+              <option value="draft">Draft</option>
+            </select>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              placeholder="From"
+              style={{ ...inputStyle, width: 140, padding: '5px 10px', fontSize: 12 }}
+            />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              placeholder="To"
+              style={{ ...inputStyle, width: 140, padding: '5px 10px', fontSize: 12 }}
+            />
+            {(statusFilter || dateFrom || dateTo) && (
+              <button
+                onClick={() => { setStatusFilter(''); setDateFrom(''); setDateTo(''); }}
+                style={{
+                  padding: '5px 10px', borderRadius: 8, background: 'transparent',
+                  border: `1px solid ${T.border}`, fontFamily: T.fontSans, fontSize: 12,
+                  color: T.textMuted, cursor: 'pointer',
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {filteredAssessments.length >= 2 && (
           <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, marginBottom: 12 }}>
             Select 2 assessments to compare ({compareIds.length}/2 selected)
           </p>
@@ -508,14 +597,18 @@ export default function VendorDetail() {
               </button>
             </Link>
           </div>
+        ) : filteredAssessments.length === 0 ? (
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', padding: '32px 0' }}>
+            No assessments match the current filters.
+          </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {assessments.map((assessment) => {
+            {filteredAssessments.map((assessment) => {
               const aScore = assessment.overall_score;
               const isSelected = compareIds.includes(assessment.id);
               return (
                 <div key={assessment.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {assessments.length >= 2 && (
+                  {filteredAssessments.length >= 2 && (
                     <input
                       type="checkbox"
                       checked={isSelected}
