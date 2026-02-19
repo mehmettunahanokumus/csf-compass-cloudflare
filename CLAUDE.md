@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19 (Phase 16)
+**Son Güncelleme:** 2026-02-19 (Phase 17)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,41 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 17: VendorDetail Profile Editing Bug Fixes (Gün 31)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan — Tespit edilen 6 bug ve çözümleri:
+
+**Bug 1 — Sessiz veri kaybı: `description` → `notes` yanlış mapping (KRİTİK)**
+- `editForm.description` kullanılıyordu ama DB şeması sütunu `notes`. Drizzle ORM `.set()` içinde bilinmeyen anahtarları sessizce görmezden geliyor — tüm "Description" değişiklikleri DB'ye hiç yazılmıyordu.
+- Düzeltme: `editForm` artık `notes` kullanıyor, display bölümü `vendor.notes` okuyor.
+
+**Bug 2 — Eksik form alanları**
+- `industry`, `contact_phone`, `vendor_status` — hepsi DB şemasında, `UpdateVendorData`'da ve `Vendor` tipinde vardı ama edit formda hiç görünmüyordu.
+- Düzeltme: 3 yeni alan eklendi: Industry (text), Contact Phone (tel), Status (select: active/inactive/under_review/terminated).
+
+**Bug 3 — Başarı bildirimi yok / `alert()` hata mesajı**
+- Save başarılı olunca form sessizce kapanıyordu. Hata durumunda `alert()` kullanılıyordu.
+- Düzeltme: Hata durumunda inline kırmızı banner. Başarı durumunda 3 saniye sonra otomatik kapanan yeşil toast banner.
+
+**Bug 4 — Optimistic UI yok: risk badge kaydetmeden sonra stale**
+- `loadData()` async olduğu için badge kaydetme sonrası kısa süre eski değeri gösteriyordu.
+- Düzeltme: API response'undan gelen `updated` vendor ile `setVendor({ ...vendor, ...updated })` çağrısı — badge anında güncelleniyor.
+
+**Bug 5 — `tier` display önceliği yanlış**
+- `vendor.risk_tier || vendor.criticality_level` — `risk_tier` DB şemasında yok, her zaman `undefined`. `criticality_level` fallback olarak kullanılıyordu.
+- Düzeltme: `vendor.criticality_level || vendor.risk_tier` olarak düzeltildi.
+
+**Bug 6 — Save butonu loading state'i yok**
+- Düzeltme: `saving` state ile buton disabled yapıldı ve "Saving…" metni gösterildi.
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/VendorDetail.shadcn.tsx` — 186 ekleme / 47 silme
+
+**Commit:** `cf38745` — fix: Fix all profile editing bugs in VendorDetail
 
 ---
 
@@ -1390,6 +1425,15 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 17)
+- **Phase 17 tamamlandı:** VendorDetail profil düzenleme bug düzeltmeleri
+- Bug 1 (KRİTİK): `description`→`notes` yanlış mapping — tüm description değişiklikleri sessizce kayboluyordu
+- Bug 2: Eksik form alanları — `industry`, `contact_phone`, `vendor_status` eklendi
+- Bug 3: Başarı toast + inline hata banner (`alert()` kaldırıldı)
+- Bug 4: Optimistic UI — `setVendor({ ...vendor, ...updated })` ile badge anında güncelleniyor
+- Bug 5: `criticality_level || risk_tier` öncelik sırası düzeltildi
+- Bug 6: Save butonu `saving` loading state eklendi
 
 ### 2026-02-19 (Phase 16)
 - **Phase 16 tamamlandı:** Reporting Center Revamp — jsPDF + xlsx ile gerçek dosya üretimi
