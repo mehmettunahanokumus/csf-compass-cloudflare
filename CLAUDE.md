@@ -535,6 +535,42 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 
 ---
 
+### Phase 20: Assessment Type/Company Tags (Gün 34)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Sorun:** Assessment listelerinde hangi tipin (Vendor / Group Company / Self) hangi şirkete ait olduğu görsel olarak belli değildi. Ham `assessment_type` metni düz monospace badge olarak gösteriliyordu.
+
+**Çözüm — İki Yeni Tag:**
+
+1. **Type Tag** (renk kodlu):
+   - `assessment_type === 'organization'` → **"Self"** — indigo `rgba(99,102,241,0.12)` bg / `#6366F1` text
+   - `assessment_type === 'vendor'` + `vendor.group_id` set → **"Group Company"** — blue `rgba(59,130,246,0.12)` / `#3B82F6`
+   - `assessment_type === 'vendor'` + no `group_id` → **"Vendor"** — purple `rgba(139,92,246,0.12)` / `#8B5CF6`
+
+2. **Company Name Tag** (gri pill):
+   - Vendor/Group Company assessments için şirket ismini gri pill tag olarak gösteriyor
+   - `background: #F1F5F9`, `color: T.textSecondary`, `maxWidth: 150-200px`, `textOverflow: ellipsis`
+
+**Eklenen Yerler:**
+- **Dashboard** (`Dashboard.shadcn.tsx`): Assessment adının altına company name tag; Type sütununda yeni renkli type tag
+- **Assessments kartları** (`Assessments.shadcn.tsx`): Sol üst köşedeki ham type badge → renkli type tag; vendor name plain text → gri company pill
+- **AssessmentDetail** (`AssessmentDetail.shadcn.tsx`): Metadata satırındaki eski type badge ve plain vendor text → type tag + company pill yan yana
+
+**Type Fixes:**
+- `frontend/src/types/index.ts` — `Vendor` interface'e `group_id?: string` eklendi (backend'de var ama frontend tipi eksikti)
+
+**Dosyalar:**
+- `frontend/src/types/index.ts`
+- `frontend/src/pages/Dashboard.shadcn.tsx`
+- `frontend/src/pages/Assessments.shadcn.tsx`
+- `frontend/src/pages/AssessmentDetail.shadcn.tsx`
+
+**Commit:** `cae1b73`
+
+---
+
 ### Phase 19: Analytics Page — Real Data + Working Date Filter (Gün 33)
 **Tamamlanma:** 2026-02-19
 
@@ -1507,6 +1543,13 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 20)
+- **Phase 20 tamamlandı:** Assessment type/company tags eklendi
+- `Vendor` type'a `group_id?: string` eklendi (eksikti)
+- Type tag: Self=indigo, Vendor=purple, Group Company=blue — 3 sayfada uygulandı
+- Company name tag: gri pill, max-width ellipsis — Dashboard name cell altında, Assessments kart vendor alanında, AssessmentDetail metadata satırında
+- Dosyalar: `types/index.ts`, `Dashboard.shadcn.tsx`, `Assessments.shadcn.tsx`, `AssessmentDetail.shadcn.tsx`
 
 ### 2026-02-19 (Phase 19)
 - **Phase 19 tamamlandı:** Analytics sayfası tamamen yeniden yazıldı — statik demo verilerden gerçek API datasına geçildi
