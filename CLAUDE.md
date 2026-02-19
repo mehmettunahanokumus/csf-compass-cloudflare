@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20
+**Son Güncelleme:** 2026-02-21
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -442,6 +442,46 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - Back button, loading, description metinleri: `#64748B` → `var(--text-2)`
 
 **Commit:** `3659bf7` — fix: Improve dark mode text contrast and card/table visibility
+
+---
+
+### Phase 12: Groups → Group Companies Rename & Conceptual Clarification (Gün 26)
+**Tamamlanma:** 2026-02-21
+
+✅ Tamamlanan:
+
+**Kavramsal Düzeltme:**
+- Önceki model yanlıştı: "Groups" kullanıcı tarafından oluşturulan gruplar gibi görünüyordu
+- Doğru model: Bunlar organizasyonun altındaki **iç bağlı ortaklıklar (subsidiaries)** — dış tedarikçi değil
+- Şirket yapısı: Parent Organization → Subsidiary A, Subsidiary B, Subsidiary C
+
+**UI Label Değişiklikleri:**
+
+| Konum | Önce | Sonra |
+|-------|------|-------|
+| Sidebar nav | `Groups` | `Group Companies` |
+| Sayfa başlığı | `Company Groups` | `Group Companies` |
+| Sayfa alt başlığı | `Manage holding structures...` | `Internal subsidiaries and group entities under your organization` |
+| Ekle butonu | `New Group` | `Add Subsidiary` |
+| Modal başlığı | `New Company Group` | `Add Group Company` |
+| Modal submit | `Create Group` | `Add Company` |
+| Boş durum metni | `No company groups yet...` | `No group companies yet. Add your first subsidiary...` |
+| Geri linki | `Back to Groups` | `Back to Group Companies` |
+| Vendors bilgi notu | `...under the Groups menu` | `...under Group Companies` |
+
+**Filtreleme (Phase 10'dan beri aktif — değişiklik yok):**
+- `vendorsApi.list()` her zaman `exclude_grouped: 'true'` gönderiyor
+- Backend `WHERE group_id IS NULL` filtresi uyguluyor
+- Vendors sayfası: sadece external tedarikçiler görünür
+- Group Companies sayfası: sadece internal bağlı ortaklıklar görünür
+
+**Değişen Dosyalar:**
+- `frontend/src/components/layout/Sidebar.shadcn.tsx`
+- `frontend/src/pages/CompanyGroups.shadcn.tsx`
+- `frontend/src/pages/CompanyGroupDetail.shadcn.tsx`
+- `frontend/src/pages/Vendors.shadcn.tsx`
+
+**Commit:** `ae6e472` — refactor: Rename Groups → Group Companies throughout UI
 
 ---
 
@@ -1171,6 +1211,12 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-21
+- **Phase 12 tamamlandı:** Groups → Group Companies conceptual rename
+- "Groups" kavramı "Group Companies / Subsidiaries" olarak yeniden tanımlandı — dış tedarikçi değil, iç bağlı ortaklık
+- Sidebar, sayfa başlıkları, butonlar, modal, boş durum, geri linki ve Vendors bilgi notu güncellendi
+- Filtreleme Phase 10'dan beri aktif (exclude_grouped); herhangi bir kod değişikliği gerekmedi
 
 ### 2026-02-20
 - **Phase 11 tamamlandı:** Dark Mode Contrast & Visibility Audit
