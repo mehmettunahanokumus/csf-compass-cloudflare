@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-18
+**Son Güncelleme:** 2026-02-19
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -358,6 +358,54 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 
 ---
 
+### Phase 10: Bug Fixes, Visual Improvements & Reporting Center (Gün 24)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Fonksiyonel Buglar:**
+- **A1 — VendorDetail Criticality Bug:** `editForm`'daki `risk_level` + `risk_tier` alanları kaldırıldı, tek `criticality_level` dropdown'a birleştirildi (low/medium/high/critical). Save işlemi artık DB'ye doğru kaydediyor.
+- **A2 — Grup Şirketleri Tam Ayrımı:** `GET /api/vendors` endpoint'ine `exclude_grouped=true` query param desteği eklendi (`WHERE group_id IS NULL` filtresi). Frontend `vendors.ts` ve `Vendors.shadcn.tsx` güncellendi. Vendors listesi artık sadece external tedarikçileri gösteriyor; grup şirketleri Groups menüsünde yönetiliyor.
+
+**Görsel Buglar:**
+- **B1 — CompanyGroups Kartları:** Kart arkaplan `rgba(255,255,255,0.03)` → `rgba(255,255,255,0.06)`, border `rgba(255,255,255,0.07)` → `rgba(255,255,255,0.12)`, stats text `#64748B` → `#94A3B8`
+- **B2 — CompanyGroupDetail Tablo:** Header cell `#475569` → `#94A3B8`, assessment name alt text güncellendi
+- **B3 — Vendors Tablo Header:** Hardcoded `#F8FAFC` → `var(--surface-1)` (dark mode uyumlu)
+- **B4 — Dark Mode Secondary Text:** `index.css` dark mode `--text-3: #64748B` → `#94A3B8`
+
+**Assessment Report İyileştirmeleri:**
+- **Cover Section:** Sayfanın üstünde assessment adı, vendor adı, tarih, durum büyük ve temiz gösteriliyor
+- **Büyük Overall Score:** Circle 180×180 → 220×220, skor font text-4xl → text-5xl
+- **Güçlü Section Başlıkları:** `border-b` divider'lar, kalın accent bar (h-5)
+- **Export PDF:** `window.print()` tetikleyen "Export PDF" butonu eklendi
+- **@media print CSS:** Kapsamlı print kuralları — sidebar/nav/buton gizleme, beyaz arkaplan, A4 format, sayfa kırılmaları
+- **Export Excel (.csv):** Structured CSV (function/category header grupları), BOM eklendi, dosya adı `assessment-report-[name]-[date].csv`
+
+**Reporting Center:**
+- **İsim Değişikliği:** "Exports" → "Reporting Center" (sayfa başlığı + sidebar), "Export Types" → "Available Reports", badge "6 reports available"
+- **6 Export Tipi Aktifleştirildi:** Tüm "Coming Soon" badge'leri kaldırıldı
+  1. Assessment Reports (PDF) — assessment seçici + rapor sayfasına yönlendirme
+  2. Assessment Data (CSV) — assessment seçici + items CSV download
+  3. Comparison Reports — 2 assessment seçici + comparison sayfasına yönlendirme
+  4. Vendor Scorecards (CSV) — vendor seçici + vendor özet CSV
+  5. Executive Dashboard (CSV) — tüm vendor'ların özet skorları CSV
+  6. Audit Evidence Package (CSV) — assessment seçici + evidence listesi CSV
+- `downloadCSV()` helper fonksiyonu (blob + trigger download)
+- Component mount'ta assessments + vendors state yükleniyor
+- Per-card loading state + inline hata mesajları
+
+**Medium Features:**
+- **AssessmentChecklist "More Details":** Her item row'a ChevronDown toggle eklendi. Tıklayınca subcategory açıklaması + örnek kanıt türleri içeren expandable panel açılıyor (API'den `subcategory.description`, yoksa statik fallback)
+- **AssessmentWizard Genelleştirme:** Product-specific isimler generic hale getirildi:
+  - "Entra ID / Azure AD" → "Identity & Access Management (IAM)"
+  - "Microsoft Defender" → "Endpoint & Cloud Security"
+  - "AWS Security" → "Cloud Infrastructure Security"
+  - Tüm 15 adıma vendor-neutral guidance text eklendi (Okta/AD/Qualys/Splunk gibi araçları örnek olarak referans veriyor ama bağlı değil)
+
+**Commit:** `090097b` — fix: Bug fixes, visual improvements, and reporting center overhaul
+
+---
+
 ## Teknik Stack ve Bağımlılıklar
 
 ### Backend (Worker)
@@ -595,6 +643,9 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `CompanyGroups.shadcn.tsx` — Grup listesi, vendor sayısı, ortalama skor, yeni grup modal
 - `CompanyGroupDetail.shadcn.tsx` — Grup özeti + CSF function karşılaştırma tablosu (şirketler sütun olarak)
 - `AssessmentHistoryComparison.shadcn.tsx` — İki assessment yan yana, delta göstergesi (↑↓)
+
+**Reporting Center:** *(Phase 10)*
+- `Exports.shadcn.tsx` — "Reporting Center" olarak yeniden adlandırıldı; 6 export tipi aktif (Assessment PDF, Assessment CSV, Comparison, Vendor Scorecard, Executive Dashboard, Audit Evidence)
 
 **Note:** `.new.tsx` dosyaları, UI migration sırasında oluşturulmuş yeni versiyonlar. `.shadcn.tsx` dosyaları en güncel versiyonlardır.
 
@@ -1081,6 +1132,15 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19
+- **Phase 10 tamamlandı:** Bug Fixes + Visual Improvements + Assessment Report + Reporting Center + Medium Features
+- Functional: VendorDetail criticality bug fix; group companies fully separated from Vendors list
+- Visual: CompanyGroups card visibility, CompanyGroupDetail table headers, Vendors dark mode header, `--text-3` lightened
+- Assessment Report: cover section, larger score circle, print CSS, Export PDF, Export Excel (.csv)
+- Reporting Center: "Exports" → "Reporting Center"; all 6 export types activated with inline forms
+- AssessmentChecklist: "More Details" expandable panel per item
+- AssessmentWizard: generic step names + vendor-neutral guidance for all 15 steps
 
 ### 2026-02-18
 - **Phase 9 tamamlandı:** Company Groups + Historical Comparison + Excel Import
