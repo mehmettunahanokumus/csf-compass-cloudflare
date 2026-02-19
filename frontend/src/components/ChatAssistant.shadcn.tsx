@@ -1,14 +1,15 @@
 /**
- * ChatAssistant – Contextual NIST CSF 2.0 help chatbot
+ * ChatAssistant – NIST CSF 2.0 help chatbot
  *
- * Shows as a fixed bubble on assessment-related pages.
- * Uses pre-built QA responses (no external API required).
+ * Visible on ALL pages as a fixed bottom-right bubble.
+ * Dual mode: Quick Help (pre-built QA) + AI Assistant (Claude API streaming).
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { T } from '../tokens';
+import { API_BASE_URL } from '../api/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,9 @@ interface Message {
   content: string;
   timestamp: Date;
   quickActions?: QuickAction[];
+  isStreaming?: boolean;
+  isError?: boolean;
+  isAiMode?: boolean;
 }
 
 interface ContextInfo {
@@ -219,7 +223,16 @@ After a vendor completes their self-assessment, you can **compare** your rating 
   },
 };
 
-// ─── Context helper ──────────────────────────────────────────────────────────
+// ─── Fallback quick actions ───────────────────────────────────────────────────
+
+const FALLBACK_ACTIONS: QuickAction[] = [
+  { id: 'what-is-nist', label: 'What is NIST CSF 2.0?' },
+  { id: 'how-to-rate', label: 'How do I rate a control?' },
+  { id: 'what-evidence', label: 'What evidence do I need?' },
+  { id: 'score-calc', label: 'How is my score calculated?' },
+];
+
+// ─── Context helper (Quick Help mode greetings) ──────────────────────────────
 
 function getContextForPath(path: string): ContextInfo {
   if (path.includes('/checklist')) {
@@ -265,7 +278,60 @@ function getContextForPath(path: string): ContextInfo {
       ],
     };
   }
-  // Assessment detail (default)
+  if (path.startsWith('/assessments/')) {
+    return {
+      greeting: "I'm your **CSF Compass Assistant** — here to help with NIST CSF 2.0 controls, compliance guidance, scoring, and evidence requirements. What would you like to know?",
+      quickActions: [
+        { id: 'what-is-nist', label: 'What is NIST CSF 2.0?' },
+        { id: 'how-to-rate', label: 'How do I rate a control?' },
+        { id: 'what-evidence', label: 'What evidence do I need?' },
+        { id: 'score-calc', label: 'How is my score calculated?' },
+        { id: 'what-to-fix', label: 'What to prioritize?' },
+      ],
+    };
+  }
+  if (path === '/dashboard' || path.startsWith('/dashboard')) {
+    return {
+      greeting: "Welcome to **CSF Compass**! I can help you understand your compliance dashboard, interpret metrics, or guide you through your first assessment.",
+      quickActions: [
+        { id: 'what-is-nist', label: 'What is NIST CSF 2.0?' },
+        { id: 'wizard-vs-checklist', label: 'How do assessments work?' },
+        { id: 'score-calc', label: 'How are scores calculated?' },
+        { id: 'vendor-assessment', label: 'About vendor assessments' },
+      ],
+    };
+  }
+  if (path.startsWith('/vendors')) {
+    return {
+      greeting: "You're on the **Vendors** section. I can help with vendor risk management, assessment setup, or interpreting vendor scores.",
+      quickActions: [
+        { id: 'vendor-assessment', label: 'About vendor assessments' },
+        { id: 'how-to-rate', label: 'How do I rate controls?' },
+        { id: 'maturity', label: 'What is a good vendor score?' },
+      ],
+    };
+  }
+  if (path.startsWith('/company-groups')) {
+    return {
+      greeting: "You're viewing **Group Companies**. I can explain how CSF function scores are measured or what a good aggregate compliance score looks like.",
+      quickActions: [
+        { id: 'what-is-nist', label: 'About the 6 CSF functions' },
+        { id: 'score-calc', label: 'How are scores calculated?' },
+        { id: 'maturity', label: 'What score is acceptable?' },
+      ],
+    };
+  }
+  if (path === '/analytics') {
+    return {
+      greeting: "You're on the **Analytics** page. I can help explain compliance trends, gap analysis, or how to interpret the charts.",
+      quickActions: [
+        { id: 'score-calc', label: 'How are scores calculated?' },
+        { id: 'maturity', label: 'CSF maturity benchmarks' },
+        { id: 'what-to-fix', label: 'What to prioritize?' },
+      ],
+    };
+  }
+  // Global default
   return {
     greeting: "I'm your **CSF Compass Assistant** — here to help with NIST CSF 2.0 controls, compliance guidance, scoring, and evidence requirements. What would you like to know?",
     quickActions: [
@@ -278,7 +344,31 @@ function getContextForPath(path: string): ContextInfo {
   };
 }
 
-// ─── Keyword matching ────────────────────────────────────────────────────────
+// ─── Page context string (AI mode system prompt injection) ────────────────────
+
+function getPageContextString(path: string): string {
+  if (path.includes('/checklist'))
+    return 'User is reviewing the Compliance Checklist — individual NIST CSF 2.0 controls with status, notes, and evidence.';
+  if (path.includes('/wizard'))
+    return 'User is on the Assessment Wizard — a step-by-step guided assessment organized by security domain.';
+  if (path.includes('/report'))
+    return 'User is viewing the Assessment Report — compliance scores, findings table, and export options.';
+  if (path.includes('/comparison'))
+    return 'User is on the Assessment Comparison page — two assessments shown side-by-side with delta indicators.';
+  if (path.startsWith('/assessments/'))
+    return 'User is on an Assessment Detail page — overview of a specific NIST CSF 2.0 assessment.';
+  if (path.startsWith('/vendors'))
+    return 'User is on the Vendors section — managing third-party vendor security assessments.';
+  if (path.startsWith('/company-groups'))
+    return 'User is on the Group Companies page — managing internal subsidiaries and their aggregate CSF scores.';
+  if (path === '/analytics')
+    return 'User is on the Analytics page — compliance trends, gap analysis charts, and vendor risk metrics.';
+  if (path === '/dashboard' || path.startsWith('/dashboard'))
+    return 'User is on the Dashboard — high-level view of compliance posture, recent assessments, and key metrics.';
+  return 'User is on the CSF Compass platform — a NIST CSF 2.0 compliance management application.';
+}
+
+// ─── Keyword matching (Quick Help mode) ──────────────────────────────────────
 
 function matchKeywords(text: string): string | null {
   const lower = text.toLowerCase();
@@ -333,11 +423,25 @@ const ANIM_CSS = `
   from { opacity: 0; transform: translateY(18px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+@keyframes csf-chat-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40%           { transform: translateY(-5px); opacity: 1; }
+}
+@keyframes csf-chat-shimmer {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
 .csf-chat-pulse {
   animation: csf-chat-pulse 1s ease-out 3;
 }
 .csf-chat-panel {
   animation: csf-chat-slideup 0.22s ease-out forwards;
+}
+.csf-chat-dot {
+  animation: csf-chat-bounce 1.2s ease-in-out infinite;
+}
+.csf-chat-streaming {
+  animation: csf-chat-shimmer 1.5s ease-in-out infinite;
 }
 @media (max-width: 640px) {
   .csf-chat-panel {
@@ -354,40 +458,36 @@ const ANIM_CSS = `
 }
 `;
 
-// ─── Fallback QA (when no keyword matched) ───────────────────────────────────
-
-const FALLBACK_ACTIONS: QuickAction[] = [
-  { id: 'what-is-nist', label: 'What is NIST CSF 2.0?' },
-  { id: 'how-to-rate', label: 'How do I rate a control?' },
-  { id: 'what-evidence', label: 'What evidence do I need?' },
-  { id: 'score-calc', label: 'How is my score calculated?' },
-];
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function ChatAssistant() {
   const { pathname } = useLocation();
 
-  // Only show on assessment sub-pages (not the list or /new)
-  const isAssessmentPage = useMemo(() => {
-    if (pathname === '/assessments' || pathname === '/assessments/') return false;
-    if (pathname.startsWith('/assessments/new')) return false;
-    if (pathname.startsWith('/assessments/')) return true;
-    return false;
-  }, [pathname]);
-
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatMode, setChatMode] = useState<'quick' | 'ai'>(
+    () => (localStorage.getItem('csf-chat-mode') as 'quick' | 'ai') ?? 'quick',
+  );
+  const [quickMessages, setQuickMessages] = useState<Message[]>([]);
+  const [aiMessages, setAiMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isPulsing, setIsPulsing] = useState(false);
+  const [isAiStreaming, setIsAiStreaming] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const context = useMemo(() => getContextForPath(pathname), [pathname]);
+  const messages = chatMode === 'quick' ? quickMessages : aiMessages;
 
-  // Pulse animation on first ever visit to an assessment page
+  // ── Switch mode ──
+  const switchMode = useCallback((mode: 'quick' | 'ai') => {
+    setChatMode(mode);
+    localStorage.setItem('csf-chat-mode', mode);
+  }, []);
+
+  // ── Pulse on first ever visit ──
   useEffect(() => {
-    if (!isAssessmentPage) return;
     const seen = localStorage.getItem('csf-chat-seen');
     if (seen) return;
     const delay = setTimeout(() => {
@@ -395,48 +495,56 @@ export default function ChatAssistant() {
       const stop = setTimeout(() => {
         setIsPulsing(false);
         localStorage.setItem('csf-chat-seen', '1');
-      }, 3300); // 3 pulses × ~1s
+      }, 3300);
       return () => clearTimeout(stop);
     }, 1800);
     return () => clearTimeout(delay);
-  }, [isAssessmentPage]);
+  }, []);
 
-  // Inject welcome message when panel first opens
+  // ── Welcome message when panel opens or mode switches ──
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      setMessages([{
-        id: 'welcome',
+    if (!isOpen) return;
+    if (chatMode === 'quick' && quickMessages.length === 0) {
+      setQuickMessages([{
+        id: 'welcome-q',
         role: 'assistant',
         content: context.greeting,
         timestamp: new Date(),
         quickActions: context.quickActions,
       }]);
-      setTimeout(() => inputRef.current?.focus(), 150);
+    } else if (chatMode === 'ai' && aiMessages.length === 0) {
+      setAiMessages([{
+        id: 'welcome-ai',
+        role: 'assistant',
+        content: "Hi! I'm powered by **Claude AI**. Ask me anything about NIST CSF 2.0 controls, evidence requirements, implementation strategies, or how to improve your compliance posture.",
+        timestamp: new Date(),
+        isAiMode: true,
+      }]);
     }
-  }, [isOpen, context, messages.length]);
+    setTimeout(() => inputRef.current?.focus(), 150);
+  }, [isOpen, chatMode, quickMessages.length, aiMessages.length, context]);
 
-  // Scroll to bottom on new messages
+  // ── Scroll to bottom on new messages ──
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Reset on navigation (new page = fresh context)
+  // ── Reset on navigation ──
   useEffect(() => {
-    setMessages([]);
+    abortRef.current?.abort();
+    setQuickMessages([]);
+    setAiMessages([]);
     setIsOpen(false);
+    setIsAiStreaming(false);
   }, [pathname]);
 
+  // ── Quick Help: quick-action chip handler ──
   const handleQuickAction = useCallback((actionId: string, actionLabel: string) => {
     const qa = QA[actionId];
     if (!qa) return;
-    setMessages(prev => [
+    setQuickMessages(prev => [
       ...prev,
-      {
-        id: `u-${Date.now()}`,
-        role: 'user',
-        content: actionLabel,
-        timestamp: new Date(),
-      },
+      { id: `u-${Date.now()}`, role: 'user', content: actionLabel, timestamp: new Date() },
       {
         id: `a-${Date.now() + 1}`,
         role: 'assistant',
@@ -447,22 +555,13 @@ export default function ChatAssistant() {
     ]);
   }, []);
 
-  const handleSend = useCallback(() => {
-    const text = inputValue.trim();
-    if (!text) return;
-    setInputValue('');
-
+  // ── Quick Help: free text send ──
+  const handleQuickSend = useCallback((text: string) => {
     const matchedId = matchKeywords(text);
     const qa = matchedId ? QA[matchedId] : null;
-
-    setMessages(prev => [
+    setQuickMessages(prev => [
       ...prev,
-      {
-        id: `u-${Date.now()}`,
-        role: 'user',
-        content: text,
-        timestamp: new Date(),
-      },
+      { id: `u-${Date.now()}`, role: 'user', content: text, timestamp: new Date() },
       {
         id: `a-${Date.now() + 1}`,
         role: 'assistant',
@@ -473,11 +572,111 @@ export default function ChatAssistant() {
         quickActions: qa?.followUp ?? FALLBACK_ACTIONS,
       },
     ]);
-  }, [inputValue]);
+  }, []);
 
-  if (!isAssessmentPage) return null;
+  // ── AI Assistant: streaming send ──
+  const handleAiSend = useCallback(async (text: string) => {
+    if (isAiStreaming) return;
 
-  const sendEnabled = inputValue.trim().length > 0;
+    const aiMsgId = `a-${Date.now() + 1}`;
+
+    // Build history snapshot before state updates
+    const historyMessages = aiMessages
+      .filter(m => !m.isError && !m.isStreaming && m.content.trim() && m.id !== 'welcome-ai')
+      .slice(-10)
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    historyMessages.push({ role: 'user', content: text });
+
+    setAiMessages(prev => [
+      ...prev,
+      { id: `u-${Date.now()}`, role: 'user', content: text, timestamp: new Date(), isAiMode: true },
+      { id: aiMsgId, role: 'assistant', content: '', timestamp: new Date(), isAiMode: true, isStreaming: true },
+    ]);
+    setIsAiStreaming(true);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: historyMessages,
+          page_context: getPageContextString(pathname),
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') {
+            setAiMessages(prev =>
+              prev.map(m => m.id === aiMsgId ? { ...m, isStreaming: false } : m),
+            );
+            setIsAiStreaming(false);
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data) as { token?: string; error?: string };
+            if (parsed.token) {
+              setAiMessages(prev =>
+                prev.map(m =>
+                  m.id === aiMsgId ? { ...m, content: m.content + parsed.token } : m,
+                ),
+              );
+            }
+            if (parsed.error) throw new Error(parsed.error);
+          } catch { /* ignore JSON parse errors for individual lines */ }
+        }
+      }
+
+      setAiMessages(prev =>
+        prev.map(m => m.id === aiMsgId ? { ...m, isStreaming: false } : m),
+      );
+      setIsAiStreaming(false);
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
+      setAiMessages(prev =>
+        prev.map(m =>
+          m.id === aiMsgId
+            ? { ...m, content: '', isStreaming: false, isError: true }
+            : m,
+        ),
+      );
+      setIsAiStreaming(false);
+    }
+  }, [aiMessages, isAiStreaming, pathname]);
+
+  // ── Unified submit ──
+  const handleSubmit = useCallback(() => {
+    const text = inputValue.trim();
+    if (!text) return;
+    setInputValue('');
+    if (chatMode === 'ai') {
+      handleAiSend(text);
+    } else {
+      handleQuickSend(text);
+    }
+  }, [chatMode, inputValue, handleAiSend, handleQuickSend]);
+
+  const sendEnabled = inputValue.trim().length > 0 && !(chatMode === 'ai' && isAiStreaming);
 
   return (
     <>
@@ -492,7 +691,7 @@ export default function ChatAssistant() {
             bottom: 88,
             right: 24,
             width: 380,
-            height: 'min(500px, 60vh)',
+            height: 'min(520px, 60vh)',
             display: 'flex',
             flexDirection: 'column',
             background: T.card,
@@ -506,7 +705,7 @@ export default function ChatAssistant() {
         >
           {/* Header */}
           <div style={{
-            padding: '13px 16px',
+            padding: '12px 16px',
             borderBottom: `1px solid ${T.border}`,
             display: 'flex',
             alignItems: 'center',
@@ -532,7 +731,7 @@ export default function ChatAssistant() {
                   CSF Compass Assistant
                 </div>
                 <div style={{ fontSize: 10, color: T.textMuted }}>
-                  NIST CSF 2.0 Guidance
+                  {chatMode === 'ai' ? 'Claude AI · NIST CSF Expert' : 'NIST CSF 2.0 Guidance'}
                 </div>
               </div>
             </div>
@@ -564,37 +763,141 @@ export default function ChatAssistant() {
             </button>
           </div>
 
+          {/* Mode toggle */}
+          <div style={{ padding: '8px 12px 4px', flexShrink: 0 }}>
+            <div style={{
+              background: T.bg,
+              padding: 2,
+              borderRadius: 8,
+              display: 'flex',
+              gap: 2,
+              border: `1px solid ${T.border}`,
+            }}>
+              {(['quick', 'ai'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => switchMode(mode)}
+                  style={{
+                    flex: 1,
+                    padding: '6px 0',
+                    textAlign: 'center',
+                    fontSize: 11,
+                    fontFamily: T.fontSans,
+                    fontWeight: chatMode === mode ? 500 : 400,
+                    color: chatMode === mode ? 'white' : T.textFaint,
+                    background: chatMode === mode ? T.accent : 'transparent',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    boxShadow: chatMode === mode ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {mode === 'quick' ? '📋 Quick Help' : '🤖 AI Assistant'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Messages */}
           <div style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '14px 14px 8px',
+            padding: '10px 14px 8px',
             display: 'flex',
             flexDirection: 'column',
             gap: 10,
           }}>
             {messages.map((msg) => (
               <div key={msg.id}>
+                {/* ✨ AI badge above assistant bubbles in AI mode */}
+                {msg.role === 'assistant' && msg.isAiMode && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    paddingLeft: 4,
+                    marginBottom: 3,
+                  }}>
+                    <span style={{
+                      fontSize: 9.5,
+                      fontWeight: 600,
+                      color: T.accent,
+                      background: T.accentLight,
+                      border: `1px solid ${T.accentBorder}`,
+                      borderRadius: 4,
+                      padding: '1px 6px',
+                      letterSpacing: '0.02em',
+                    }}>✨ AI</span>
+                  </div>
+                )}
+
                 {/* Bubble */}
                 <div style={{
                   display: 'flex',
                   justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
                   marginBottom: 3,
                 }}>
-                  <div style={{
-                    maxWidth: '84%',
-                    padding: '9px 13px',
-                    borderRadius: msg.role === 'user'
-                      ? '14px 14px 4px 14px'
-                      : '4px 14px 14px 14px',
-                    background: msg.role === 'user' ? T.accent : T.bg,
-                    color: msg.role === 'user' ? 'white' : T.textPrimary,
-                    fontSize: 12.5,
-                    lineHeight: '1.55',
-                    border: msg.role === 'user' ? 'none' : `1px solid ${T.border}`,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
-                  }}>
-                    {renderMarkdown(msg.content)}
+                  <div
+                    className={msg.isStreaming && msg.content ? 'csf-chat-streaming' : ''}
+                    style={{
+                      maxWidth: '84%',
+                      padding: '9px 13px',
+                      borderRadius: msg.role === 'user'
+                        ? '14px 14px 4px 14px'
+                        : '4px 14px 14px 14px',
+                      background: msg.role === 'user' ? T.accent : T.bg,
+                      color: msg.role === 'user' ? 'white' : T.textPrimary,
+                      fontSize: 12.5,
+                      lineHeight: '1.55',
+                      border: msg.role === 'user' ? 'none' : `1px solid ${T.border}`,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+                    }}
+                  >
+                    {/* Typing indicator (streaming, no content yet) */}
+                    {msg.isStreaming && msg.content === '' && (
+                      <div style={{ display: 'flex', gap: 4, padding: '4px 2px', alignItems: 'center' }}>
+                        {[0, 1, 2].map(i => (
+                          <div
+                            key={i}
+                            className="csf-chat-dot"
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: '50%',
+                              background: T.textMuted,
+                              animationDelay: `${i * 0.2}s`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Error state */}
+                    {msg.isError && (
+                      <div>
+                        <p style={{ color: '#EF4444', fontSize: 12, margin: '0 0 8px 0' }}>
+                          AI Assistant unavailable. Try Quick Help mode.
+                        </p>
+                        <button
+                          onClick={() => switchMode('quick')}
+                          style={{
+                            fontSize: 11,
+                            color: T.accent,
+                            background: T.accentLight,
+                            border: `1px solid ${T.accentBorder}`,
+                            borderRadius: 5,
+                            padding: '4px 10px',
+                            cursor: 'pointer',
+                            fontFamily: T.fontSans,
+                          }}
+                        >
+                          Switch to Quick Help →
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Normal content */}
+                    {!msg.isError && msg.content && renderMarkdown(msg.content)}
                   </div>
                 </div>
 
@@ -610,8 +913,8 @@ export default function ChatAssistant() {
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
 
-                {/* Quick-action buttons */}
-                {msg.quickActions && msg.quickActions.length > 0 && (
+                {/* Quick-action chips (Quick Help mode only) */}
+                {msg.quickActions && msg.quickActions.length > 0 && chatMode === 'quick' && (
                   <div style={{
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -674,10 +977,11 @@ export default function ChatAssistant() {
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleSend();
+                  handleSubmit();
                 }
               }}
-              placeholder="Ask about NIST CSF 2.0..."
+              placeholder={chatMode === 'ai' ? 'Ask the AI assistant…' : 'Ask about NIST CSF 2.0…'}
+              disabled={chatMode === 'ai' && isAiStreaming}
               style={{
                 flex: 1,
                 padding: '8px 11px',
@@ -689,12 +993,13 @@ export default function ChatAssistant() {
                 fontFamily: T.fontSans,
                 outline: 'none',
                 transition: 'border-color 0.15s',
+                opacity: chatMode === 'ai' && isAiStreaming ? 0.5 : 1,
               }}
               onFocus={e => (e.currentTarget.style.borderColor = T.accent)}
               onBlur={e => (e.currentTarget.style.borderColor = T.border)}
             />
             <button
-              onClick={handleSend}
+              onClick={handleSubmit}
               disabled={!sendEnabled}
               title="Send"
               style={{

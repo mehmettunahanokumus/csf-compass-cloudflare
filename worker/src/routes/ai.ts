@@ -19,7 +19,9 @@ import {
   csf_subcategories,
   organizations,
 } from '../db/schema';
+import Anthropic from '@anthropic-ai/sdk';
 import {
+  AI_CONFIG,
   analyzeEvidence,
   generateRecommendations,
   generateExecutiveSummary,
@@ -306,6 +308,90 @@ app.post('/executive-summary', async (c) => {
   } catch (error) {
     console.error('Error generating executive summary:', error);
     return c.json({ error: 'Failed to generate executive summary' }, 500);
+  }
+});
+
+/**
+ * POST /api/ai/chat
+ * Chat with AI assistant — returns a Server-Sent Events stream
+ *
+ * Body: { messages: [{role: 'user'|'assistant', content: string}], page_context?: string }
+ */
+app.post('/chat', async (c) => {
+  try {
+    const body = await c.req.json();
+    const messages: Array<{ role: string; content: string }> = body.messages ?? [];
+    const pageContext: string = body.page_context ?? '';
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return c.json({ error: 'messages array is required' }, 400);
+    }
+
+    const client = new Anthropic({ apiKey: c.env.ANTHROPIC_API_KEY });
+
+    const systemPrompt =
+      `You are a NIST CSF 2.0 compliance expert embedded in the CSF Compass platform. ` +
+      `You help users understand controls, gather evidence, and improve their compliance posture. ` +
+      `Be concise, practical, and reference specific CSF control IDs when relevant.\n\n` +
+      `Current page context: ${pageContext || 'General platform view'}`;
+
+    const apiMessages = messages
+      .filter(
+        (m) =>
+          (m.role === 'user' || m.role === 'assistant') &&
+          typeof m.content === 'string' &&
+          m.content.trim().length > 0,
+      )
+      .slice(-10)
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    if (apiMessages.length === 0) {
+      return c.json({ error: 'No valid messages provided' }, 400);
+    }
+
+    const stream = await client.messages.create({
+      model: AI_CONFIG.model,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: apiMessages,
+      stream: true,
+    });
+
+    const enc = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (
+              event.type === 'content_block_delta' &&
+              event.delta.type === 'text_delta'
+            ) {
+              controller.enqueue(
+                enc.encode(`data: ${JSON.stringify({ token: event.delta.text })}\n\n`),
+              );
+            }
+          }
+          controller.enqueue(enc.encode('data: [DONE]\n\n'));
+        } catch (err) {
+          controller.enqueue(
+            enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`),
+          );
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+      },
+    });
+  } catch (error) {
+    console.error('AI chat error:', error);
+    return c.json({ error: 'Failed to process chat request' }, 500);
   }
 });
 
