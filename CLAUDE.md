@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-21 (Phase 13)
+**Son Güncelleme:** 2026-02-21 (Phase 14)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -535,6 +535,65 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 
 ---
 
+### Phase 14: Assessment Report Tam Yeniden Tasarımı (Gün 28)
+**Tamamlanma:** 2026-02-21
+
+✅ Tamamlanan:
+
+**Eski Durum:**
+- Basit, dağınık layout; doğrudan okunması güç
+- Yalnızca bir function bar chart ve küçük bir compliance circle
+- AI executive summary kartı baskın, geri kalan bölümler zayıf
+
+**Yeni Tasarım — 4 Ana Bölüm:**
+
+**Bölüm 1 — Header:**
+- Assessment adı (`fontSize: 26, fontWeight: 700`)
+- Type badge (Organization/Vendor Assessment) + Status badge (Completed/In Progress)
+- Meta row: Vendor · Created · Last Updated · Completed · Framework (NIST CSF 2.0)
+- Sağ üstte donut ring: genel compliance % merkezdé
+
+**Bölüm 2 — Executive Summary (4 kart):**
+- Total Controls / Compliant / Partially Compliant / Non-Compliant
+- Her kart: büyük sayı (fontMono) + renkli % badge
+- Grid layout: 4 eşit kolon
+
+**Bölüm 3 — CSF Function Breakdown:**
+- 6 CSF fonksiyonu için satır: kod badge + adı + % + chevron
+- Stacked horizontal bar: yeşil=compliant, turuncu=partial, kırmızı=non-compliant, gri=not-assessed
+- Legend: her segment için count
+- Tıklanabilir expand: kategori başlıkları + her subcategory için status badge
+
+**Bölüm 4 — Findings Table:**
+- Non-compliant + partial tüm itemlar
+- Sıralanabilir kolonlar: Control ID, Control Name, Status (her kolona tıkla asc/desc)
+- Kolon başlığında ChevronUp/Down/ChevronsUpDown ikonları
+- Her satır: ID, subcategory adı (+ function·category alt metin), renkli status badge, notes
+
+**Exportlar:**
+- **Export PDF:** `window.print()` → `@media print` CSS (A4, sidebar/nav gizleme, `break-inside: avoid`)
+- **Export Excel:** SheetJS (`xlsx` paketi) → gerçek `.xlsx` dosyası, 3 sheet:
+  1. `Summary` — genel metrikler
+  2. `All Controls` — 120 item tam liste
+  3. `Findings` — sadece non-compliant + partial
+
+**Yeni Bağımlılık:**
+- `xlsx` (SheetJS) `^0.18.5` — frontend/package.json'a eklendi
+
+**Kaldırılan:**
+- `ExecutiveSummaryCard` component kullanımı (AI summary ayrı component'e bırakıldı)
+- `aiApi` import ve `generateSummary` işlevi rapor sayfasından çıkarıldı
+- Eski `exportCSV` fonksiyonu `exportExcel` ile değiştirildi
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/AssessmentReport.tsx` — tamamen yeniden yazıldı (598 ekle / 380 sil)
+- `frontend/package.json` — `xlsx` eklendi
+- `frontend/package-lock.json` — güncellendi
+
+**Commit:** `b34632b` — feat: Redesign AssessmentReport into professional 4-section report layout
+
+---
+
 ## Teknik Stack ve Bağımlılıklar
 
 ### Backend (Worker)
@@ -586,7 +645,8 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
   "lucide-react": "^0.563.0",
   "react": "^19.2.0",
   "react-dom": "^19.2.0",
-  "react-router-dom": "^7.13.0"
+  "react-router-dom": "^7.13.0",
+  "xlsx": "^0.18.5"
 }
 ```
 
@@ -1261,6 +1321,13 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-21 (Phase 14)
+- **Phase 14 tamamlandı:** Assessment Report tam yeniden tasarımı
+- 4 bölümlü profesyonel rapor: Header (donut + badges + meta) · Executive Summary (4 stat kart) · CSF Function Breakdown (stacked bar + expandable controls) · Findings Table (sortable)
+- Export Excel: SheetJS xlsx — 3 sheet (Summary / All Controls / Findings)
+- Export PDF: window.print() + @media print A4
+- `xlsx` paketi eklendi
 
 ### 2026-02-21 (Phase 13)
 - **Phase 13 tamamlandı:** Wizard Implementation Guide + Checklist Enhanced Details
