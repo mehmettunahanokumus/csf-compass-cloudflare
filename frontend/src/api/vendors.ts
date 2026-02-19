@@ -15,6 +15,7 @@ export interface CreateVendorData {
   criticality_level?: 'low' | 'medium' | 'high' | 'critical';
   vendor_status?: 'active' | 'inactive' | 'under_review' | 'terminated';
   notes?: string;
+  group_id?: string;
 }
 
 export interface UpdateVendorData {

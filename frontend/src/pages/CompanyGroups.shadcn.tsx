@@ -74,7 +74,7 @@ export default function CompanyGroups() {
           }}
         >
           <Plus size={15} />
-          Add Subsidiary
+          New Group
         </button>
       </div>
 
@@ -90,7 +90,7 @@ export default function CompanyGroups() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 18, fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
-                Add Group Company
+                New Group
               </h2>
               <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
                 <X size={18} />
@@ -124,7 +124,7 @@ export default function CompanyGroups() {
                 disabled={creating || !form.name.trim()}
                 style={{ padding: '8px 16px', background: '#6366F1', border: 'none', borderRadius: 8, color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: creating || !form.name.trim() ? 0.6 : 1 }}
               >
-                {creating ? 'Adding...' : 'Add Company'}
+                {creating ? 'Creating...' : 'Create Group'}
               </button>
             </div>
           </div>

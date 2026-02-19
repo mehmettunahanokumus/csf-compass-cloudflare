@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19 (Phase 17)
+**Son Güncelleme:** 2026-02-19 (Phase 18)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,41 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 18: Company Group Subsidiary CRUD (Gün 32)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Kritik Veri Modeli Düzeltmesi:**
+- `CompanyGroups.shadcn.tsx` "Add Subsidiary" butonu aslında `company_groups` tablosuna satır ekliyordu (yani bir GROUP container oluşturuyordu, subsidiary değil). Bu davranış korundu ama buton/modal etiketi düzeltildi: "Add Subsidiary" → **"New Group"**, modal başlığı "Add Group Company" → **"New Group"**, submit butonu "Add Company" → **"Create Group"**.
+- Gerçek subsidiary oluşturma (group altında vendor) artık `CompanyGroupDetail.shadcn.tsx` üzerinden yapılıyor.
+
+**Backend:**
+- `worker/src/routes/vendors.ts` — POST `/api/vendors` endpoint'ine `group_id: body.group_id` eklendi. Daha önce `group_id` body'den okunuyordu ama insert'e dahil edilmiyordu (sessiz veri kaybı).
+
+**Frontend API:**
+- `frontend/src/api/vendors.ts` — `CreateVendorData` interface'ine `group_id?: string` eklendi.
+
+**CompanyGroupDetail.shadcn.tsx — Tam Yeniden Yazım:**
+- **Add Subsidiary butonu** (header'da, indigo) → modal açar → `vendorsApi.create({ ...form, group_id: id! })`
+- **Subsidiary Companies Management Table** (yeni bölüm, CSF tablosunun üstünde):
+  - Kolon: Company Name (tıklanabilir → `/vendors/:id`, ChevronRight ikonu), Risk Level badge, Industry, Score, Actions
+  - Risk Level badge: color-coded (critical=kırmızı, high=turuncu, medium=sarı, low=yeşil), `CriticalityBadge` componenti
+  - **Edit butonu** (Pencil ikonu, gri) → modal açar, form önceden dolu → `vendorsApi.update()`
+  - **Delete butonu** (Trash2 ikonu, kırmızı tonlu) → confirmation dialog açar → `vendorsApi.delete()`
+- **Add/Edit Modal** — Alanlar: Company Name*, Risk Level dropdown, Industry, Contact Name, Contact Email + Contact Phone (yan yana grid), Notes (textarea)
+- **Delete Confirmation Dialog** — Kırmızı kenarlıklı dialog, "Remove & Delete" butonu
+- **Success toasts** — sağ üstte yeşil banner, 3 saniye sonra otomatik kapanıyor (Add, Update, Delete için)
+- CSF Function Scores comparison table korundu (altta)
+
+**Dosyalar:**
+- `worker/src/routes/vendors.ts` — group_id POST fix
+- `frontend/src/api/vendors.ts` — CreateVendorData.group_id eklendi
+- `frontend/src/pages/CompanyGroups.shadcn.tsx` — buton/modal etiket düzeltmesi
+- `frontend/src/pages/CompanyGroupDetail.shadcn.tsx` — tam yeniden yazım (subsidiary CRUD)
 
 ---
 
@@ -1425,6 +1460,13 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 18)
+- **Phase 18 tamamlandı:** Company Group Subsidiary CRUD tam implementasyonu
+- Backend: `POST /api/vendors`'a `group_id` eklendi (daha önce insert'e dahil edilmiyordu)
+- API: `CreateVendorData`'ya `group_id?: string` eklendi
+- CompanyGroups: "Add Subsidiary" → "New Group" (doğru etiket, group container oluşturuyor)
+- CompanyGroupDetail: Subsidiary Companies Management Table (Add/Edit/Delete + clickable rows), Add/Edit modal, Delete confirmation, success toasts; CSF comparison table korundu
 
 ### 2026-02-19 (Phase 17)
 - **Phase 17 tamamlandı:** VendorDetail profil düzenleme bug düzeltmeleri

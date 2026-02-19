@@ -100,6 +100,7 @@ app.post('/', async (c) => {
         criticality_level: body.criticality_level || 'medium',
         vendor_status: body.vendor_status || 'active',
         notes: body.notes,
+        group_id: body.group_id,
         created_by: body.created_by,
       })
       .returning();
