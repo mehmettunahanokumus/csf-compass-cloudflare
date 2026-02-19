@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19
+**Son Güncelleme:** 2026-02-20
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -403,6 +403,45 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
   - Tüm 15 adıma vendor-neutral guidance text eklendi (Okta/AD/Qualys/Splunk gibi araçları örnek olarak referans veriyor ama bağlı değil)
 
 **Commit:** `090097b` — fix: Bug fixes, visual improvements, and reporting center overhaul
+
+---
+
+### Phase 11: Dark Mode Contrast & Visibility Audit (Gün 25)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**CSS Token Düzeltmesi (index.css):**
+- `--t-text-muted: #64748B` → `#94A3B8` (dark mode'da slate-500 ~3.7:1 kontrastı yetersizdi; slate-400 ~4.5:1 AA standardını karşılıyor)
+- `--t-text-faint: #475569` → `#64748B` (slate-700 dark bg üzerinde neredeyse görünmezdi; artık sadece placeholder/disabled için kullanılıyor)
+- Bu iki değişiklik T token sistemi kullanan tüm sayfaları (Vendors, Assessments, Dashboard, Exports, VendorDetail vb.) otomatik olarak düzeltiyor
+
+**Vendors Tablo Header (Vendors.shadcn.tsx):**
+- Background: `var(--surface-1)` → `var(--card)` (kart ile uyumlu, harsh ayrım yok)
+- Border-bottom: `T.borderLight` → `1px solid var(--border)` (semantik token)
+- Header text: `T.textMuted` → `var(--text-2)` (açık ve koyu modda uygun kontrast)
+
+**CompanyGroups Kartları (CompanyGroups.shadcn.tsx):**
+- Kart default state: `rgba(255,255,255,0.06)` bg + `rgba(255,255,255,0.12)` border → `var(--card)` + `var(--border)` + `var(--shadow-xs)` (ışık ve karanlık modda görünür kart)
+- Hover state restore: artık rgba yerine `var(--card)` ve `var(--border)` restore ediyor
+- Hover gölge efekti: `0 4px 16px rgba(99,102,241,0.15)` eklendi
+- Grup adı: `#CBD5E1` → `var(--text-1)` (maksimum kontrast)
+- Sektör/açıklama/şirket sayısı: `#94A3B8` → `var(--text-2)` (CSS var)
+- ChevronRight ikonu + boş durum ikonu: `#334155` → `var(--text-3)` (neredeyse görünmezden görünür)
+- Loading/boş durum metni: `#64748B` / `#475569` → `var(--text-2)`
+
+**CompanyGroupDetail Tablo ve Stat Kartlar (CompanyGroupDetail.shadcn.tsx):**
+- Stat kartlar: `rgba(255,255,255,0.03)` bg + near-invisible border → `var(--card)` + `var(--border)` (proper elevated cards)
+- Karşılaştırma tablosu container: aynı opacity fix → `var(--card)` + `var(--border)`
+- Tablo başlığı "CSF Function Scores by Company": `#CBD5E1` → `var(--text-1)`, fontWeight 700→600
+- Tüm `<th>` header hücreleri: `#94A3B8` → `var(--text-2)`
+- Tablo header row border: `rgba(255,255,255,0.06)` → `var(--border)`
+- Şirket isimleri (tbody): `#E2E8F0` → `var(--text-1)`, fontWeight 600→500
+- Assessment alt metni: `#64748B` → `var(--text-3)` (metadata için uygun)
+- ScoreCell placeholder `—`: `#334155` → `var(--text-3)`
+- Back button, loading, description metinleri: `#64748B` → `var(--text-2)`
+
+**Commit:** `3659bf7` — fix: Improve dark mode text contrast and card/table visibility
 
 ---
 
@@ -1132,6 +1171,13 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20
+- **Phase 11 tamamlandı:** Dark Mode Contrast & Visibility Audit
+- CSS: `--t-text-muted` (#64748B→#94A3B8) ve `--t-text-faint` (#475569→#64748B) dark mode T token değerleri düzeltildi — T token kullanan tüm sayfalar otomatik düzeldi
+- Vendors: tablo header `var(--card)` bg + `var(--border)` border + `var(--text-2)` text
+- CompanyGroups: kartlar `var(--card)`/`var(--border)`/`var(--shadow-xs)` ile proper elevated card; tüm hardcoded rgba → CSS vars; grup adı `var(--text-1)`, diğer metinler `var(--text-2)`
+- CompanyGroupDetail: stat kartlar + karşılaştırma tablosu `var(--card)`/`var(--border)` ile görünür; tablo başlığı `var(--text-1)`; th hücreleri `var(--text-2)`; şirket isimleri `var(--text-1)`
 
 ### 2026-02-19
 - **Phase 10 tamamlandı:** Bug Fixes + Visual Improvements + Assessment Report + Reporting Center + Medium Features
