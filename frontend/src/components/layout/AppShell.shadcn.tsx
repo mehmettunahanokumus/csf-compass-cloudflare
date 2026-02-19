@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import AppSidebar from './Sidebar.shadcn';
 import TopNav from './TopNav.shadcn';
+import ChatAssistant from '../ChatAssistant.shadcn';
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -31,6 +32,9 @@ export default function AppShell() {
           </div>
         </main>
       </div>
+
+      {/* Contextual assessment assistant — visible on /assessments/:id/* pages */}
+      <ChatAssistant />
     </div>
   );
 }
