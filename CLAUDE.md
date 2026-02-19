@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19 (Phase 23)
+**Son Güncelleme:** 2026-02-19 (Phase 24)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,53 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 24: Global Chatbot + AI Assistant Dual Mode (Gün 38)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Değişiklik 1 — Global Bubble:**
+- `ChatAssistant` artık TÜM sayfalarda görünüyor (önceki `isAssessmentPage` guard kaldırıldı)
+- Pulse animasyonu ilk ziyarette herhangi bir sayfada tetikleniyor (sadece assessment sayfalarında değil)
+- Dashboard, Vendors, Group Companies, Analytics sayfaları için contextual Quick Help karşılama mesajları eklendi
+
+**Değişiklik 2 — Dual Mode Toggle:**
+- Panel header'ında segmented control: `📋 Quick Help` | `🤖 AI Assistant`
+- Seçilen mod `localStorage` (`csf-chat-mode`) ile persist ediliyor
+- Her mod için ayrı mesaj geçmişi (sayfa değişiminde her ikisi de sıfırlanıyor)
+
+**Quick Help Modu (değişmedi):**
+- Pre-built QA database, keyword matching, quick-action chips — tümü birebir korundu
+- Sadece yeni sayfalar için greeting metinleri eklendi
+
+**AI Assistant Modu (yeni):**
+- Backend: `POST /api/ai/chat` — yeni SSE streaming endpoint (`worker/src/routes/ai.ts`)
+  - `ReadableStream` ile token-by-token akış
+  - System prompt'a `page_context` string'i inject ediliyor (sayfa bazlı bağlam)
+  - Model: `claude-sonnet-4-20250514` (mevcut `AI_CONFIG.model`)
+  - Son 10 mesaj context olarak gönderiliyor (güvenlik limiti)
+- Frontend SSE okuma: `fetch` + `ReadableStream` reader, satır bazlı SSE parse
+- **Typing indicator:** İlk token gelmeden önce 3 noktalı bounce animasyonu
+- **Streaming shimmer:** Token akışı sırasında bubble hafifçe opacity animasyonu (`csf-chat-shimmer`)
+- **✨ AI badge:** Her AI asistan mesajının üstünde küçük accent renkli badge
+- **Hata durumu:** API başarısız olunca inline kırmızı mesaj + "Switch to Quick Help →" butonu
+- **AI modu karşılama:** "Hi! I'm powered by Claude AI. Ask me anything about NIST CSF 2.0..."
+
+**Teknik Detaylar:**
+- `worker/src/routes/ai.ts` — `Anthropic` ve `AI_CONFIG` import'ları eklendi (daha önce eksikti)
+- `ANIM_CSS` string'ine iki yeni animasyon eklendi: `csf-chat-bounce` (typing dots) + `csf-chat-shimmer` (streaming)
+- Panel height `min(500px, 60vh)` → `min(520px, 60vh)` (toggle için ekstra alan)
+- `getPageContextString()` yeni fonksiyon: pathname'den AI system prompt için context string üretir
+- `getContextForPath()` genişletildi: dashboard/vendors/company-groups/analytics için özel greeting
+
+**Değişen Dosyalar:**
+- `worker/src/routes/ai.ts` — yeni `/chat` endpoint + Anthropic/AI_CONFIG import'ları
+- `frontend/src/components/ChatAssistant.shadcn.tsx` — tam güncelleme (474 ekleme / 83 silme)
+
+**Commit:** `c1f046a`
 
 ---
 
@@ -1701,6 +1748,17 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 24)
+- **Phase 24 tamamlandı:** Global Chatbot + AI Assistant Dual Mode
+- ChatAssistant artık TÜM sayfalarda görünüyor (assessment-page guard kaldırıldı)
+- Pulse animasyonu ilk ever visit'te tetikleniyor (herhangi bir sayfada)
+- Dual mode toggle: `📋 Quick Help` | `🤖 AI Assistant` (localStorage persist)
+- AI modu: `POST /api/ai/chat` SSE streaming endpoint — token-by-token akış
+- Page context string AI system prompt'a inject ediliyor (sayfa bazlı bağlam)
+- Typing indicator (3-dot bounce), streaming shimmer, ✨ AI badge, error → switch butonu
+- Quick Help modu tamamen değişmedi; dashboard/vendors/groups/analytics için greeting eklendi
+- `Anthropic` + `AI_CONFIG` import'ları `routes/ai.ts`'e eklendi
 
 ### 2026-02-19 (Phase 23)
 - **Phase 23 tamamlandı:** Contextual AI Chatbot Assistant eklendi
