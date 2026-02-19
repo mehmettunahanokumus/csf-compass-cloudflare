@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19 (Phase 19)
+**Son Güncelleme:** 2026-02-19 (Phase 22)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,109 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 22: Multi-Format Export Dropdown (Gün 36)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Sorun:** Assessment Report'ta iki ayrı buton (Export Excel + Export PDF) vardı; Reporting Center'da her kart sadece tek bir sabit formatta (PDF ya da Excel) export ediyordu.
+
+**Çözüm — "Generate ▾" Dropdown:**
+- Her export noktasına **3 format seçeneği**: PDF / Excel (.xlsx) / CSV
+- Format seçildikten sonra anında download başlar; buton "Generating PDF…" gösterir
+- Dropdown, dışarı tıklamada otomatik kapanır (`mousedown` event + `useRef`)
+
+**AssessmentReport.tsx:**
+- "Export Excel" + "Export PDF" butonları → tek **"Generate Report ▾"** dropdown
+- PDF: `window.print()` (mevcut print CSS korundu)
+- Excel: mevcut SheetJS 3-sheet workbook
+- CSV: yeni — UTF-8 BOM, Function/Category/Control ID/Name/Status/Notes kolonları
+
+**Exports.shadcn.tsx (Reporting Center):**
+- Her kart üstündeki tek format badge → **[PDF] [Excel] [CSV]** üçlü chip grubu
+- "Generate & Download" → **"Generate ▾"** dropdown (yukarı açılır)
+- Dropdown satırlarında format adı + açıklama (Multi-sheet workbook / Professional PDF / Plain text export)
+- Loading state format adını gösteriyor: "Generating XLSX…"
+- **12 kombinasyon implement edildi (4 kart × 3 format):**
+
+| Rapor | PDF | Excel | CSV |
+|-------|-----|-------|-----|
+| Org Summary | jsPDF (mevcut) | 3-sheet workbook (yeni) | controls CSV (yeni) |
+| Vendor Risk | jsPDF autoTable (yeni) | existing | vendors CSV (yeni) |
+| Assessment Detail | jsPDF (mevcut) | 3-sheet workbook (yeni) | controls CSV (yeni) |
+| Group Overview | jsPDF groups+companies (yeni) | existing | companies CSV (yeni) |
+
+**Yeni yardımcı fonksiyonlar (Exports.shadcn.tsx):**
+- `buildAssessmentExcel(assessment, items)` → XLSX.WorkBook (Summary + All Controls + Findings)
+- `buildVendorRiskPDF(vendors)` → jsPDF autoTable
+- `buildGroupOverviewPDF(groups, groupDetails)` → jsPDF (groups table + companies table)
+- `makeAssessmentCsv(items)` → UTF-8 BOM CSV string
+- `makeVendorsCsv(vendors)` → UTF-8 BOM CSV string
+- `makeGroupsCsv(groups, groupDetails)` → UTF-8 BOM CSV string
+- `downloadCsv(content, filename)` → blob + anchor click
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/AssessmentReport.tsx` — dropdown + CSV export
+- `frontend/src/pages/Exports.shadcn.tsx` — tam yeniden yazım (format system)
+
+**Commit:** `20e6b0d`
+
+---
+
+### Phase 21: AssessmentChecklist Enhanced Panels (Gün 35)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Sorun:** Tek "ℹ️ Details" butonu, genel bir açıklama + tip paneli açıyordu. Kullanıcılar hem "ne gerekiyor" hem de "nasıl implement edilir" sorularını aynı anda soruyor.
+
+**Çözüm — İki Bağımsız Panel:**
+
+1. **"ℹ️ What's Required" butonu** (ghost, `T.textMuted` → `T.accent` on hover)
+   - `background: T.card`, `borderLeft: 3px solid T.accent`
+   - **Control Description** — NIST CSF subcategory açıklaması (DB'den)
+   - **Required Evidence** — 4 madde, CSF function (GV/ID/PR/DE/RS/RC) bazında özelleştirilmiş
+   - **Compliance Criteria** — 3 renkli satır: Compliant (yeşil) / Partial (amber) / Non-Compliant (kırmızı); her biri için o kontrol tipine özgü tanım
+
+2. **"📘 Guidance" butonu** (ghost, aynı hover stili)
+   - `background: T.accentLight`, `border: T.accentBorder`
+   - **Capability Required** — ürün-bağımsız kapasite açıklaması
+   - **Implementation Steps** — 5 sıralı adım
+   - **Platform-specific examples** — iç içe collapsible; araç kategorisi + örnek araçlar grid'i
+
+**İki panel birbirinden bağımsız** — ikisi aynı anda açık olabilir.
+**"Platform-specific examples"** ayrı bir üçüncü toggle (ChevronDown/Right).
+
+**State:**
+- `expandedRequired: Set<string>` — "What's Required" paneli açık itemlar
+- `expandedGuidance: Set<string>` — "Implementation Guidance" paneli açık itemlar
+- `expandedPlatforms: Set<string>` — iç içe platform örnekleri açık itemlar
+
+**İçerik helper fonksiyonları (6 CSF function için özelleştirilmiş):**
+- `getComplianceCriteria(subcategoryId)` — Compliant/Partial/Non-Compliant tanımları
+- `getEvidenceRequirements(subcategoryId)` — 4 somut kanıt maddesi
+- `getImplementationGuidance(subcategoryId)` → `{ capability, steps[5], platforms[2-3] }`
+
+**Platform örnekleri (her function için):**
+
+| Function | Platform Kategorileri |
+|----------|-----------------------|
+| GV | GRC Platforms, Document Management, Policy Management |
+| ID | Asset Management, Cloud Discovery, Network Discovery |
+| PR | Identity & Access, Endpoint Protection, Patch Management |
+| DE | SIEM, EDR/XDR, Cloud Threat Detection |
+| RS | SOAR & Ticketing, Threat Intelligence, Communications |
+| RC | Backup & Recovery, BCM Platforms, Cloud DR |
+
+**Kaldırılan:** `getTipForItem()` fonksiyonu (yeni içerik sistemiyle değiştirildi), eski `expandedItems` state
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — tam yeniden yazım
+
+**Commit:** `97b827b`
 
 ---
 
@@ -1543,6 +1646,25 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 22)
+- **Phase 22 tamamlandı:** Multi-format export dropdown — Assessment Report + Reporting Center
+- AssessmentReport: "Export Excel" + "Export PDF" → tek "Generate Report ▾" dropdown (PDF/Excel/CSV)
+- AssessmentReport: yeni CSV export — UTF-8 BOM, 6 kolon, klik-dışı kapanma
+- Reporting Center: her kart üstüne [PDF][Excel][CSV] chip grubu eklendi
+- Reporting Center: "Generate & Download" → "Generate ▾" dropdown (yukarı açılır, format açıklamalı)
+- 12 kombinasyon implement edildi: 4 rapor × 3 format
+- Yeni: `buildAssessmentExcel`, `buildVendorRiskPDF`, `buildGroupOverviewPDF`, `makeAssessmentCsv`, `makeVendorsCsv`, `makeGroupsCsv`, `downloadCsv`
+- Dosyalar: `AssessmentReport.tsx`, `Exports.shadcn.tsx`
+
+### 2026-02-19 (Phase 21)
+- **Phase 21 tamamlandı:** AssessmentChecklist — "What's Required" + "Implementation Guidance" panelleri
+- Tek "ℹ️ Details" butonu → 2 bağımsız ghost buton: "ℹ️ What's Required" ve "📘 Guidance"
+- "What's Required": control description + required evidence (4 madde) + compliance criteria (Compliant/Partial/Non-Compliant tanımları); sol kenar `3px solid T.accent`
+- "Implementation Guidance": capability + 5 adımlı steps + collapsible platform examples; `T.accentLight` bg
+- İçerik CSF function bazında özelleştirilmiş (GV/ID/PR/DE/RS/RC) — 3 yeni helper fonksiyon
+- State: 3 bağımsız Set (expandedRequired, expandedGuidance, expandedPlatforms)
+- Dosya: `AssessmentChecklist.shadcn.tsx`
 
 ### 2026-02-19 (Phase 20)
 - **Phase 20 tamamlandı:** Assessment type/company tags eklendi
