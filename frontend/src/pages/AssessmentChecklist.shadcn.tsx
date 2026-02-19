@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Search } from 'lucide-react';
+import { ChevronLeft, Search, ChevronDown } from 'lucide-react';
 import { assessmentsApi } from '../api/assessments';
 import { csfApi } from '../api/csf';
 import { getErrorMessage } from '../api/client';
@@ -100,6 +100,16 @@ export default function AssessmentChecklist() {
     });
     return Object.values(groups).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
   }, [filteredItems]);
+
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  const toggleExpand = useCallback((itemId: string) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      return next;
+    });
+  }, []);
 
   const handleStatusChange = async (itemId: string, newStatus: string) => {
     if (!id) return;
@@ -303,48 +313,110 @@ export default function AssessmentChecklist() {
 
             {/* Items */}
             <div>
-              {group.items.map((item, idx) => (
-                <div key={item.id} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 16, padding: '14px 20px',
-                  borderBottom: idx < group.items.length - 1 ? `1px solid ${T.border}` : 'none',
-                  transition: 'background 0.1s',
-                }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.bg}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = T.card}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <span style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 600, color: T.accent }}>
-                        {item.subcategory?.id}
-                      </span>
-                      <span style={statusBadgeStyle(item.status || 'not_assessed')}>
-                        {statusLabel(item.status || 'not_assessed')}
-                      </span>
-                    </div>
-                    <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.6 }}>
-                      {item.subcategory?.description}
-                    </p>
-                  </div>
-                  <div style={{ flexShrink: 0, width: 180 }}>
-                    <select
-                      value={item.status || 'not_assessed'}
-                      onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                      style={{
-                        width: '100%', padding: '6px 10px', borderRadius: 8,
-                        background: T.bg, border: `1px solid ${T.border}`,
-                        fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
-                        outline: 'none', cursor: 'pointer',
-                      }}
+              {group.items.map((item, idx) => {
+                const isExpanded = expandedItems.has(item.id);
+                const detailText = item.subcategory?.description
+                  ? item.subcategory.description
+                  : `This subcategory covers ${item.subcategory?.id || 'this area'} implementation. Gather relevant documentation, screenshots, or audit logs as evidence.`;
+                return (
+                  <div key={item.id} style={{
+                    borderBottom: idx < group.items.length - 1 ? `1px solid ${T.border}` : 'none',
+                  }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 16, padding: '14px 20px',
+                      transition: 'background 0.1s',
+                    }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.bg}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = T.card}
                     >
-                      <option value="not_assessed">Not Assessed</option>
-                      <option value="compliant">Compliant</option>
-                      <option value="partial">Partial</option>
-                      <option value="non_compliant">Non-Compliant</option>
-                      <option value="not_applicable">N/A</option>
-                    </select>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 600, color: T.accent }}>
+                            {item.subcategory?.id}
+                          </span>
+                          <span style={statusBadgeStyle(item.status || 'not_assessed')}>
+                            {statusLabel(item.status || 'not_assessed')}
+                          </span>
+                        </div>
+                        <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.6 }}>
+                          {item.subcategory?.description}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <button
+                          onClick={() => toggleExpand(item.id)}
+                          title={isExpanded ? 'Hide details' : 'Show details'}
+                          style={{
+                            width: 28, height: 28, borderRadius: 6,
+                            background: isExpanded ? T.accentLight : 'transparent',
+                            border: `1px solid ${isExpanded ? T.accentBorder : T.border}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: isExpanded ? T.accent : T.textMuted,
+                            cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
+                          }}
+                        >
+                          <ChevronDown size={14} style={{
+                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s ease',
+                          }} />
+                        </button>
+                        <div style={{ width: 180 }}>
+                          <select
+                            value={item.status || 'not_assessed'}
+                            onChange={(e) => handleStatusChange(item.id, e.target.value)}
+                            style={{
+                              width: '100%', padding: '6px 10px', borderRadius: 8,
+                              background: T.bg, border: `1px solid ${T.border}`,
+                              fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
+                              outline: 'none', cursor: 'pointer',
+                            }}
+                          >
+                            <option value="not_assessed">Not Assessed</option>
+                            <option value="compliant">Compliant</option>
+                            <option value="partial">Partial</option>
+                            <option value="non_compliant">Non-Compliant</option>
+                            <option value="not_applicable">N/A</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div style={{
+                        padding: '12px 20px 16px 20px',
+                        background: T.bg,
+                        borderTop: `1px solid ${T.borderLight || T.border}`,
+                      }}>
+                        <div style={{
+                          padding: '12px 16px', borderRadius: 8,
+                          background: T.card, border: `1px solid ${T.border}`,
+                        }}>
+                          <p style={{
+                            fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+                            color: T.textPrimary, margin: '0 0 6px',
+                          }}>
+                            {item.subcategory?.id} — Details
+                          </p>
+                          <p style={{
+                            fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary,
+                            margin: '0 0 10px', lineHeight: 1.65,
+                          }}>
+                            {detailText}
+                          </p>
+                          <p style={{
+                            fontFamily: T.fontSans, fontSize: 11, color: T.textMuted,
+                            margin: 0, lineHeight: 1.5,
+                            padding: '8px 12px', borderRadius: 6,
+                            background: T.bg, border: `1px solid ${T.borderLight || T.border}`,
+                          }}>
+                            <span style={{ fontWeight: 600 }}>Example evidence:</span>{' '}
+                            policies, screenshots, audit logs, configuration exports, compliance reports, or third-party certifications.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))

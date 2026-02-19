@@ -122,7 +122,7 @@ export default function CompanyGroupDetail() {
         ].map(stat => (
           <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '14px 20px', flex: 1 }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 22, fontWeight: 700, color: stat.color }}>{stat.value}</div>
-            <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#64748B', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</div>
+            <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#94A3B8', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</div>
           </div>
         ))}
       </div>
@@ -130,7 +130,7 @@ export default function CompanyGroupDetail() {
       {/* Comparison Table */}
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: '#E2E8F0', margin: 0 }}>
+          <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: '#CBD5E1', margin: 0 }}>
             CSF Function Scores by Company
           </h2>
         </div>
@@ -144,14 +144,14 @@ export default function CompanyGroupDetail() {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <th style={{ textAlign: 'left', padding: '10px 20px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 160 }}>
+                  <th style={{ textAlign: 'left', padding: '10px 20px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 160 }}>
                     Company
                   </th>
-                  <th style={{ textAlign: 'center', padding: '10px 14px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <th style={{ textAlign: 'center', padding: '10px 14px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     Overall
                   </th>
                   {csf_functions.map(fn => (
-                    <th key={fn.id} style={{ textAlign: 'center', padding: '10px 14px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 90 }}>
+                    <th key={fn.id} style={{ textAlign: 'center', padding: '10px 14px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 90 }}>
                       {fn.id}
                     </th>
                   ))}
@@ -170,7 +170,7 @@ export default function CompanyGroupDetail() {
                         {vs.vendor.name}
                       </div>
                       {vs.latest_assessment && (
-                        <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#475569', marginTop: 2 }}>
+                        <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#64748B', marginTop: 2 }}>
                           {vs.latest_assessment.name}
                         </div>
                       )}

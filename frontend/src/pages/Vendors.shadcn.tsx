@@ -154,6 +154,9 @@ export default function Vendors() {
           <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, marginTop: 3 }}>
             Third-party security posture management
           </p>
+          <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textFaint, marginTop: 4, fontStyle: 'italic' }}>
+            Group companies are managed under the Groups menu.
+          </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
@@ -255,7 +258,7 @@ export default function Vendors() {
       <div style={{ ...card, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#F8FAFC', borderBottom: `1px solid ${T.borderLight}` }}>
+            <tr style={{ background: 'var(--surface-1)', borderBottom: `1px solid ${T.borderLight}` }}>
               {['Vendor', 'Industry', 'Risk Tier', 'Compliance Score', 'Last Assessment', ''].map(h => (
                 <th key={h} style={{
                   textAlign: 'left', padding: '10px 20px',
@@ -280,7 +283,7 @@ export default function Vendors() {
                       key={vendor.id}
                       style={{
                         borderBottom: `1px solid ${T.borderLight}`,
-                        background: isHov ? '#F8FAFC' : 'transparent',
+                        background: isHov ? 'var(--surface-1)' : 'transparent',
                         transition: 'background 0.12s',
                         cursor: 'pointer',
                       }}
@@ -423,7 +426,7 @@ export default function Vendors() {
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 20px', borderTop: `1px solid ${T.borderLight}`,
-            background: '#F8FAFC',
+            background: 'var(--surface-1)',
           }}>
             <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
               Showing <strong style={{ color: T.textPrimary }}>{filtered.length}</strong> of{' '}

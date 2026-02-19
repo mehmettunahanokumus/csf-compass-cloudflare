@@ -35,7 +35,7 @@ export const vendorsApi = {
    */
   list: async (): Promise<Vendor[]> => {
     const response = await apiClient.get<Vendor[]>('/api/vendors', {
-      params: { organization_id: DEMO_ORG_ID },
+      params: { organization_id: DEMO_ORG_ID, exclude_grouped: 'true' },
     });
     return response.data;
   },

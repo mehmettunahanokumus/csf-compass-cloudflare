@@ -29,7 +29,7 @@ const navSections = [
     label: 'Intelligence',
     items: [
       { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-      { name: 'Exports',   path: '/exports',   icon: FileDown  },
+      { name: 'Reporting Center', path: '/exports', icon: FileDown },
     ],
   },
   {

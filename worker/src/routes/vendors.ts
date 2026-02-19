@@ -11,7 +11,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and, count, desc } from 'drizzle-orm';
+import { eq, and, count, desc, isNull } from 'drizzle-orm';
 import type { Env } from '../types/env';
 import { createDbClient } from '../db/client';
 import { vendors, assessments } from '../db/schema';
@@ -32,6 +32,7 @@ app.get('/', async (c) => {
     }
 
     const groupId = c.req.query('group_id');
+    const excludeGrouped = c.req.query('exclude_grouped');
 
     let vendorList;
     if (groupId) {
@@ -42,6 +43,17 @@ app.get('/', async (c) => {
           and(
             eq(vendors.organization_id, organizationId),
             eq(vendors.group_id, groupId)
+          )
+        )
+        .orderBy(desc(vendors.created_at));
+    } else if (excludeGrouped === 'true') {
+      vendorList = await db
+        .select()
+        .from(vendors)
+        .where(
+          and(
+            eq(vendors.organization_id, organizationId),
+            isNull(vendors.group_id)
           )
         )
         .orderBy(desc(vendors.created_at));

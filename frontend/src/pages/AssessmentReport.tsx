@@ -89,26 +89,50 @@ export default function AssessmentReport() {
     return Object.values(funcMap).sort((a, b) => a.code.localeCompare(b.code));
   }, [items]);
 
-  // CSV Export
+  // CSV Export — structured with function/category header rows
   const exportCSV = useCallback(() => {
-    const headers = ['Code', 'Description', 'Status', 'Function', 'Category'];
-    const rows = items.map((item) => [
-      item.subcategory?.name || '',
-      `"${(item.subcategory?.description || '').replace(/"/g, '""')}"`,
-      item.status,
-      item.function?.name || '',
-      item.category?.name || '',
-    ]);
+    const headers = ['Function', 'Category', 'Code', 'Description', 'Status'];
+    const rows: string[][] = [];
+
+    // Group items by function then category
+    const grouped: Record<string, Record<string, AssessmentItem[]>> = {};
+    items.forEach((item) => {
+      const funcName = item.function?.name || 'Unknown';
+      const catName = item.category?.name || 'Unknown';
+      if (!grouped[funcName]) grouped[funcName] = {};
+      if (!grouped[funcName][catName]) grouped[funcName][catName] = [];
+      grouped[funcName][catName].push(item);
+    });
+
+    for (const [funcName, categories] of Object.entries(grouped)) {
+      // Function header row
+      rows.push([`--- ${funcName} ---`, '', '', '', '']);
+      for (const [catName, catItems] of Object.entries(categories)) {
+        // Category header row
+        rows.push(['', `[${catName}]`, '', '', '']);
+        for (const item of catItems) {
+          rows.push([
+            funcName,
+            catName,
+            item.subcategory?.name || '',
+            `"${(item.subcategory?.description || '').replace(/"/g, '""')}"`,
+            item.status,
+          ]);
+        }
+      }
+    }
 
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `assessment-report-${id}.csv`;
+    const safeName = (assessment?.name || 'report').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = `assessment-report-${safeName}-${dateStr}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [items, id]);
+  }, [items, id, assessment]);
 
   // Generate AI executive summary
   const generateSummary = useCallback(async () => {
@@ -183,7 +207,6 @@ export default function AssessmentReport() {
   }, [id, assessment, items, complianceScore, functionScores, distribution]);
 
   const scoreColor = complianceScore >= 75 ? '#10B981' : complianceScore >= 50 ? '#F59E0B' : '#EF4444';
-  const circumference = 2 * Math.PI * 80;
 
   if (loading) {
     return (
@@ -224,9 +247,66 @@ export default function AssessmentReport() {
       {/* Print styles */}
       <style>{`
         @media print {
-          nav, .no-print, [data-no-print] { display: none !important; }
-          body { background: #fff !important; color: #000 !important; }
-          * { box-shadow: none !important; }
+          /* Hide navigation and interactive elements */
+          nav, aside, .sidebar, [data-sidebar], .no-print, [data-no-print] {
+            display: none !important;
+          }
+
+          /* Reset backgrounds for print */
+          html, body {
+            background: #fff !important;
+            color: #000 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          /* Clean up cards for print */
+          * {
+            box-shadow: none !important;
+          }
+
+          .print-card {
+            background: #fff !important;
+            border: 1px solid #d1d5db !important;
+            break-inside: avoid;
+          }
+
+          .print-card h2, .print-card h3 {
+            color: #111827 !important;
+          }
+
+          .print-card p, .print-card span, .print-card div, .print-card li {
+            color: #374151 !important;
+          }
+
+          /* Score text stays dark */
+          .print-score {
+            color: #111827 !important;
+          }
+
+          /* Cover section print overrides */
+          .print-cover {
+            background: #fff !important;
+            border: 1px solid #d1d5db !important;
+          }
+          .print-cover h1 { color: #111827 !important; }
+          .print-cover p, .print-cover span { color: #4b5563 !important; }
+
+          /* Section heading accent bars */
+          .print-accent {
+            background: #111827 !important;
+          }
+
+          /* Page breaks */
+          .print-page-break {
+            break-before: page;
+          }
+
+          /* A4 margins */
+          @page {
+            size: A4;
+            margin: 1.5cm;
+          }
         }
       `}</style>
 
@@ -255,54 +335,79 @@ export default function AssessmentReport() {
                 className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/[0.04] border border-white/[0.07] text-[#8E8FA8] font-sans text-sm rounded-lg hover:border-amber-500/30 hover:text-[#F0F0F5] transition-all"
               >
                 <FileDown className="w-4 h-4" />
-                Export CSV
+                Export Excel (.csv)
               </button>
               <button
                 onClick={() => window.print()}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
               >
                 <Printer className="w-4 h-4" />
-                Print
+                Export PDF
               </button>
             </div>
           </div>
         </div>
 
+        {/* Cover Section (visible in print and screen) */}
+        {assessment && (
+          <div className="print-cover bg-[#0E1018] border border-white/[0.07] rounded-xl p-8 mb-6 text-center">
+            <h1 className="font-display text-3xl font-bold text-[#F0F0F5] mb-2">
+              {assessment.name}
+            </h1>
+            {assessment.vendor && (
+              <p className="font-sans text-lg text-amber-400 mb-1">
+                {assessment.vendor.name}
+              </p>
+            )}
+            <div className="flex items-center justify-center gap-4 mt-4 font-sans text-sm text-[#8E8FA8]">
+              <span>NIST CSF 2.0 Assessment</span>
+              <span className="w-1 h-1 rounded-full bg-[#55576A]" />
+              <span>
+                {assessment.completed_at
+                  ? new Date(assessment.completed_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                  : new Date(assessment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
+              <span className="w-1 h-1 rounded-full bg-[#55576A]" />
+              <span className="capitalize">{assessment.status}</span>
+            </div>
+          </div>
+        )}
+
         {/* Compliance Overview */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 mb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+        <div className="print-card bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-3 mb-5 border-b border-white/[0.05] pb-4">
+            <div className="print-accent w-[3px] h-5 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-sm font-semibold tracking-[0.08em] uppercase text-[#8E8FA8]">
               Compliance Overview
             </h2>
           </div>
 
           <div className="grid grid-cols-[auto_1fr] gap-8 items-center">
-            {/* SVG Compliance Circle */}
-            <div className="relative w-[180px] h-[180px] flex-shrink-0">
-              <svg viewBox="0 0 180 180" className="w-full h-full -rotate-90">
+            {/* SVG Compliance Circle — larger */}
+            <div className="relative w-[220px] h-[220px] flex-shrink-0">
+              <svg viewBox="0 0 220 220" className="w-full h-full -rotate-90">
                 <circle
-                  cx="90" cy="90" r="80"
+                  cx="110" cy="110" r="95"
                   fill="none"
                   stroke="rgba(255,255,255,0.06)"
-                  strokeWidth="16"
+                  strokeWidth="18"
                 />
                 <circle
-                  cx="90" cy="90" r="80"
+                  cx="110" cy="110" r="95"
                   fill="none"
                   stroke={scoreColor}
-                  strokeWidth="16"
-                  strokeDasharray={`${circumference}`}
-                  strokeDashoffset={`${circumference * (1 - complianceScore / 100)}`}
+                  strokeWidth="18"
+                  strokeDasharray={`${2 * Math.PI * 95}`}
+                  strokeDashoffset={`${2 * Math.PI * 95 * (1 - complianceScore / 100)}`}
                   strokeLinecap="round"
                   style={{ transition: 'stroke-dashoffset 0.6s ease' }}
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center rotate-0">
-                <span className="font-display text-4xl font-bold tabular-nums text-[#F0F0F5]">
+                <span className="print-score font-display text-5xl font-bold tabular-nums text-[#F0F0F5]">
                   {Math.round(complianceScore)}
                 </span>
-                <span className="font-sans text-[10px] text-[#55576A] uppercase tracking-widest mt-0.5">Score</span>
+                <span className="font-sans text-xs text-[#55576A] uppercase tracking-widest mt-1">Score</span>
               </div>
             </div>
 
@@ -327,10 +432,10 @@ export default function AssessmentReport() {
         </div>
 
         {/* Score by Function */}
-        <div className="bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 mb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-[3px] h-4 bg-amber-500 rounded-full flex-shrink-0" />
-            <h2 className="font-display text-[11px] font-semibold tracking-[0.12em] uppercase text-[#8E8FA8]">
+        <div className="print-card bg-[#0E1018] border border-white/[0.07] rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-3 mb-5 border-b border-white/[0.05] pb-4">
+            <div className="print-accent w-[3px] h-5 bg-amber-500 rounded-full flex-shrink-0" />
+            <h2 className="font-display text-sm font-semibold tracking-[0.08em] uppercase text-[#8E8FA8]">
               Score by Function
             </h2>
           </div>
@@ -371,6 +476,7 @@ export default function AssessmentReport() {
         </div>
 
         {/* Executive Summary */}
+        <div className="print-page-break" />
         <ExecutiveSummaryCard
           data={summaryData}
           onGenerateAI={generateSummary}

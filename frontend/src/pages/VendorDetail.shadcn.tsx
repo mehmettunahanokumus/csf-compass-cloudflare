@@ -61,8 +61,7 @@ export default function VendorDetail() {
 
   const [editForm, setEditForm] = useState({
     name: '', website: '', contact_email: '', contact_name: '', description: '',
-    risk_level: 'medium' as 'low' | 'medium' | 'high',
-    risk_tier: 'medium' as 'low' | 'medium' | 'high' | 'critical',
+    criticality_level: 'medium' as 'low' | 'medium' | 'high' | 'critical',
   });
 
   useEffect(() => { loadData(); }, [id]);
@@ -83,8 +82,7 @@ export default function VendorDetail() {
         name: vendorData.name, website: vendorData.website || '',
         contact_email: vendorData.contact_email || '', contact_name: vendorData.contact_name || '',
         description: vendorData.description || '',
-        risk_level: vendorData.risk_level || 'medium',
-        risk_tier: vendorData.risk_tier || 'medium',
+        criticality_level: vendorData.criticality_level || vendorData.risk_tier || 'medium',
       });
     } catch (err) { setError(getErrorMessage(err)); } finally { setLoading(false); }
   };
@@ -261,23 +259,18 @@ export default function VendorDetail() {
                   />
                 </div>
               ))}
-              {[
-                { key: 'risk_tier', label: 'Risk Tier', opts: [['low','Low'],['medium','Medium'],['high','High'],['critical','Critical']] },
-                { key: 'risk_level', label: 'Risk Level', opts: [['low','Low Risk'],['medium','Medium Risk'],['high','High Risk']] },
-              ].map((field) => (
-                <div key={field.key}>
-                  <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
-                    {field.label}
-                  </label>
-                  <select
-                    value={(editForm as any)[field.key]}
-                    onChange={(e) => setEditForm({ ...editForm, [field.key]: e.target.value as any })}
-                    style={{ ...inputStyle, cursor: 'pointer' }}
-                  >
-                    {field.opts.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
-                  </select>
-                </div>
-              ))}
+              <div>
+                <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
+                  Criticality Level
+                </label>
+                <select
+                  value={editForm.criticality_level}
+                  onChange={(e) => setEditForm({ ...editForm, criticality_level: e.target.value as any })}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  {[['low','Low'],['medium','Medium'],['high','High'],['critical','Critical']].map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
+                </select>
+              </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted, display: 'block', marginBottom: 6 }}>
                   Description
