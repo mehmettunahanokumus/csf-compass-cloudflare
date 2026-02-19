@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-21 (Phase 14)
+**Son Güncelleme:** 2026-02-19 (Phase 15)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,35 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 15: Historical Assessment Comparison Enhancements (Gün 29)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**VendorDetail.shadcn.tsx — Score Trend & Filters:**
+- SVG bar chart → recharts **AreaChart** (line chart with gradient fill, sorted chronologically by `created_at`)
+- Added **status filter** dropdown (All / Completed / In Progress / Draft)
+- Added **date range filters** (From / To date inputs) using `useMemo` for computed `filteredAssessments`
+- "Clear" button appears when any filter is active
+- Empty state: "No assessments match the current filters" when filters exclude all results
+- `useMemo` + `filteredAssessments` replaces direct `assessments.map` in history list
+
+**AssessmentHistoryComparison.shadcn.tsx — Full Rewrite:**
+- Migrated all hardcoded hex colors and font names → **T design tokens**
+- Added **per-function grouped BarChart** (recharts): Baseline (gray `#64748B`) vs Current (indigo `#6366F1`) grouped by CSF function (GV/ID/PR/DE/RS/RC)
+- `functionChartData` useMemo: groups items by function prefix, computes avg score (compliant=1, partial=0.5, else=0)
+- Added **`StatusBadge` component**: color-coded pill badges (green/amber/red/gray) for compliant/partial/non-compliant/not-assessed
+- Items table row highlighting uses T token `T.success`/`T.danger` + `08` alpha instead of hardcoded rgba
+- Selectors, summary cards, filter controls all use `card`, `T.fontSans`, `T.textMuted`, etc.
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/VendorDetail.shadcn.tsx` — AreaChart + filters
+- `frontend/src/pages/AssessmentHistoryComparison.shadcn.tsx` — full rewrite
+
+**Commit:** `22d13ad` — feat: Add recharts AreaChart trend + date/status filters + per-function comparison BarChart
 
 ---
 
@@ -1321,6 +1350,11 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 15)
+- **Phase 15 tamamlandı:** Historical Assessment Comparison Enhancements
+- VendorDetail: SVG bar → recharts AreaChart (score trend line, date-sorted); status + date range filters with `filteredAssessments` useMemo
+- AssessmentHistoryComparison: full T-token rewrite; per-function grouped BarChart (Baseline vs Current); StatusBadge component; improved table row highlighting
 
 ### 2026-02-21 (Phase 14)
 - **Phase 14 tamamlandı:** Assessment Report tam yeniden tasarımı
