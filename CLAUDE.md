@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19 (Phase 22)
+**Son Güncelleme:** 2026-02-19 (Phase 23)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,61 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 23: Contextual AI Chatbot Assistant (Gün 37)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Yeni Özellik — CSF Compass Assistant:**
+- Assessment sayfalarında (`/assessments/:id/*`) sabit sağ-alt köşede chat bubble görünüyor
+- İlk ziyarette 3 kez pulse animasyonu (sonra durur, `localStorage` ile takip edilir)
+- Tıklayınca 380×500px (veya 60vh) chat paneli yukarı kayarak açılır
+- Mobil (≤640px): tam genişlik, ekranın altından yukarı açılan panel
+
+**Mimari — Option A (API gerektirmez):**
+- Pre-built QA database (8 konu, ~40 follow-up chip)
+- Keyword matching ile serbest metin girişi (regex tabanlı)
+- Eşleşme yoksa fallback quick-action önerileri
+
+**Pre-built QA Konuları:**
+
+| Topic ID | Konu |
+|----------|------|
+| `what-is-nist` | NIST CSF 2.0 giriş — 6 fonksiyon özeti |
+| `how-to-rate` | Kontrol derecelendirme (Compliant/Partial/Non-Compliant/N/A) |
+| `what-evidence` | Kanıt türleri (policies, screenshots, audit reports, logs) |
+| `score-calc` | Skor formülü (Compliant×1 + Partial×0.5 + Non-Compliant×0) |
+| `what-to-fix` | Önceliklendirme (critical first, quick wins, priority controls) |
+| `maturity` | Tier benchmark'ları (Tier 1-4, endüstri ortalamaları) |
+| `wizard-vs-checklist` | Wizard vs Checklist farkı |
+| `vendor-assessment` | Vendor değerlendirme yaklaşımları |
+| `govern-function` | GV fonksiyonu (CSF 2.0'a özel) |
+
+**Sayfa bazlı bağlamsal karşılama mesajları:**
+- `/checklist` → "ℹ️ What's Required ve 📘 Guidance butonlarını kullanın..."
+- `/wizard` → "📘 Implementation Guide butonunu kullanın..."
+- `/report` → "Skorları, bulguları ve öncelikleri açıklayabilirim..."
+- `/comparison` → "Delta skorları ve farklar hakkında..."
+- `/:id` (default) → Genel CSF yardım teklifi
+
+**Teknik Detaylar:**
+- `useLocation()` ile route tabanlı sayfa tespiti (`/assessments/new` hariç)
+- Route değişiminde mesajlar ve panel sıfırlanıyor
+- Basit markdown renderer: `**bold**` → `<strong>`, satır bazlı render
+- CSS keyframe animasyonları: `csf-chat-slideup` + `csf-chat-pulse`
+- `@media print`: bubble ve panel gizleniyor
+- T token sistemi (dark/light mode uyumlu)
+
+**Yeni Dosyalar:**
+- `frontend/src/components/ChatAssistant.shadcn.tsx` — tam component (~380 satır)
+
+**Değişen Dosyalar:**
+- `frontend/src/components/layout/AppShell.shadcn.tsx` — `<ChatAssistant />` eklendi
+
+**Commit:** `e6c77d0`
 
 ---
 
@@ -1646,6 +1701,16 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 23)
+- **Phase 23 tamamlandı:** Contextual AI Chatbot Assistant eklendi
+- Yeni component: `ChatAssistant.shadcn.tsx` — assessment sayfalarında sağ-alt köşede chat bubble
+- İlk ziyarette 3× pulse animasyonu (localStorage ile tek seferlik)
+- Sayfa bazlı bağlamsal karşılama mesajı (checklist / wizard / report / comparison / detail)
+- 9 pre-built QA konusu + keyword matching + fallback quick-actions
+- Mobil responsive: ≤640px tam genişlik panel
+- `AppShell.shadcn.tsx`'e `<ChatAssistant />` eklendi
+- Commit: `e6c77d0`
 
 ### 2026-02-19 (Phase 22)
 - **Phase 22 tamamlandı:** Multi-format export dropdown — Assessment Report + Reporting Center
