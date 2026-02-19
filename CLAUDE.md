@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19 (Phase 15)
+**Son Güncelleme:** 2026-02-19 (Phase 16)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,46 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 16: Reporting Center Revamp with Real PDF/Excel Generation (Gün 30)
+**Tamamlanma:** 2026-02-19
+
+✅ Tamamlanan:
+
+**Yeni Bağımlılıklar:**
+- `jspdf@4.2.0` + `jspdf-autotable@5.0.7` — programmatic PDF generation
+
+**4 Aktif Report Tipi (Exports.shadcn.tsx tam yeniden yazıldı):**
+
+| Report | Format | İçerik |
+|--------|--------|--------|
+| Organization Compliance Summary | PDF | Header bar · büyük skor · 4 stat box · function breakdown autoTable · findings autoTable |
+| Vendor Risk Report | Excel | Vendors sheet (name/industry/criticality/status/score) + Summary sheet (toplam/aktif/critical/avg) |
+| Assessment Detail Export | PDF | Assessment seçici dropdown → seçilen assessment için aynı jsPDF layout |
+| Group Companies Overview | Excel | Groups sheet + Companies sheet (tüm bağlı şirketler + skorları) |
+
+**Teknik Detaylar:**
+- `buildAssessmentPDF(assessment, items, doc)` helper — hem org summary hem assessment detail için kullanılıyor
+- `jsPDF.roundedRect()` + `autoTable()` ile renkli stat kutucuklar ve tablo
+- `XLSX.utils.aoa_to_sheet()` + `XLSX.utils.book_append_sheet()` ile çok-sayfalı Excel
+- Vendor Risk Report: `exclude_grouped` filtresi olmadan tüm vendor'ları çekiyor (axios direkt)
+- Group Overview: her grup için `companyGroupsApi.get(id)` paralel fetch → vendors listesi
+- Per-card loading state, per-card error message
+- Format badge: PDF=red-subtle, Excel=green-subtle
+- T token styling (dark mode uyumlu)
+
+**Kaldırılan:**
+- Eski 6 tip (Assessment Report navigate, Comparison navigate, Audit Evidence CSV, Executive Dashboard CSV, Vendor Scorecard CSV) → 4 gerçek download tipine indirildi
+- Static `recentExports` demo tablo kaldırıldı
+- Quick stats kart mock'ları kaldırıldı
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/Exports.shadcn.tsx` — tam yeniden yazıldı
+- `frontend/package.json` — jspdf + jspdf-autotable eklendi
+
+**Commit:** `d2dfaba` — feat: Revamp Reporting Center with jsPDF generation and 4 functional report types
 
 ---
 
@@ -1350,6 +1390,14 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-19 (Phase 16)
+- **Phase 16 tamamlandı:** Reporting Center Revamp — jsPDF + xlsx ile gerçek dosya üretimi
+- jspdf@4.2.0 + jspdf-autotable@5.0.7 eklendi
+- 4 report tipi: Org Summary (PDF) · Vendor Risk (Excel) · Assessment Detail (PDF) · Group Overview (Excel)
+- `buildAssessmentPDF()` helper: header bar, score, stat boxes, function table, findings table
+- Excel: çok-sayfalı workbook (Vendors+Summary / Groups+Companies)
+- T token styling, per-card loading/error, format badge (PDF=red / Excel=green)
 
 ### 2026-02-19 (Phase 15)
 - **Phase 15 tamamlandı:** Historical Assessment Comparison Enhancements
