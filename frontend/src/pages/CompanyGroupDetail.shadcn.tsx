@@ -7,7 +7,7 @@ import ExcelImportModal from '../components/import/ExcelImportModal';
 
 function ScoreCell({ score }: { score: number | null | undefined }) {
   if (score === null || score === undefined) {
-    return <span style={{ color: '#334155', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>—</span>;
+    return <span style={{ color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>—</span>;
   }
   const color = score >= 70 ? '#34D399' : score >= 40 ? '#FBBF24' : '#F87171';
   return (
@@ -43,7 +43,7 @@ export default function CompanyGroupDetail() {
 
   if (loading) {
     return (
-      <div style={{ padding: '28px 32px', textAlign: 'center', color: '#64748B', fontFamily: 'Manrope, sans-serif' }}>
+      <div style={{ padding: '28px 32px', textAlign: 'center', color: 'var(--text-2)', fontFamily: 'Manrope, sans-serif' }}>
         Loading group...
       </div>
     );
@@ -73,7 +73,7 @@ export default function CompanyGroupDetail() {
       <div style={{ marginBottom: 28 }}>
         <button
           onClick={() => navigate('/company-groups')}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', fontFamily: 'Manrope, sans-serif', fontSize: 13, padding: 0, marginBottom: 16 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontFamily: 'Manrope, sans-serif', fontSize: 13, padding: 0, marginBottom: 16 }}
         >
           <ArrowLeft size={14} />
           Back to Groups
@@ -88,7 +88,7 @@ export default function CompanyGroupDetail() {
                 {group.name}
               </h1>
               {group.description && (
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: '#64748B', marginTop: 3 }}>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--text-2)', marginTop: 3 }}>
                   {group.description}
                 </p>
               )}
@@ -118,40 +118,40 @@ export default function CompanyGroupDetail() {
         {[
           { label: 'Companies', value: vendorSummaries.length.toString(), color: '#A5B4FC' },
           { label: 'Assessed', value: vendorsWithAssessments.length.toString(), color: '#34D399' },
-          { label: 'Avg Score', value: avgScore !== null ? `${avgScore}%` : '—', color: avgScore !== null ? (avgScore >= 70 ? '#34D399' : avgScore >= 40 ? '#FBBF24' : '#F87171') : '#64748B' },
+          { label: 'Avg Score', value: avgScore !== null ? `${avgScore}%` : '—', color: avgScore !== null ? (avgScore >= 70 ? '#34D399' : avgScore >= 40 ? '#FBBF24' : '#F87171') : 'var(--text-3)' },
         ].map(stat => (
-          <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '14px 20px', flex: 1 }}>
+          <div key={stat.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 20px', flex: 1 }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 22, fontWeight: 700, color: stat.color }}>{stat.value}</div>
-            <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#94A3B8', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</div>
+            <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--text-2)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</div>
           </div>
         ))}
       </div>
 
       {/* Comparison Table */}
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: '#CBD5E1', margin: 0 }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+          <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--text-1)', margin: 0 }}>
             CSF Function Scores by Company
           </h2>
         </div>
 
         {vendorSummaries.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#475569', fontFamily: 'Manrope, sans-serif', fontSize: 13 }}>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)', fontFamily: 'Manrope, sans-serif', fontSize: 13 }}>
             No companies in this group yet.
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <th style={{ textAlign: 'left', padding: '10px 20px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 160 }}>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ textAlign: 'left', padding: '10px 20px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 160 }}>
                     Company
                   </th>
-                  <th style={{ textAlign: 'center', padding: '10px 14px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <th style={{ textAlign: 'center', padding: '10px 14px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     Overall
                   </th>
                   {csf_functions.map(fn => (
-                    <th key={fn.id} style={{ textAlign: 'center', padding: '10px 14px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 90 }}>
+                    <th key={fn.id} style={{ textAlign: 'center', padding: '10px 14px', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 90 }}>
                       {fn.id}
                     </th>
                   ))}
@@ -166,11 +166,11 @@ export default function CompanyGroupDetail() {
                     onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
                   >
                     <td style={{ padding: '12px 20px' }}>
-                      <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#E2E8F0' }}>
+                      <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>
                         {vs.vendor.name}
                       </div>
                       {vs.latest_assessment && (
-                        <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#64748B', marginTop: 2 }}>
+                        <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
                           {vs.latest_assessment.name}
                         </div>
                       )}

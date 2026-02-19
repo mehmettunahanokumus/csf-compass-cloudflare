@@ -258,12 +258,12 @@ export default function Vendors() {
       <div style={{ ...card, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: 'var(--surface-1)', borderBottom: `1px solid ${T.borderLight}` }}>
+            <tr style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}>
               {['Vendor', 'Industry', 'Risk Tier', 'Compliance Score', 'Last Assessment', ''].map(h => (
                 <th key={h} style={{
                   textAlign: 'left', padding: '10px 20px',
                   fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
-                  letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMuted,
+                  letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-2)',
                 }}>
                   {h}
                 </th>

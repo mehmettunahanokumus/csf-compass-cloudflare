@@ -59,7 +59,7 @@ export default function CompanyGroups() {
           <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 24, fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
             Company Groups
           </h1>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: '#64748B', marginTop: 4 }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
             Manage holding structures and subsidiary portfolios
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function CompanyGroups() {
 
       {/* Loading */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#64748B', fontFamily: 'Manrope, sans-serif' }}>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-2)', fontFamily: 'Manrope, sans-serif' }}>
           Loading groups...
         </div>
       ) : groups.length === 0 ? (
@@ -149,8 +149,8 @@ export default function CompanyGroups() {
           background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)',
           borderRadius: 12,
         }}>
-          <Building2 size={40} style={{ color: '#334155', margin: '0 auto 16px' }} />
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#475569', margin: 0 }}>
+          <Building2 size={40} style={{ color: 'var(--text-3)', margin: '0 auto 16px' }} />
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--text-2)', margin: 0 }}>
             No company groups yet. Create your first group to organize subsidiaries.
           </p>
         </div>
@@ -161,17 +161,20 @@ export default function CompanyGroups() {
               key={group.id}
               onClick={() => navigate(`/company-groups/${group.id}`)}
               style={{
-                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                background: 'var(--card)', border: '1px solid var(--border)',
                 borderRadius: 12, padding: 20, cursor: 'pointer',
-                transition: 'border-color 0.14s, background 0.14s',
+                boxShadow: 'var(--shadow-xs)',
+                transition: 'border-color 0.14s, background 0.14s, box-shadow 0.14s',
               }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.4)';
+                (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.5)';
                 (e.currentTarget as HTMLDivElement).style.background = 'rgba(99,102,241,0.06)';
+                (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(99,102,241,0.15)';
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.12)';
-                (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.06)';
+                (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
+                (e.currentTarget as HTMLDivElement).style.background = 'var(--card)';
+                (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-xs)';
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -184,27 +187,27 @@ export default function CompanyGroups() {
                     <Building2 size={18} style={{ color: '#818CF8' }} />
                   </div>
                   <div>
-                    <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#CBD5E1' }}>
+                    <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>
                       {group.name}
                     </div>
                     {group.industry && (
-                      <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                      <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>
                         {group.industry}
                       </div>
                     )}
                   </div>
                 </div>
-                <ChevronRight size={16} style={{ color: '#334155', marginTop: 2 }} />
+                <ChevronRight size={16} style={{ color: 'var(--text-3)', marginTop: 2 }} />
               </div>
               {group.description && (
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#94A3B8', marginTop: 12, marginBottom: 0, lineHeight: 1.5 }}>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--text-2)', marginTop: 12, marginBottom: 0, lineHeight: 1.5 }}>
                   {group.description}
                 </p>
               )}
               <div style={{ display: 'flex', gap: 16, marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Users size={13} style={{ color: '#94A3B8' }} />
-                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#94A3B8' }}>
+                  <Users size={13} style={{ color: 'var(--text-2)' }} />
+                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--text-2)' }}>
                     {group.vendor_count ?? 0} companies
                   </span>
                 </div>

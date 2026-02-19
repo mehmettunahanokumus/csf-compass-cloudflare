@@ -147,8 +147,8 @@ html[data-theme="dark"] {
   --t-border-light:   #242740;
   --t-text-primary:   #F1F5F9;
   --t-text-secondary: #94A3B8;
-  --t-text-muted:     #64748B;
-  --t-text-faint:     #475569;
+  --t-text-muted:     #94A3B8;
+  --t-text-faint:     #64748B;
   --t-accent:         #818CF8;
   --t-accent-light:   rgba(129, 140, 248, 0.12);
   --t-accent-border:  rgba(129, 140, 248, 0.25);
