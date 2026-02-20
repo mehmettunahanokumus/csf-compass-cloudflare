@@ -3,239 +3,279 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Search, Shield, MoreVertical,
   Eye, Trash2, Send,
-  CheckCircle2, Clock, FileText, ArrowRight,
+  CheckCircle2, Clock, FileText,
   ChevronDown, X,
 } from 'lucide-react';
 import { assessmentsApi } from '@/api/assessments';
 import type { Assessment } from '@/types';
 import { getErrorMessage } from '@/api/client';
-import { T, card } from '../tokens';
+
+// ── Design tokens (CSS vars) ──────────────────────────────────
+const T = {
+  card:        'var(--card)',
+  border:      'var(--border)',
+  borderLight: 'rgba(148,163,184,0.12)',
+  bg:          'var(--bg)',
+  surface2:    'var(--surface-2)',
+  text1:       'var(--text-1)',
+  text2:       'var(--text-2)',
+  text3:       'var(--text-3)',
+  accent:      'var(--accent)',
+  accentLight: 'rgba(99,102,241,0.08)',
+  success:     '#22C55E',
+  warning:     '#F59E0B',
+  danger:      '#EF4444',
+  dangerLight: 'rgba(239,68,68,0.08)',
+  fontSans:    'var(--font-sans)',
+  fontDisplay: 'var(--font-display)',
+  fontMono:    'var(--font-mono)',
+} as const;
+
+const cardBase = {
+  background:   T.card,
+  border:       `1px solid ${T.border}`,
+  borderRadius: 12,
+} as const;
 
 // ── Helpers ───────────────────────────────────────────────────
+function fmtDate(ts: number) {
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 function scoreColor(s: number) {
   if (s >= 70) return T.success;
   if (s >= 50) return T.warning;
   return T.danger;
 }
 
-const statusConfig: Record<string, { bg: string; color: string; label: string; icon: React.ReactNode }> = {
-  completed:   { bg: T.successLight,             color: T.success,       label: 'Completed',   icon: <CheckCircle2 size={10} /> },
-  in_progress: { bg: T.accentLight,              color: T.accent,        label: 'In Progress', icon: <Clock size={10} /> },
-  draft:       { bg: 'rgba(148,163,184,0.1)',    color: T.textSecondary, label: 'Draft',       icon: <FileText size={10} /> },
+// ── Status Pill ───────────────────────────────────────────────
+const STATUS_CFG: Record<string, { bg: string; color: string; label: string; icon: React.ReactNode }> = {
+  completed:   { bg: 'rgba(34,197,94,0.1)',   color: '#22C55E',        label: 'Completed',   icon: <CheckCircle2 size={10} /> },
+  in_progress: { bg: 'rgba(99,102,241,0.1)',  color: '#6366F1',        label: 'In Progress', icon: <Clock size={10} /> },
+  draft:       { bg: 'rgba(148,163,184,0.1)', color: 'var(--text-3)',  label: 'Draft',       icon: <FileText size={10} /> },
 };
-
 function StatusPill({ status }: { status: string }) {
-  const c = statusConfig[status] ?? statusConfig.draft;
+  const c = STATUS_CFG[status] ?? STATUS_CFG.draft;
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
-      padding: '3px 10px', borderRadius: 100,
+      padding: '3px 9px', borderRadius: 100,
       fontFamily: T.fontSans, fontSize: 11, fontWeight: 700,
-      background: c.bg, color: c.color,
+      background: c.bg, color: c.color, whiteSpace: 'nowrap',
     }}>
       {c.icon} {c.label}
     </span>
   );
 }
 
-// ── Card skeleton ─────────────────────────────────────────────
-function CardSkeleton() {
+// ── Type Badge ────────────────────────────────────────────────
+function TypeBadge({ assessment }: { assessment: Assessment }) {
+  const isOrg   = assessment.assessment_type === 'organization';
+  const isGroup = !isOrg && !!assessment.vendor?.group_id;
+  const tag = isOrg
+    ? { label: 'Self',      bg: 'rgba(99,102,241,0.12)',  color: '#6366F1' }
+    : isGroup
+    ? { label: 'Group Co.', bg: 'rgba(59,130,246,0.12)',  color: '#3B82F6' }
+    : { label: 'Vendor',    bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' };
   return (
-    <div style={{ ...card, padding: 20 }} className="animate-pulse">
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ width: 64, height: 18, borderRadius: 5, background: T.border }} />
-        <div style={{ width: 80, height: 18, borderRadius: 100, background: T.border }} />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center',
+      fontSize: 10, fontWeight: 700, fontFamily: T.fontSans,
+      padding: '2px 7px', borderRadius: 4,
+      background: tag.bg, color: tag.color, letterSpacing: '0.02em', whiteSpace: 'nowrap',
+    }}>
+      {tag.label}
+    </span>
+  );
+}
+
+// ── Row Skeleton ──────────────────────────────────────────────
+function RowSkeleton() {
+  return (
+    <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}
+         className="animate-pulse">
+      <div style={{ width: 72, flexShrink: 0 }}>
+        <div style={{ width: 56, height: 18, borderRadius: 4, background: T.borderLight }} />
       </div>
-      <div style={{ width: '75%', height: 16, borderRadius: 5, background: T.border, marginBottom: 8 }} />
-      <div style={{ width: '45%', height: 12, borderRadius: 5, background: T.borderLight, marginBottom: 20 }} />
-      <div style={{ width: '100%', height: 5, borderRadius: 3, background: T.borderLight, marginBottom: 8 }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 14, borderTop: `1px solid ${T.borderLight}` }}>
-        <div style={{ width: 70, height: 11, borderRadius: 4, background: T.borderLight }} />
-        <div style={{ width: 50, height: 11, borderRadius: 4, background: T.borderLight }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ width: '50%', height: 13, borderRadius: 4, background: T.borderLight, marginBottom: 6 }} />
+        <div style={{ width: '28%', height: 11, borderRadius: 4, background: T.borderLight }} />
       </div>
+      <div style={{ flexShrink: 0, width: 96, display: 'flex', justifyContent: 'center' }}>
+        <div style={{ width: 80, height: 18, borderRadius: 100, background: T.borderLight }} />
+      </div>
+      <div style={{ flexShrink: 0, width: 120, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ width: '100%', height: 4, borderRadius: 2, background: T.borderLight }} />
+        <div style={{ width: 36, height: 10, borderRadius: 3, background: T.borderLight }} />
+      </div>
+      <div style={{ flexShrink: 0, width: 90 }}>
+        <div style={{ width: 70, height: 10, borderRadius: 3, background: T.borderLight, marginLeft: 'auto' }} />
+      </div>
+      <div style={{ flexShrink: 0, width: 28 }} />
     </div>
   );
 }
 
-// ── Assessment Card ───────────────────────────────────────────
-interface CardProps {
+// ── Assessment Row ────────────────────────────────────────────
+function AssessmentRow({ assessment, onView, onDelete, onSendToVendor }: {
   assessment: Assessment;
   onView: () => void;
   onDelete: () => void;
   onSendToVendor: () => void;
-}
-
-function AssessmentCard({ assessment, onView, onDelete, onSendToVendor }: CardProps) {
+}) {
   const score = assessment.overall_score ?? 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [hovered,  setHovered]  = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const h = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [menuOpen]);
 
   return (
     <div
       onClick={onView}
       style={{
-        ...card,
-        padding: 20,
-        cursor: 'pointer',
-        border: `1px solid ${hovered ? '#CBD5E1' : T.border}`,
-        boxShadow: hovered ? '0 6px 20px rgba(15,23,42,0.1)' : '0 1px 3px rgba(15,23,42,0.06)',
-        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-        transition: 'all 0.18s ease',
-        display: 'flex', flexDirection: 'column',
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '14px 18px', cursor: 'pointer',
+        background: hovered ? T.accentLight : 'transparent',
+        transition: 'background 0.15s',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Top row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        {(() => {
-          const isOrg = assessment.assessment_type === 'organization';
-          const isGroup = !isOrg && !!assessment.vendor?.group_id;
-          const tag = isOrg
-            ? { label: 'Self', bg: 'rgba(99,102,241,0.12)', color: '#6366F1' }
-            : isGroup
-            ? { label: 'Group Company', bg: 'rgba(59,130,246,0.12)', color: '#3B82F6' }
-            : { label: 'Vendor', bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' };
-          return (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center',
-              fontSize: 11, fontWeight: 600, fontFamily: T.fontSans,
-              padding: '2px 7px', borderRadius: 4,
-              background: tag.bg, color: tag.color,
-            }}>
-              {tag.label}
-            </span>
-          );
-        })()}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <StatusPill status={assessment.status} />
-          {/* Kebab menu */}
-          <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              style={{
-                width: 26, height: 26, borderRadius: 6,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                color: T.textMuted, transition: 'all 0.12s',
-              }}
-              onMouseEnter={e => { const b = e.currentTarget; b.style.background = '#F1F5F9'; b.style.color = T.textSecondary; }}
-              onMouseLeave={e => { const b = e.currentTarget; b.style.background = 'transparent'; b.style.color = T.textMuted; }}
-            >
-              <MoreVertical size={14} />
-            </button>
-            {menuOpen && (
-              <>
-                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setMenuOpen(false)} />
-                <div style={{
-                  position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
-                  width: 164, background: T.card,
-                  border: `1px solid ${T.border}`, borderRadius: 10,
-                  boxShadow: '0 10px 30px rgba(15,23,42,0.12)',
-                  padding: '4px 0', overflow: 'hidden',
-                }}>
-                  {[
-                    { icon: <Eye size={12} />,  label: 'View Details',   action: onView,         color: T.textPrimary },
-                    ...(assessment.assessment_type === 'vendor'
-                      ? [{ icon: <Send size={12} />, label: 'Send to Vendor', action: onSendToVendor, color: T.accent }]
-                      : []),
-                  ].map(item => (
-                    <button
-                      key={item.label}
-                      onClick={() => { item.action(); setMenuOpen(false); }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        width: '100%', padding: '8px 12px',
-                        fontFamily: T.fontSans, fontSize: 12, fontWeight: 500,
-                        color: item.color, background: 'transparent', border: 'none', cursor: 'pointer',
-                        transition: 'background 0.12s',
-                      }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F8FAFC'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                    >
-                      {item.icon} {item.label}
-                    </button>
-                  ))}
-                  <div style={{ height: 1, background: T.borderLight, margin: '3px 0' }} />
-                  <button
-                    onClick={() => { onDelete(); setMenuOpen(false); }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      width: '100%', padding: '8px 12px',
-                      fontFamily: T.fontSans, fontSize: 12, fontWeight: 500,
-                      color: T.danger, background: 'transparent', border: 'none', cursor: 'pointer',
-                      transition: 'background 0.12s',
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.dangerLight; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                  >
-                    <Trash2 size={12} /> Delete
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+      {/* Type badge column */}
+      <div style={{ flexShrink: 0, width: 72 }}>
+        <TypeBadge assessment={assessment} />
+      </div>
+
+      {/* Name + company column */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+          color: hovered ? T.accent : T.text1,
+          transition: 'color 0.15s',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {assessment.name}
         </div>
-      </div>
-
-      {/* Name */}
-      <div style={{
-        fontFamily: T.fontSans, fontSize: 14, fontWeight: 700,
-        color: hovered ? T.accent : T.textPrimary,
-        transition: 'color 0.15s', marginBottom: 4, lineHeight: 1.35,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
-        {assessment.name}
-      </div>
-
-      {/* Company tag */}
-      {assessment.vendor ? (
-        <div style={{ marginBottom: 16 }}>
+        {assessment.vendor && (
           <span style={{
-            display: 'inline-block',
+            display: 'inline-block', marginTop: 3,
             fontSize: 11, fontWeight: 500, fontFamily: T.fontSans,
-            padding: '2px 7px', borderRadius: 4,
-            background: '#F1F5F9', color: T.textSecondary,
-            maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            padding: '1px 7px', borderRadius: 4,
+            background: T.borderLight, color: T.text2,
+            maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {assessment.vendor.name}
           </span>
-        </div>
-      ) : (
-        <div style={{ height: 16 }} />
-      )}
-
-      {/* Score + bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-        <div style={{ fontFamily: T.fontDisplay, fontSize: 32, fontWeight: 700, lineHeight: 1, color: score > 0 ? scoreColor(score) : T.textFaint }}>
-          {score > 0 ? score.toFixed(0) : '—'}
-        </div>
-        {score > 0 && (
-          <div style={{ fontSize: 13, color: T.textMuted, fontFamily: T.fontSans, alignSelf: 'flex-end', marginBottom: 2 }}>/ 100</div>
         )}
-        <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#F1F5F9', overflow: 'hidden', marginLeft: 4 }}>
-          {score > 0 && (
-            <div style={{ width: `${score}%`, height: '100%', borderRadius: 3, background: scoreColor(score), transition: 'width 0.5s ease' }} />
-          )}
+      </div>
+
+      {/* Status column */}
+      <div style={{ flexShrink: 0, width: 96, display: 'flex', justifyContent: 'center' }}>
+        <StatusPill status={assessment.status} />
+      </div>
+
+      {/* Score column */}
+      <div style={{ flexShrink: 0, width: 120 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+          <div style={{ flex: 1, height: 4, borderRadius: 2, background: T.borderLight, overflow: 'hidden' }}>
+            {score > 0 && (
+              <div style={{
+                width: `${score}%`, height: '100%', borderRadius: 2,
+                background: scoreColor(score), transition: 'width 0.4s ease',
+              }} />
+            )}
+          </div>
+          <span style={{
+            fontFamily: T.fontMono, fontSize: 11, fontWeight: 700, flexShrink: 0,
+            color: score > 0 ? scoreColor(score) : T.text3, minWidth: 34, textAlign: 'right',
+          }}>
+            {score > 0 ? `${score.toFixed(0)}%` : '—'}
+          </span>
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Date column */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        paddingTop: 14, marginTop: 8, borderTop: `1px solid ${T.borderLight}`,
+        flexShrink: 0, width: 90, textAlign: 'right',
+        fontFamily: T.fontMono, fontSize: 10, color: T.text3,
       }}>
-        <span style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textFaint }}>
-          {new Date(assessment.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-        </span>
-        <span style={{
-          fontFamily: T.fontSans, fontSize: 11, fontWeight: 700,
-          color: hovered ? T.accent : T.textMuted,
-          display: 'flex', alignItems: 'center', gap: 3,
-          transition: 'color 0.15s',
-        }}>
-          View <ArrowRight size={11} />
-        </span>
+        {fmtDate(assessment.created_at)}
+      </div>
+
+      {/* Actions column */}
+      <div
+        style={{ flexShrink: 0, width: 28, position: 'relative' }}
+        ref={menuRef}
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          style={{
+            width: 28, height: 28, borderRadius: 6,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: menuOpen ? T.accentLight : 'transparent',
+            border: `1px solid ${menuOpen ? T.border : 'transparent'}`,
+            cursor: 'pointer', color: T.text3, transition: 'all 0.12s',
+          }}
+          onMouseEnter={e => { const b = e.currentTarget; b.style.background = T.surface2; b.style.color = T.text2; }}
+          onMouseLeave={e => { const b = e.currentTarget; b.style.background = menuOpen ? T.accentLight : 'transparent'; b.style.color = T.text3; }}
+        >
+          <MoreVertical size={14} />
+        </button>
+        {menuOpen && (
+          <div style={{
+            position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
+            width: 168, background: T.card,
+            border: `1px solid ${T.border}`, borderRadius: 10,
+            boxShadow: '0 10px 30px rgba(15,23,42,0.12)',
+            padding: '4px 0', overflow: 'hidden',
+          }}>
+            {[
+              { icon: <Eye size={12} />, label: 'View Details', action: onView, color: T.text1 },
+              ...(assessment.assessment_type === 'vendor'
+                ? [{ icon: <Send size={12} />, label: 'Send to Vendor', action: onSendToVendor, color: T.accent }]
+                : []),
+            ].map(item => (
+              <button
+                key={item.label}
+                onClick={() => { item.action(); setMenuOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  width: '100%', padding: '8px 12px',
+                  fontFamily: T.fontSans, fontSize: 12, fontWeight: 500,
+                  color: item.color, background: 'transparent', border: 'none', cursor: 'pointer',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.accentLight; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >
+                {item.icon} {item.label}
+              </button>
+            ))}
+            <div style={{ height: 1, background: T.borderLight, margin: '3px 0' }} />
+            <button
+              onClick={() => { onDelete(); setMenuOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', padding: '8px 12px',
+                fontFamily: T.fontSans, fontSize: 12, fontWeight: 500,
+                color: T.danger, background: 'transparent', border: 'none', cursor: 'pointer',
+                transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.dangerLight; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+            >
+              <Trash2 size={12} /> Delete
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -251,8 +291,8 @@ function FilterTab({ label, active, onClick }: { label: string; active: boolean;
         fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
         border: 'none', cursor: 'pointer', transition: 'all 0.14s',
         background: active ? T.accent : T.card,
-        color:      active ? '#fff' : T.textSecondary,
-        boxShadow:  active ? '0 1px 3px rgba(79,70,229,0.3)' : 'none',
+        color:      active ? '#fff' : T.text2,
+        boxShadow:  active ? '0 1px 3px rgba(99,102,241,0.3)' : 'none',
         outline:    active ? 'none' : `1px solid ${T.border}`,
         whiteSpace: 'nowrap',
       }}
@@ -262,16 +302,13 @@ function FilterTab({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
-// ── Filter Dropdown (no internal search) ─────────────────────
+// ── Filter Dropdown ───────────────────────────────────────────
 type DropdownOption = { value: string; label: string };
 function FilterDropdown({ value, onChange, options }: {
-  value: string;
-  onChange: (v: string) => void;
-  options: DropdownOption[];
+  value: string; onChange: (v: string) => void; options: DropdownOption[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (!open) return;
     const h = (e: MouseEvent) => {
@@ -280,10 +317,8 @@ function FilterDropdown({ value, onChange, options }: {
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
-
   const selected = options.find(o => o.value === value) ?? options[0];
   const isDefault = value === options[0].value;
-
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
@@ -294,7 +329,7 @@ function FilterDropdown({ value, onChange, options }: {
           border: `1px solid ${isDefault ? T.border : T.accent}`,
           background: isDefault ? T.card : T.accentLight,
           fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
-          color: isDefault ? T.textSecondary : T.accent,
+          color: isDefault ? T.text2 : T.accent,
           cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.14s',
         }}
       >
@@ -323,11 +358,11 @@ function FilterDropdown({ value, onChange, options }: {
                   padding: '7px 12px', border: 'none', cursor: 'pointer',
                   fontFamily: T.fontSans, fontSize: 12,
                   fontWeight: value === opt.value ? 700 : 400,
-                  color: value === opt.value ? T.accent : T.textPrimary,
+                  color: value === opt.value ? T.accent : T.text1,
                   background: value === opt.value ? T.accentLight : 'transparent',
                   transition: 'background 0.12s',
                 }}
-                onMouseEnter={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.05)'; }}
+                onMouseEnter={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.04)'; }}
                 onMouseLeave={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
               >
                 {opt.label}
@@ -340,36 +375,27 @@ function FilterDropdown({ value, onChange, options }: {
   );
 }
 
-// ── Entity Dropdown (with internal search for long lists) ─────
+// ── Entity Dropdown ───────────────────────────────────────────
 function EntityDropdown({ options, value, onChange, allLabel, buttonLabel, show }: {
-  options: DropdownOption[];
-  value: string;
-  onChange: (v: string) => void;
-  allLabel: string;
-  buttonLabel: string;
-  show: boolean;
+  options: DropdownOption[]; value: string; onChange: (v: string) => void;
+  allLabel: string; buttonLabel: string; show: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const [innerSearch, setInnerSearch] = useState('');
+  const [open, setOpen]           = useState(false);
+  const [innerSearch, setInner]   = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setInnerSearch(''); }
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setInner(''); }
     };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
 
-  // Close and reset when show changes
-  useEffect(() => {
-    if (!show) { setOpen(false); setInnerSearch(''); }
-  }, [show]);
-
+  useEffect(() => { if (!show) { setOpen(false); setInner(''); } }, [show]);
   if (!show) return null;
 
-  const showSearch = options.length > 5;
   const filtered = innerSearch
     ? options.filter(o => o.label.toLowerCase().includes(innerSearch.toLowerCase()))
     : options;
@@ -386,47 +412,37 @@ function EntityDropdown({ options, value, onChange, allLabel, buttonLabel, show 
           border: `1px solid ${isSelected ? T.accent : T.border}`,
           background: isSelected ? T.accentLight : T.card,
           fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
-          color: isSelected ? T.accent : T.textSecondary,
+          color: isSelected ? T.accent : T.text2,
           cursor: 'pointer', maxWidth: 200, transition: 'all 0.14s',
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selectedLabel ?? buttonLabel}
         </span>
-        <ChevronDown size={12} style={{
-          flexShrink: 0,
-          transform: open ? 'rotate(180deg)' : 'none',
-          transition: 'transform 0.15s',
-        }} />
+        <ChevronDown size={12} style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
       </button>
-
       {open && (
         <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => { setOpen(false); setInnerSearch(''); }} />
+          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => { setOpen(false); setInner(''); }} />
           <div style={{
             position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
             minWidth: 210, maxWidth: 280, background: T.card,
             border: `1px solid ${T.border}`, borderRadius: 10,
             boxShadow: '0 10px 30px rgba(15,23,42,0.15)', overflow: 'hidden',
           }}>
-            {showSearch && (
+            {options.length > 5 && (
               <div style={{ padding: '8px 8px 4px', borderBottom: `1px solid ${T.borderLight}` }}>
                 <div style={{ position: 'relative' }}>
-                  <Search size={11} style={{
-                    position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
-                    color: T.textMuted, pointerEvents: 'none',
-                  }} />
+                  <Search size={11} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: T.text3, pointerEvents: 'none' }} />
                   <input
-                    autoFocus
-                    type="text"
-                    value={innerSearch}
-                    onChange={e => setInnerSearch(e.target.value)}
+                    autoFocus type="text" value={innerSearch}
+                    onChange={e => setInner(e.target.value)}
                     placeholder="Search..."
                     style={{
                       width: '100%', boxSizing: 'border-box',
                       paddingLeft: 26, paddingRight: 8, paddingTop: 5, paddingBottom: 5,
                       border: `1px solid ${T.border}`, borderRadius: 6,
-                      fontFamily: T.fontSans, fontSize: 11, color: T.textPrimary,
+                      fontFamily: T.fontSans, fontSize: 11, color: T.text1,
                       background: T.bg, outline: 'none',
                     }}
                   />
@@ -434,45 +450,38 @@ function EntityDropdown({ options, value, onChange, allLabel, buttonLabel, show 
               </div>
             )}
             <div style={{ maxHeight: 240, overflowY: 'auto', padding: '4px 0' }}>
-              {/* All option */}
               <button
-                onClick={() => { onChange(''); setOpen(false); setInnerSearch(''); }}
+                onClick={() => { onChange(''); setOpen(false); setInner(''); }}
                 style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '7px 12px', border: 'none', cursor: 'pointer',
-                  fontFamily: T.fontSans, fontSize: 12,
-                  fontWeight: !value ? 700 : 400,
-                  color: !value ? T.accent : T.textSecondary,
-                  background: !value ? T.accentLight : 'transparent',
-                  transition: 'background 0.12s',
+                  display: 'block', width: '100%', textAlign: 'left', padding: '7px 12px',
+                  border: 'none', cursor: 'pointer', fontFamily: T.fontSans, fontSize: 12,
+                  fontWeight: !value ? 700 : 400, color: !value ? T.accent : T.text2,
+                  background: !value ? T.accentLight : 'transparent', transition: 'background 0.12s',
                 }}
-                onMouseEnter={e => { if (value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.05)'; }}
+                onMouseEnter={e => { if (value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.04)'; }}
                 onMouseLeave={e => { if (value) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
               >
                 {allLabel}
               </button>
-
               {filtered.length === 0 && (
-                <div style={{ padding: '8px 12px', fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, fontStyle: 'italic' }}>
+                <div style={{ padding: '8px 12px', fontFamily: T.fontSans, fontSize: 11, color: T.text3, fontStyle: 'italic' }}>
                   No matches
                 </div>
               )}
-
               {filtered.map(opt => (
                 <button
                   key={opt.value}
-                  onClick={() => { onChange(opt.value); setOpen(false); setInnerSearch(''); }}
+                  onClick={() => { onChange(opt.value); setOpen(false); setInner(''); }}
                   style={{
-                    display: 'block', width: '100%', textAlign: 'left',
-                    padding: '7px 12px', border: 'none', cursor: 'pointer',
-                    fontFamily: T.fontSans, fontSize: 12,
+                    display: 'block', width: '100%', textAlign: 'left', padding: '7px 12px',
+                    border: 'none', cursor: 'pointer', fontFamily: T.fontSans, fontSize: 12,
                     fontWeight: value === opt.value ? 700 : 400,
-                    color: value === opt.value ? T.accent : T.textPrimary,
+                    color: value === opt.value ? T.accent : T.text1,
                     background: value === opt.value ? T.accentLight : 'transparent',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     transition: 'background 0.12s',
                   }}
-                  onMouseEnter={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.05)'; }}
+                  onMouseEnter={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.04)'; }}
                   onMouseLeave={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 >
                   {opt.label}
@@ -486,90 +495,69 @@ function EntityDropdown({ options, value, onChange, allLabel, buttonLabel, show 
   );
 }
 
+// ── Col header label ──────────────────────────────────────────
+function ColLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
+      textTransform: 'uppercase' as const, color: T.text3,
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────
 export default function Assessments() {
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState<string | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [assessments, setAssessments]     = useState<Assessment[]>([]);
+  const [loading,     setLoading]         = useState(true);
+  const [error,       setError]           = useState<string | null>(null);
+  const [searchParams, setSearchParams]   = useSearchParams();
   const navigate = useNavigate();
 
-  // Derive all filter state from URL params
-  const search      = searchParams.get('q')      ?? '';
-  const typeFilter  = searchParams.get('type')   ?? 'all';
-  const entityFilter= searchParams.get('entity') ?? '';
-  const statusFilter= searchParams.get('status') ?? 'all';
-  const sortFilter  = searchParams.get('sort')   ?? 'newest';
+  const search       = searchParams.get('q')      ?? '';
+  const typeFilter   = searchParams.get('type')   ?? 'all';
+  const entityFilter = searchParams.get('entity') ?? '';
+  const statusFilter = searchParams.get('status') ?? 'all';
+  const sortFilter   = searchParams.get('sort')   ?? 'newest';
 
-  // URL param setters
   const setSearch = (q: string) =>
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      q ? next.set('q', q) : next.delete('q');
-      return next;
-    }, { replace: true });
-
+    setSearchParams(prev => { const n = new URLSearchParams(prev); q ? n.set('q', q) : n.delete('q'); return n; }, { replace: true });
   const setTypeFilter = (type: string) =>
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      type !== 'all' ? next.set('type', type) : next.delete('type');
-      next.delete('entity'); // reset entity when type changes
-      return next;
-    });
-
+    setSearchParams(prev => { const n = new URLSearchParams(prev); type !== 'all' ? n.set('type', type) : n.delete('type'); n.delete('entity'); return n; });
   const setEntityFilter = (entity: string) =>
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      entity ? next.set('entity', entity) : next.delete('entity');
-      return next;
-    });
-
+    setSearchParams(prev => { const n = new URLSearchParams(prev); entity ? n.set('entity', entity) : n.delete('entity'); return n; });
   const setStatusFilter = (status: string) =>
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      status !== 'all' ? next.set('status', status) : next.delete('status');
-      return next;
-    });
-
+    setSearchParams(prev => { const n = new URLSearchParams(prev); status !== 'all' ? n.set('status', status) : n.delete('status'); return n; });
   const setSortFilter = (sort: string) =>
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      sort !== 'newest' ? next.set('sort', sort) : next.delete('sort');
-      return next;
-    });
+    setSearchParams(prev => { const n = new URLSearchParams(prev); sort !== 'newest' ? n.set('sort', sort) : n.delete('sort'); return n; });
 
-  const isFiltered = !!(search || typeFilter !== 'all' || entityFilter || statusFilter !== 'all' || sortFilter !== 'newest');
+  const isFiltered   = !!(search || typeFilter !== 'all' || entityFilter || statusFilter !== 'all' || sortFilter !== 'newest');
   const clearFilters = () => setSearchParams({});
 
   useEffect(() => { loadData(); }, []);
-
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await assessmentsApi.list();
-      setAssessments(data);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+      setAssessments(await assessmentsApi.list());
+    } catch (err) { setError(getErrorMessage(err)); }
+    finally { setLoading(false); }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await assessmentsApi.delete(id);
       setAssessments(a => a.filter(x => x.id !== id));
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
+    } catch (err) { setError(getErrorMessage(err)); }
   };
 
-  // Build entity option lists from loaded assessments
+  // Entity option lists
   const subsidiaries = useMemo<DropdownOption[]>(() => {
     const seen = new Set<string>();
     const out: DropdownOption[] = [];
     for (const a of assessments) {
-      if (a.assessment_type === 'vendor' && a.vendor && a.vendor.group_id && a.vendor_id && !seen.has(a.vendor_id)) {
+      if (a.assessment_type === 'vendor' && a.vendor?.group_id && a.vendor_id && !seen.has(a.vendor_id)) {
         seen.add(a.vendor_id);
         out.push({ value: a.vendor_id, label: a.vendor.name });
       }
@@ -592,13 +580,11 @@ export default function Assessments() {
   const showEntityDropdown = typeFilter === 'group_company' || typeFilter === 'vendor';
   const entityOptions  = typeFilter === 'group_company' ? subsidiaries : externalVendors;
   const entityAllLabel = typeFilter === 'group_company' ? 'All Group Companies' : 'All Vendors';
-  const entityBtnLabel = typeFilter === 'group_company' ? 'Select company...' : 'Select vendor...';
+  const entityBtnLabel = typeFilter === 'group_company' ? 'Select company...'   : 'Select vendor...';
 
-  // Filtered + sorted assessments
+  // Filtered + sorted list
   const filtered = useMemo(() => {
     let result = assessments;
-
-    // Search (name + vendor name)
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(a =>
@@ -606,67 +592,52 @@ export default function Assessments() {
         (a.vendor?.name?.toLowerCase().includes(q) ?? false)
       );
     }
-
-    // Type filter
-    if (typeFilter === 'self') {
-      result = result.filter(a => a.assessment_type === 'organization');
-    } else if (typeFilter === 'group_company') {
-      result = result.filter(a => a.assessment_type === 'vendor' && !!a.vendor?.group_id);
-    } else if (typeFilter === 'vendor') {
-      result = result.filter(a => a.assessment_type === 'vendor' && !a.vendor?.group_id);
-    }
-
-    // Entity filter (specific subsidiary or vendor)
-    if (entityFilter) {
-      result = result.filter(a => a.vendor_id === entityFilter);
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      result = result.filter(a => a.status === statusFilter);
-    }
-
-    // Sort
+    if (typeFilter === 'self')           result = result.filter(a => a.assessment_type === 'organization');
+    else if (typeFilter === 'group_company') result = result.filter(a => a.assessment_type === 'vendor' && !!a.vendor?.group_id);
+    else if (typeFilter === 'vendor')    result = result.filter(a => a.assessment_type === 'vendor' && !a.vendor?.group_id);
+    if (entityFilter)                    result = result.filter(a => a.vendor_id === entityFilter);
+    if (statusFilter !== 'all')          result = result.filter(a => a.status === statusFilter);
     result = [...result];
-    if (sortFilter === 'oldest') {
-      result.sort((a, b) => a.created_at - b.created_at);
-    } else if (sortFilter === 'score_high') {
-      result.sort((a, b) => (b.overall_score ?? 0) - (a.overall_score ?? 0));
-    } else if (sortFilter === 'score_low') {
-      result.sort((a, b) => (a.overall_score ?? 0) - (b.overall_score ?? 0));
-    } else {
-      // newest (default)
-      result.sort((a, b) => b.created_at - a.created_at);
-    }
-
+    if (sortFilter === 'oldest')        result.sort((a, b) => a.created_at - b.created_at);
+    else if (sortFilter === 'score_high') result.sort((a, b) => (b.overall_score ?? 0) - (a.overall_score ?? 0));
+    else if (sortFilter === 'score_low')  result.sort((a, b) => (a.overall_score ?? 0) - (b.overall_score ?? 0));
+    else                                 result.sort((a, b) => b.created_at - a.created_at);
     return result;
   }, [assessments, search, typeFilter, entityFilter, statusFilter, sortFilter]);
 
-  const completed  = assessments.filter(a => a.status === 'completed').length;
-  const inProgress = assessments.filter(a => a.status === 'in_progress').length;
-  const drafts     = assessments.filter(a => a.status === 'draft').length;
+  // Stats
+  const completed  = useMemo(() => assessments.filter(a => a.status === 'completed').length,   [assessments]);
+  const inProgress = useMemo(() => assessments.filter(a => a.status === 'in_progress').length,  [assessments]);
+  const drafts     = useMemo(() => assessments.filter(a => a.status === 'draft').length,        [assessments]);
+  const avgScore   = useMemo(() => {
+    const scored = assessments.filter(a => a.status === 'completed' && (a.overall_score ?? 0) > 0);
+    if (!scored.length) return 0;
+    return Math.round(scored.reduce((s, a) => s + (a.overall_score ?? 0), 0) / scored.length);
+  }, [assessments]);
 
   if (error) {
     return (
-      <div style={{ ...card, padding: '16px 20px', background: T.dangerLight, borderColor: 'rgba(220,38,38,0.2)' }}>
+      <div style={{ ...cardBase, padding: '16px 20px', background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.2)' }}>
         <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.danger, margin: 0 }}>{error}</p>
       </div>
     );
   }
 
+  const avgScoreColor = avgScore >= 70 ? T.success : avgScore >= 50 ? T.warning : avgScore > 0 ? T.danger : T.text3;
+
   return (
     <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* Header */}
+      {/* ── Header ───────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h1 style={{ fontFamily: T.fontSans, fontSize: 22, fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.02em', margin: 0 }}>
+          <h1 style={{ fontFamily: T.fontSans, fontSize: 22, fontWeight: 800, color: T.text1, letterSpacing: '-0.02em', margin: 0 }}>
             Assessments
           </h1>
-          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, marginTop: 3 }}>
+          <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2, marginTop: 3, marginBottom: 0 }}>
             NIST CSF 2.0 security evaluations
-            {assessments.length > 0 && (
-              <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.textFaint, marginLeft: 8 }}>
+            {!loading && assessments.length > 0 && (
+              <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.text3, marginLeft: 8 }}>
                 · {assessments.length} total
               </span>
             )}
@@ -680,37 +651,38 @@ export default function Assessments() {
               background: T.accent, color: '#fff',
               fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
               border: 'none', cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(79,70,229,0.3)',
-              transition: 'background 0.15s, box-shadow 0.15s',
+              boxShadow: '0 1px 3px rgba(99,102,241,0.3)',
+              transition: 'opacity 0.15s, box-shadow 0.15s',
             }}
-            onMouseEnter={e => { const b = e.currentTarget; b.style.background = '#4338CA'; b.style.boxShadow = '0 4px 12px rgba(79,70,229,0.35)'; }}
-            onMouseLeave={e => { const b = e.currentTarget; b.style.background = T.accent;  b.style.boxShadow = '0 1px 3px rgba(79,70,229,0.3)'; }}
+            onMouseEnter={e => { const b = e.currentTarget; b.style.opacity = '0.9'; b.style.boxShadow = '0 4px 12px rgba(99,102,241,0.35)'; }}
+            onMouseLeave={e => { const b = e.currentTarget; b.style.opacity = '1';   b.style.boxShadow = '0 1px 3px rgba(99,102,241,0.3)'; }}
           >
             <Plus size={15} /> New Assessment
           </button>
         </Link>
       </div>
 
-      {/* Stats strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      {/* ── Stats strip ──────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {[
-          { icon: <CheckCircle2 size={16} />, label: 'Completed',   count: completed,  color: T.success     },
-          { icon: <Clock size={16} />,        label: 'In Progress', count: inProgress, color: T.accent      },
-          { icon: <FileText size={16} />,     label: 'Draft',       count: drafts,     color: T.textMuted   },
+          { icon: <CheckCircle2 size={15} />, label: 'Completed',   value: loading ? '—' : String(completed),  color: '#22C55E',      lightBg: 'rgba(34,197,94,0.1)'  },
+          { icon: <Clock size={15} />,        label: 'In Progress', value: loading ? '—' : String(inProgress), color: '#6366F1',      lightBg: 'rgba(99,102,241,0.1)' },
+          { icon: <FileText size={15} />,     label: 'Draft',       value: loading ? '—' : String(drafts),     color: T.text3,        lightBg: T.borderLight          },
+          { icon: <Shield size={15} />,       label: 'Avg Score',   value: loading ? '—' : (avgScore > 0 ? `${avgScore}%` : '—'), color: avgScoreColor, lightBg: avgScore >= 70 ? 'rgba(34,197,94,0.1)' : avgScore >= 50 ? 'rgba(245,158,11,0.1)' : avgScore > 0 ? 'rgba(239,68,68,0.1)' : T.borderLight },
         ].map(s => (
-          <div key={s.label} style={{ ...card, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div key={s.label} style={{ ...cardBase, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-              background: `${s.color}10`, border: `1px solid ${s.color}20`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color,
+              background: s.lightBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: s.color,
             }}>
               {s.icon}
             </div>
             <div>
-              <div style={{ fontFamily: T.fontDisplay, fontSize: 28, fontWeight: 700, color: s.color, lineHeight: 1 }}>
-                {loading ? '—' : s.count}
+              <div style={{ fontFamily: T.fontDisplay, fontSize: 26, fontWeight: 700, color: s.color, lineHeight: 1 }}>
+                {s.value}
               </div>
-              <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.textMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.text3, marginTop: 2 }}>
                 {s.label}
               </div>
             </div>
@@ -718,81 +690,56 @@ export default function Assessments() {
         ))}
       </div>
 
-      {/* ── Filter Bar ─────────────────────────────────────────── */}
+      {/* ── Filter bar ───────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-
           {/* Search */}
           <div style={{ position: 'relative' }}>
-            <Search size={13} style={{
-              position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
-              color: T.textMuted, pointerEvents: 'none',
-            }} />
+            <Search size={13} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.text3, pointerEvents: 'none' }} />
             <input
-              type="text"
-              placeholder="Search assessments..."
-              value={search}
+              type="text" placeholder="Search assessments..." value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
-                width: 200, paddingLeft: 32, paddingRight: search ? 28 : 12,
+                width: 210, paddingLeft: 32, paddingRight: search ? 28 : 12,
                 paddingTop: 7, paddingBottom: 7,
                 borderRadius: 8, border: `1px solid ${T.border}`,
-                fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
-                background: T.card, outline: 'none',
-                boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
-                transition: 'border-color 0.15s',
+                fontFamily: T.fontSans, fontSize: 12, color: T.text1,
+                background: T.card, outline: 'none', transition: 'border-color 0.15s',
               }}
-              onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
-              onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
+              onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.accent; }}
+              onBlur={e  => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                style={{
-                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', color: T.textMuted, padding: 0,
-                }}
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: T.text3, padding: 0 }}
               >
                 <X size={11} />
               </button>
             )}
           </div>
 
-          {/* Divider */}
           <div style={{ width: 1, height: 24, background: T.borderLight }} />
 
           {/* Type tabs */}
           <div style={{ display: 'flex', gap: 4 }}>
             {[
-              { id: 'all',           label: 'All'        },
-              { id: 'group_company', label: 'Group Co.'  },
-              { id: 'vendor',        label: 'Vendor'     },
-              { id: 'self',          label: 'Self'        },
+              { id: 'all',           label: 'All'       },
+              { id: 'group_company', label: 'Group Co.' },
+              { id: 'vendor',        label: 'Vendor'    },
+              { id: 'self',          label: 'Self'      },
             ].map(t => (
-              <FilterTab
-                key={t.id}
-                label={t.label}
-                active={typeFilter === t.id}
-                onClick={() => setTypeFilter(t.id)}
-              />
+              <FilterTab key={t.id} label={t.label} active={typeFilter === t.id} onClick={() => setTypeFilter(t.id)} />
             ))}
           </div>
 
-          {/* Entity dropdown — appears only when Group Co. or Vendor is selected */}
           <EntityDropdown
-            options={entityOptions}
-            value={entityFilter}
-            onChange={setEntityFilter}
-            allLabel={entityAllLabel}
-            buttonLabel={entityBtnLabel}
-            show={showEntityDropdown}
+            options={entityOptions} value={entityFilter} onChange={setEntityFilter}
+            allLabel={entityAllLabel} buttonLabel={entityBtnLabel} show={showEntityDropdown}
           />
 
-          {/* Status dropdown */}
           <FilterDropdown
-            value={statusFilter}
-            onChange={setStatusFilter}
+            value={statusFilter} onChange={setStatusFilter}
             options={[
               { value: 'all',         label: 'All Status'  },
               { value: 'completed',   label: 'Completed'   },
@@ -801,30 +748,25 @@ export default function Assessments() {
             ]}
           />
 
-          {/* Sort dropdown */}
           <FilterDropdown
-            value={sortFilter}
-            onChange={setSortFilter}
+            value={sortFilter} onChange={setSortFilter}
             options={[
-              { value: 'newest',     label: 'Newest First'   },
-              { value: 'oldest',     label: 'Oldest First'   },
-              { value: 'score_high', label: 'Highest Score'  },
-              { value: 'score_low',  label: 'Lowest Score'   },
+              { value: 'newest',     label: 'Newest First'  },
+              { value: 'oldest',     label: 'Oldest First'  },
+              { value: 'score_high', label: 'Highest Score' },
+              { value: 'score_low',  label: 'Lowest Score'  },
             ]}
           />
 
-          {/* Clear filters */}
           {isFiltered && (
             <button
               onClick={clearFilters}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
                 padding: '7px 12px', borderRadius: 8,
-                border: `1px solid rgba(239,68,68,0.25)`,
-                background: 'rgba(239,68,68,0.06)',
+                border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.06)',
                 fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
-                color: T.danger, cursor: 'pointer', transition: 'all 0.14s',
-                whiteSpace: 'nowrap',
+                color: T.danger, cursor: 'pointer', transition: 'all 0.14s', whiteSpace: 'nowrap',
               }}
               onMouseEnter={e => { const b = e.currentTarget; b.style.background = 'rgba(239,68,68,0.12)'; b.style.borderColor = 'rgba(239,68,68,0.4)'; }}
               onMouseLeave={e => { const b = e.currentTarget; b.style.background = 'rgba(239,68,68,0.06)'; b.style.borderColor = 'rgba(239,68,68,0.25)'; }}
@@ -834,36 +776,46 @@ export default function Assessments() {
           )}
         </div>
 
-        {/* Result count */}
         {!loading && (
-          <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
+          <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2 }}>
             Showing{' '}
-            <span style={{ fontWeight: 700, color: T.textSecondary }}>{filtered.length}</span>
+            <span style={{ fontWeight: 700, color: T.text1 }}>{filtered.length}</span>
             {' '}assessment{filtered.length !== 1 ? 's' : ''}
             {isFiltered && assessments.length !== filtered.length && (
-              <span style={{ color: T.textFaint }}> · {assessments.length} total</span>
+              <span style={{ color: T.text3 }}> · {assessments.length} total</span>
             )}
           </div>
         )}
       </div>
 
-      {/* Grid */}
+      {/* ── List ─────────────────────────────────────────────── */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+        <div style={{ ...cardBase, overflow: 'hidden' }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i}>
+              {i > 0 && <div style={{ height: 1, background: T.borderLight, margin: '0 18px' }} />}
+              <RowSkeleton />
+            </div>
+          ))}
         </div>
+
       ) : filtered.length === 0 ? (
         <div style={{
-          ...card, display: 'flex', flexDirection: 'column', alignItems: 'center',
+          ...cardBase,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
           justifyContent: 'center', padding: '64px 24px', gap: 12,
         }}>
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Shield size={24} style={{ color: T.textFaint }} />
+          <div style={{
+            width: 52, height: 52, borderRadius: 14,
+            background: T.borderLight,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Shield size={24} style={{ color: T.text3 }} />
           </div>
-          <div style={{ fontFamily: T.fontSans, fontSize: 15, fontWeight: 700, color: T.textPrimary }}>
+          <div style={{ fontFamily: T.fontSans, fontSize: 15, fontWeight: 700, color: T.text1 }}>
             {isFiltered ? 'No assessments match filters' : 'No assessments yet'}
           </div>
-          <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', maxWidth: 300 }}>
+          <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2, textAlign: 'center', maxWidth: 300 }}>
             {isFiltered
               ? 'Try adjusting your search or filter criteria'
               : 'Create your first security assessment to start evaluating NIST CSF compliance'}
@@ -876,7 +828,7 @@ export default function Assessments() {
                 padding: '8px 16px', borderRadius: 8, marginTop: 4,
                 border: `1px solid ${T.border}`, background: T.card,
                 fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
-                color: T.textSecondary, cursor: 'pointer',
+                color: T.text2, cursor: 'pointer',
               }}
             >
               <X size={12} /> Clear all filters
@@ -895,11 +847,29 @@ export default function Assessments() {
             </Link>
           )}
         </div>
+
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+        <div style={{ ...cardBase, overflow: 'hidden' }}>
+          {/* Table header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 14,
+            padding: '10px 18px',
+            background: T.surface2,
+            borderBottom: `1px solid ${T.border}`,
+          }}>
+            <ColLabel style={{ flexShrink: 0, width: 72 }}>Type</ColLabel>
+            <ColLabel style={{ flex: 1 }}>Assessment</ColLabel>
+            <ColLabel style={{ flexShrink: 0, width: 96, textAlign: 'center' }}>Status</ColLabel>
+            <ColLabel style={{ flexShrink: 0, width: 120 }}>Score</ColLabel>
+            <ColLabel style={{ flexShrink: 0, width: 90, textAlign: 'right' }}>Created</ColLabel>
+            <div style={{ flexShrink: 0, width: 28 }} />
+          </div>
+
+          {/* Rows */}
           {filtered.map((a, i) => (
-            <div key={a.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 40}ms` }}>
-              <AssessmentCard
+            <div key={a.id} className="animate-fade-in-up" style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}>
+              {i > 0 && <div style={{ height: 1, background: T.borderLight, margin: '0 18px' }} />}
+              <AssessmentRow
                 assessment={a}
                 onView={() => navigate(`/assessments/${a.id}`)}
                 onDelete={() => handleDelete(a.id)}
