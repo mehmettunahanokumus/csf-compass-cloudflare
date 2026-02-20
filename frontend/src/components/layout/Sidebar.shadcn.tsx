@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { CsfLogo } from '../CsfLogo';
+import CompassLogo from '../CompassLogo';
 
 const LS_LOGO  = 'csf-org-logo';
 const LS_NAME  = 'csf-org-name';
@@ -165,7 +165,7 @@ export default function AppSidebar({ open, onClose }: Props) {
           }}>
             {orgLogo
               ? <img src={orgLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              : <CsfLogo size={34} />
+              : <CompassLogo size={34} />
             }
           </div>
 
