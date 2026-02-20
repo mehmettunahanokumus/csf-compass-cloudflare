@@ -174,7 +174,7 @@ export default function AppSidebar({ open, onClose }: Props) {
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <div style={{
                 fontFamily: 'Manrope, sans-serif',
-                fontWeight: 800,
+                fontWeight: 600,
                 fontSize: 14,
                 color: '#F8FAFC',
                 letterSpacing: '-0.01em',
@@ -182,19 +182,21 @@ export default function AppSidebar({ open, onClose }: Props) {
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}>
-                {orgName || 'CSF Compass'}
+                Compass
               </div>
-              <div style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 9,
-                color: '#818CF8',
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                opacity: 0.75,
-                marginTop: 1,
-              }}>
-                NIST CSF 2.0
-              </div>
+              {orgName && (
+                <div style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 11,
+                  color: 'var(--text-3)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  marginTop: 1,
+                }}>
+                  {orgName}
+                </div>
+              )}
             </div>
           )}
 
