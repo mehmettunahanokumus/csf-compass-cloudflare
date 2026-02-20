@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
+import { CsfLogo } from '../CsfLogo';
 
 const LS_LOGO  = 'csf-org-logo';
 const LS_NAME  = 'csf-org-name';
@@ -13,7 +14,6 @@ import {
   FileDown,
   Settings,
   User,
-  ShieldCheck,
   ChevronLeft,
   ChevronRight,
   X,
@@ -150,13 +150,13 @@ export default function AppSidebar({ open, onClose }: Props) {
           overflow: 'hidden',
           transition: 'padding 0.22s',
         }}>
-          {/* Logo icon — custom or default shield */}
+          {/* Logo icon — custom org logo or CSF Compass brand mark */}
           <div style={{
             width: 36,
             height: 36,
             borderRadius: 10,
-            background: 'rgba(99,102,241,0.18)',
-            border: '1px solid rgba(99,102,241,0.3)',
+            background: orgLogo ? 'rgba(255,255,255,0.06)' : 'transparent',
+            border: orgLogo ? '1px solid rgba(255,255,255,0.1)' : 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -165,7 +165,7 @@ export default function AppSidebar({ open, onClose }: Props) {
           }}>
             {orgLogo
               ? <img src={orgLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              : <ShieldCheck size={18} style={{ color: '#818CF8' }} />
+              : <CsfLogo size={34} />
             }
           </div>
 
