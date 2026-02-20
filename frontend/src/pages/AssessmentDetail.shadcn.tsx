@@ -21,25 +21,31 @@ import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 const T = {
   card:         'var(--card)',
   border:       'var(--border)',
+  borderLight:  'rgba(148,163,184,0.12)',
   text1:        'var(--text-1)',
   text2:        'var(--text-2)',
   text3:        'var(--text-3)',
-  bg:           'var(--bg)',
   surface2:     'var(--surface-2)',
-  accent:       '#6366F1',
+  accent:       'var(--accent)',
   accentLight:  'rgba(99,102,241,0.08)',
   accentBorder: 'rgba(99,102,241,0.25)',
-  success:      '#16A34A',
-  successLight: 'rgba(22,163,74,0.08)',
-  successBorder:'rgba(22,163,74,0.25)',
-  warning:      '#D97706',
-  warningLight: 'rgba(217,119,6,0.08)',
-  warningBorder:'rgba(217,119,6,0.25)',
-  danger:       '#DC2626',
-  dangerLight:  'rgba(220,38,38,0.08)',
-  dangerBorder: 'rgba(220,38,38,0.25)',
-  font:         'Manrope, sans-serif',
-  mono:         'JetBrains Mono, monospace',
+  success:      '#22C55E',
+  successLight: 'rgba(34,197,94,0.08)',
+  successBorder:'rgba(34,197,94,0.25)',
+  warning:      '#F59E0B',
+  warningLight: 'rgba(245,158,11,0.08)',
+  warningBorder:'rgba(245,158,11,0.25)',
+  danger:       '#EF4444',
+  dangerLight:  'rgba(239,68,68,0.08)',
+  dangerBorder: 'rgba(239,68,68,0.25)',
+  fontSans:     'var(--font-sans)',
+  fontMono:     'var(--font-mono)',
+};
+
+const cardBase: React.CSSProperties = {
+  background: 'var(--card)',
+  border: '1px solid var(--border)',
+  borderRadius: 12,
 };
 
 // Avatar color seeded from assessment name
@@ -63,7 +69,7 @@ function AssessmentStatusBadge({ status }: { status: string }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
-      fontFamily: T.font, fontSize: 11, fontWeight: 600,
+      fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
       padding: '2px 8px', borderRadius: 20,
       background: s.bg, color: s.color,
     }}>{s.label}</span>
@@ -81,7 +87,7 @@ function TypeBadge({ assessment }: { assessment: Assessment }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
-      fontFamily: T.font, fontSize: 11, fontWeight: 600,
+      fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
       padding: '2px 8px', borderRadius: 4,
       background: s.bg, color: s.color,
     }}>{s.label}</span>
@@ -100,7 +106,7 @@ function ItemStatusBadge({ status }: { status: string }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', flexShrink: 0,
-      fontFamily: T.font, fontSize: 11, fontWeight: 600,
+      fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
       padding: '2px 8px', borderRadius: 20,
       background: s.bg, color: s.color,
     }}>{s.label}</span>
@@ -119,7 +125,7 @@ function InvitationBadge({ status }: { status: string }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
-      fontFamily: T.font, fontSize: 11, fontWeight: 600,
+      fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
       padding: '2px 8px', borderRadius: 20,
       background: s.bg, color: s.color,
     }}>{status}</span>
@@ -261,7 +267,7 @@ export default function AssessmentDetail() {
   if (error || !assessment) {
     return (
       <div style={{ padding: 16, borderRadius: 12, background: T.dangerLight, border: `1px solid ${T.dangerBorder}` }}>
-        <p style={{ fontFamily: T.font, fontSize: 13, color: T.danger, margin: 0 }}>
+        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.danger, margin: 0 }}>
           {error || 'Assessment not found'}
         </p>
       </div>
@@ -289,7 +295,7 @@ export default function AssessmentDetail() {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 14px', borderRadius: 8,
     background: T.card, border: `1px solid ${T.border}`,
-    fontFamily: T.font, fontSize: 13, fontWeight: 500,
+    fontFamily: T.fontSans, fontSize: 13, fontWeight: 500,
     color: T.text2, cursor: 'pointer',
   };
 
@@ -303,7 +309,7 @@ export default function AssessmentDetail() {
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start',
-          fontFamily: T.font, fontSize: 13, color: T.text2, padding: '4px 0',
+          fontFamily: T.fontSans, fontSize: 13, color: T.text2, padding: '4px 0',
         }}
         onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = T.text1}
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = T.text2}
@@ -323,29 +329,29 @@ export default function AssessmentDetail() {
           background: `${color}1A`, border: `1.5px solid ${color}35`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontFamily: T.font, fontSize: 20, fontWeight: 800, color }}>{assessment.name.charAt(0).toUpperCase()}</span>
+          <span style={{ fontFamily: T.fontSans, fontSize: 20, fontWeight: 800, color }}>{assessment.name.charAt(0).toUpperCase()}</span>
         </div>
 
         {/* Name + badges + meta */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-            <h1 style={{ fontFamily: T.font, fontSize: 20, fontWeight: 800, color: T.text1, margin: 0, letterSpacing: '-0.01em' }}>
+            <h1 style={{ fontFamily: T.fontSans, fontSize: 20, fontWeight: 800, color: T.text1, margin: 0, letterSpacing: '-0.01em' }}>
               {assessment.name}
             </h1>
             <TypeBadge assessment={assessment} />
             <AssessmentStatusBadge status={assessment.status} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: T.mono, fontSize: 11, color: T.text3 }}>NIST CSF 2.0</span>
+            <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.text3 }}>NIST CSF 2.0</span>
             <span style={{ color: T.text3, fontSize: 11 }}>·</span>
-            <span style={{ fontFamily: T.mono, fontSize: 11, color: T.text3 }}>
+            <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.text3 }}>
               Created {formatDate(assessment.created_at)}
             </span>
             {assessment.vendor && (
               <>
                 <span style={{ color: T.text3, fontSize: 11 }}>·</span>
                 <span style={{
-                  fontFamily: T.font, fontSize: 11, fontWeight: 500,
+                  fontFamily: T.fontSans, fontSize: 11, fontWeight: 500,
                   padding: '2px 8px', borderRadius: 4,
                   background: T.surface2, color: T.text2,
                 }}>
@@ -357,7 +363,7 @@ export default function AssessmentDetail() {
               <>
                 <span style={{ color: T.text3, fontSize: 11 }}>·</span>
                 <span style={{
-                  fontFamily: T.font, fontSize: 11, color: T.text3,
+                  fontFamily: T.fontSans, fontSize: 11, color: T.text3,
                   maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {assessment.description}
@@ -391,7 +397,7 @@ export default function AssessmentDetail() {
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '7px 14px', borderRadius: 8,
               background: T.accent, border: 'none',
-              fontFamily: T.font, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
+              fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
             }}
           >
             <FileText size={14} /> Report
@@ -421,7 +427,7 @@ export default function AssessmentDetail() {
                 {isVendor && !invitation && (
                   <button
                     onClick={() => { setShowMenu(false); setShowInviteDialog(true); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.font, fontSize: 13, color: T.text2, cursor: 'pointer', textAlign: 'left' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.fontSans, fontSize: 13, color: T.text2, cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.accentLight}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'none'}
                   >
@@ -431,7 +437,7 @@ export default function AssessmentDetail() {
                 {isVendor && invitation && (
                   <button
                     onClick={() => { setShowMenu(false); setShowVendorLink(v => !v); setActiveTab('vendor'); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.font, fontSize: 13, color: T.text2, cursor: 'pointer', textAlign: 'left' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.fontSans, fontSize: 13, color: T.text2, cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.accentLight}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'none'}
                   >
@@ -441,7 +447,7 @@ export default function AssessmentDetail() {
                 {isVendor && invitation?.invitation_status === 'completed' && (
                   <button
                     onClick={() => { setShowMenu(false); navigate(`/assessments/${id}/comparison`); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.font, fontSize: 13, color: T.text2, cursor: 'pointer', textAlign: 'left' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.fontSans, fontSize: 13, color: T.text2, cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.accentLight}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'none'}
                   >
@@ -451,7 +457,7 @@ export default function AssessmentDetail() {
                 {(isVendor) && <div style={{ height: 1, background: T.border, margin: '4px 0' }} />}
                 <button
                   onClick={() => { setShowMenu(false); setDeleteOpen(true); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.font, fontSize: 13, color: T.danger, cursor: 'pointer', textAlign: 'left' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.fontSans, fontSize: 13, color: T.danger, cursor: 'pointer', textAlign: 'left' }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.dangerLight}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'none'}
                 >
@@ -476,17 +482,14 @@ export default function AssessmentDetail() {
           { label: 'Partial',       value: stats.partial,      sub: `of ${total} controls`, color: T.warning },
           { label: 'Non-Compliant', value: stats.nonCompliant, sub: `of ${total} controls`, color: T.danger  },
         ].map(s => (
-          <div key={s.label} style={{
-            background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 12, padding: '16px 20px',
-          }}>
-            <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+          <div key={s.label} style={{ ...cardBase, padding: '16px 20px' }}>
+            <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               {s.label}
             </div>
-            <div style={{ fontFamily: T.mono, fontSize: 26, fontWeight: 700, color: s.color, lineHeight: 1 }}>
+            <div style={{ fontFamily: T.fontMono, fontSize: 26, fontWeight: 700, color: s.color, lineHeight: 1 }}>
               {s.value}
             </div>
-            <div style={{ fontFamily: T.font, fontSize: 11, color: T.text3, marginTop: 4 }}>
+            <div style={{ fontFamily: T.fontSans, fontSize: 11, color: T.text3, marginTop: 4 }}>
               {s.sub}
             </div>
           </div>
@@ -504,7 +507,7 @@ export default function AssessmentDetail() {
                 onClick={() => setActiveTab(tab.key)}
                 style={{
                   padding: '10px 18px', background: 'none', border: 'none', cursor: 'pointer',
-                  fontFamily: T.font, fontSize: 13,
+                  fontFamily: T.fontSans, fontSize: 13,
                   fontWeight: isActive ? 700 : 500,
                   color: isActive ? T.accent : T.text2,
                   borderBottom: isActive ? `2px solid ${T.accent}` : '2px solid transparent',
@@ -523,8 +526,8 @@ export default function AssessmentDetail() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
           {/* Compliance distribution */}
-          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '20px 24px' }}>
-            <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          <div style={{ ...cardBase, padding: '20px 24px' }}>
+            <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
               Compliance Distribution
             </div>
             {/* Stacked bar */}
@@ -545,8 +548,8 @@ export default function AssessmentDetail() {
               ].map(item => (
                 <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-                  <span style={{ fontFamily: T.font, fontSize: 12, color: T.text2 }}>{item.label}</span>
-                  <span style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 700, color: item.color }}>{item.value}</span>
+                  <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2 }}>{item.label}</span>
+                  <span style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 700, color: item.color }}>{item.value}</span>
                 </div>
               ))}
             </div>
@@ -554,7 +557,7 @@ export default function AssessmentDetail() {
 
           {/* Assessment tools */}
           <div>
-            <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+            <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
               Assessment Tools
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
@@ -594,10 +597,10 @@ export default function AssessmentDetail() {
                     }}>
                       <Icon size={20} style={{ color: c.color }} />
                     </div>
-                    <div style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, color: T.text1, marginBottom: 6 }}>
+                    <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: T.text1, marginBottom: 6 }}>
                       {c.title}
                     </div>
-                    <div style={{ fontFamily: T.font, fontSize: 12, color: T.text2, lineHeight: 1.5 }}>
+                    <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, lineHeight: 1.5 }}>
                       {c.desc}
                     </div>
                   </button>
@@ -607,8 +610,8 @@ export default function AssessmentDetail() {
           </div>
 
           {/* Details */}
-          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '20px 24px' }}>
-            <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          <div style={{ ...cardBase, padding: '20px 24px' }}>
+            <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
               Details
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -625,10 +628,10 @@ export default function AssessmentDetail() {
                   <div key={row.label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <Icon size={14} style={{ color: T.text3, flexShrink: 0, marginTop: 2 }} />
                     <div>
-                      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
                         {row.label}
                       </div>
-                      <div style={{ fontFamily: T.font, fontSize: 13, fontWeight: 500, color: T.text1 }}>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 500, color: T.text1 }}>
                         {row.value}
                       </div>
                     </div>
@@ -638,10 +641,10 @@ export default function AssessmentDetail() {
             </div>
             {assessment.description && (
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
-                <div style={{ fontFamily: T.mono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                <div style={{ fontFamily: T.fontMono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                   Description
                 </div>
-                <div style={{ fontFamily: T.font, fontSize: 13, color: T.text2, lineHeight: 1.6 }}>
+                <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2, lineHeight: 1.6 }}>
                   {assessment.description}
                 </div>
               </div>
@@ -666,7 +669,7 @@ export default function AssessmentDetail() {
                     border: isActive ? 'none' : `1px solid ${T.border}`,
                     background: isActive ? T.accent : T.card,
                     color: isActive ? '#FFF' : T.text2,
-                    fontFamily: T.font, fontSize: 13, fontWeight: isActive ? 600 : 500,
+                    fontFamily: T.fontSans, fontSize: 13, fontWeight: isActive ? 600 : 500,
                     cursor: 'pointer', transition: 'all 0.14s',
                   }}
                 >
@@ -681,20 +684,17 @@ export default function AssessmentDetail() {
             {items.map(item => (
               <div
                 key={item.id}
-                style={{
-                  background: T.card, border: `1px solid ${T.border}`,
-                  borderRadius: 12, padding: 20, transition: 'box-shadow 0.14s',
-                }}
+                style={{ ...cardBase, padding: 20, transition: 'box-shadow 0.14s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = 'none'}
               >
                 {/* Top: ID + description + badge */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 600, color: T.accent, marginBottom: 6 }}>
+                    <div style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 600, color: T.accent, marginBottom: 6 }}>
                       {item.subcategory?.id}
                     </div>
-                    <div style={{ fontFamily: T.font, fontSize: 13, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2, lineHeight: 1.6 }}>
                       {item.subcategory?.description}
                     </div>
                     {item.ai_suggested_status && (
@@ -705,12 +705,12 @@ export default function AssessmentDetail() {
                       }}>
                         <Brain size={13} style={{ color: T.accent, flexShrink: 0, marginTop: 1 }} />
                         <div>
-                          <span style={{ fontFamily: T.font, fontSize: 12, fontWeight: 600, color: T.accent }}>
+                          <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.accent }}>
                             AI Suggestion: <strong>{item.ai_suggested_status}</strong>
                             &nbsp;({(item.ai_confidence_score! * 100).toFixed(0)}% confidence)
                           </span>
                           {item.ai_reasoning && (
-                            <div style={{ fontFamily: T.font, fontSize: 12, color: T.text2, marginTop: 4 }}>
+                            <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, marginTop: 4 }}>
                               {item.ai_reasoning}
                             </div>
                           )}
@@ -724,7 +724,7 @@ export default function AssessmentDetail() {
                 {/* Bottom: controls */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
                   <div>
-                    <label style={{ fontFamily: T.mono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
+                    <label style={{ fontFamily: T.fontMono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
                       Status
                     </label>
                     <select
@@ -732,8 +732,8 @@ export default function AssessmentDetail() {
                       onChange={e => handleStatusChange(item.id, e.target.value)}
                       style={{
                         width: '100%', padding: '7px 10px', borderRadius: 8,
-                        background: T.bg, border: `1px solid ${T.border}`,
-                        fontFamily: T.font, fontSize: 13, color: T.text1,
+                        background: T.surface2, border: `1px solid ${T.border}`,
+                        fontFamily: T.fontSans, fontSize: 13, color: T.text1,
                         outline: 'none', cursor: 'pointer',
                       }}
                     >
@@ -746,14 +746,14 @@ export default function AssessmentDetail() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontFamily: T.mono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
+                      <label style={{ fontFamily: T.fontMono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
                         Evidence
                       </label>
                       <label style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                         width: '100%', padding: '7px 0', borderRadius: 8,
-                        background: T.bg, border: `1px solid ${T.border}`,
-                        fontFamily: T.font, fontSize: 13, color: T.text2, cursor: 'pointer',
+                        background: T.surface2, border: `1px solid ${T.border}`,
+                        fontFamily: T.fontSans, fontSize: 13, color: T.text2, cursor: 'pointer',
                       }}>
                         <Upload size={13} />
                         {uploadingFor === item.id ? 'Uploading…' : 'Upload File'}
@@ -771,7 +771,7 @@ export default function AssessmentDetail() {
                         display: 'flex', alignItems: 'center', gap: 5,
                         padding: '7px 12px', borderRadius: 8, flexShrink: 0,
                         background: T.accentLight, border: `1px solid ${T.accentBorder}`,
-                        fontFamily: T.font, fontSize: 13, fontWeight: 500, color: T.accent,
+                        fontFamily: T.fontSans, fontSize: 13, fontWeight: 500, color: T.accent,
                         cursor: analyzingItem === item.id ? 'not-allowed' : 'pointer',
                         opacity: analyzingItem === item.id ? 0.6 : 1,
                       }}
@@ -799,10 +799,10 @@ export default function AssessmentDetail() {
               }}>
                 <MessageSquare size={22} style={{ color: T.text3 }} />
               </div>
-              <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: T.text1 }}>
+              <div style={{ fontFamily: T.fontSans, fontSize: 15, fontWeight: 700, color: T.text1 }}>
                 Not a Vendor Assessment
               </div>
-              <div style={{ fontFamily: T.font, fontSize: 13, color: T.text2, textAlign: 'center', maxWidth: 300 }}>
+              <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2, textAlign: 'center', maxWidth: 300 }}>
                 Vendor responses are only available for vendor type assessments.
               </div>
             </div>
@@ -815,10 +815,10 @@ export default function AssessmentDetail() {
               }}>
                 <Link2 size={22} style={{ color: T.accent }} />
               </div>
-              <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: T.text1 }}>
+              <div style={{ fontFamily: T.fontSans, fontSize: 15, fontWeight: 700, color: T.text1 }}>
                 No Vendor Invitation Sent
               </div>
-              <div style={{ fontFamily: T.font, fontSize: 13, color: T.text2, textAlign: 'center', maxWidth: 320 }}>
+              <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2, textAlign: 'center', maxWidth: 320 }}>
                 Create a vendor link to allow {assessment.vendor?.name || 'the vendor'} to complete their self-assessment.
               </div>
               <button
@@ -827,7 +827,7 @@ export default function AssessmentDetail() {
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '9px 20px', borderRadius: 8, marginTop: 8,
                   background: T.accent, border: 'none',
-                  fontFamily: T.font, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
+                  fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
                 }}
               >
                 <Link2 size={14} /> Create Vendor Link
@@ -842,10 +842,10 @@ export default function AssessmentDetail() {
                   borderLeft: `4px solid ${T.accent}`,
                   borderRadius: 12, padding: '18px 22px',
                 }}>
-                  <div style={{ fontFamily: T.font, fontSize: 14, fontWeight: 700, color: T.text1, marginBottom: 4 }}>
+                  <div style={{ fontFamily: T.fontSans, fontSize: 14, fontWeight: 700, color: T.text1, marginBottom: 4 }}>
                     Vendor Assessment Link
                   </div>
-                  <div style={{ fontFamily: T.font, fontSize: 12, color: T.text2, marginBottom: 14, lineHeight: 1.6 }}>
+                  <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, marginBottom: 14, lineHeight: 1.6 }}>
                     Share this link with {assessment.vendor?.name || 'the vendor'}. Valid until {formatDate(invitation.token_expires_at)}.
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -857,7 +857,7 @@ export default function AssessmentDetail() {
                       style={{
                         flex: 1, padding: '7px 10px', borderRadius: 8,
                         background: T.card, border: `1px solid ${T.border}`,
-                        fontFamily: T.mono, fontSize: 12, color: T.text2, outline: 'none',
+                        fontFamily: T.fontMono, fontSize: 12, color: T.text2, outline: 'none',
                       }}
                     />
                     <button
@@ -866,7 +866,7 @@ export default function AssessmentDetail() {
                         display: 'flex', alignItems: 'center', gap: 6,
                         padding: '7px 14px', borderRadius: 8, flexShrink: 0,
                         background: T.card, border: `1px solid ${T.border}`,
-                        fontFamily: T.font, fontSize: 13, color: T.text2, cursor: 'pointer',
+                        fontFamily: T.fontSans, fontSize: 13, color: T.text2, cursor: 'pointer',
                       }}
                     >
                       <Copy size={13} /> {copiedLink ? 'Copied!' : 'Copy'}
@@ -876,8 +876,8 @@ export default function AssessmentDetail() {
               )}
 
               {/* Invitation status card */}
-              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '20px 24px' }}>
-                <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 18 }}>
+              <div style={{ ...cardBase, padding: '20px 24px' }}>
+                <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 18 }}>
                   Invitation Status
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
@@ -889,11 +889,11 @@ export default function AssessmentDetail() {
                     { label: 'Expires',       value: formatDate(invitation.token_expires_at) },
                   ] as any[]).map((item: any) => (
                     <div key={item.label}>
-                      <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 6 }}>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 6 }}>
                         {item.label}
                       </div>
                       {item.renderValue ? item.renderValue() : (
-                        <div style={{ fontFamily: T.font, fontSize: 13, fontWeight: 600, color: T.text1 }}>
+                        <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.text1 }}>
                           {item.value}
                         </div>
                       )}
@@ -902,10 +902,10 @@ export default function AssessmentDetail() {
                 </div>
                 {invitation.message && (
                   <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${T.border}` }}>
-                    <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 8 }}>
+                    <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 8 }}>
                       Custom Message
                     </div>
-                    <div style={{ fontFamily: T.font, fontSize: 13, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2, lineHeight: 1.6 }}>
                       {invitation.message}
                     </div>
                   </div>
