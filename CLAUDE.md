@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20 (Phase 27)
+**Son Güncelleme:** 2026-02-20 (Phase 28)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,33 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 28: Assessments Entity Filter Bug Fix (Gün 42)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**Kök Neden:**
+`GET /api/assessments` list endpoint sadece ham assessment satırlarını döndürüyordu — vendor tablosuna JOIN yapmıyordu. Bu yüzden `assessment.vendor` her zaman `undefined` geliyordu.
+
+Frontend filter logic'i (Assessments.shadcn.tsx) `a.vendor?.group_id` değerine dayanıyordu:
+- **"Group Co."** filtresi: `assessment_type === 'vendor' && !!a.vendor?.group_id` → vendor undefined olduğu için her zaman 0 sonuç
+- **"Vendor"** filtresi: `assessment_type === 'vendor' && !a.vendor?.group_id` → her vendor-type assessment'ı eşleşiyordu (grup şirketleri dahil)
+- **Entity dropdown**: vendor isimleri hiç gelmiyordu (vendor objesi yoktu)
+
+**Çözüm (`worker/src/routes/assessments.ts`):**
+- Assessment listesi çekildikten sonra, `vendor_id` olan tüm assessment'ların benzersiz vendor ID'leri toplanıyor
+- `inArray(vendors.id, vendorIds)` ile tek sorguda toplu vendor fetch yapılıyor (N+1 yok)
+- `vendorMap[vendor_id]` ile her assessment'a `vendor` objesi attach ediliyor
+- Bu pattern, `GET /api/assessments/:id` tek-kayıt endpoint'inin zaten doğru yaptığı şeyin aynısı
+
+**Değişen Dosyalar:**
+- `worker/src/routes/assessments.ts` — `inArray` import eklendi; list endpoint'e vendor batch-fetch + map eklendi
+- `frontend/src/pages/Assessments.shadcn.tsx` — `a.vendor!.name` → `a.vendor.name` (non-null assertion kaldırıldı, artık güvenli)
+
+**Commit:** `35b1836`
 
 ---
 
@@ -1888,6 +1915,13 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 28)
+- **Phase 28 tamamlandı:** Assessments entity filter bug fix
+- Kök neden: `GET /api/assessments` list endpoint'i vendor JOIN yapmıyordu → `assessment.vendor` her zaman `undefined` → Group Co./Vendor tip filtreleri ve entity dropdown çalışmıyordu
+- Çözüm: list endpoint'e batch vendor fetch eklendi (`inArray` ile tek sorgu, N+1 yok); her assessment'a `vendor` objesi attach ediliyor
+- `frontend/src/pages/Assessments.shadcn.tsx` — `vendor!.name` → `vendor.name` (güvenli)
+- Commit: `35b1836`
 
 ### 2026-02-20 (Phase 27)
 - **Phase 27 tamamlandı:** New Assessment Flow — 3-step entity selection
