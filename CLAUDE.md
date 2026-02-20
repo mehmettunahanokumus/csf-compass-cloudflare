@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20 (Phase 28)
+**Son Güncelleme:** 2026-02-20 (Phase 29)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,61 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 29: XLSX & PDF Import Support (Gün 43)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**`frontend/src/components/import/ExcelImportModal.tsx` — Tam Yeniden Yazım:**
+
+**XLSX Import:**
+- `FileReader.readAsArrayBuffer` → `XLSX.read(data, { type: 'array' })` → ilk sheet → `sheet_to_json({ header: 1 })`
+- Fuzzy column detection: header'larda `control/id/subcategory/status/compliance/notes` keyword arama
+- Yeni **single_mapping** adımı: Company Name input (required) + 3 dropdown (Control ID col, Status col, Notes col) + ilk 5 satır önizleme tablosu
+- `detectColumn(headers, keywords)` yardımcı fonksiyonu
+
+**PDF Import:**
+- `pdfjs-dist` (yeni bağımlılık) — **dynamic import** ile kod ayrıştırma (404 KB chunk sadece PDF yüklenince gelir)
+- Worker: `unpkg.com` CDN üzerinden serve ediliyor (Vite worker config gerekmez)
+- Tam text çıkarımı: tüm sayfalar → `getTextContent()` → `item.str` birleştirme
+- CSF control ID regex: `/\b([A-Z]{2,3}\.[A-Z]{2}-\d{2})\b/g` (GV.OC-01, ID.AM-02 vb.)
+- Her eşleşme için ±120 karakter bağlam → status keyword arama (compliant/partial/non-compliant)
+- De-duplicate: aynı ID birden fazla geçerse ilk occurrence alınıyor
+- **Fallback ekranı** (`pdf_failed` step): < 3 kontrol bulunursa açıklayıcı mesaj + format rehberi + "Try Another File" butonu
+
+**Durum Normalizasyon Genişletmesi:**
+- `STATUS_MAP` genişletildi: `fully compliant`, `partially compliant`, `non-compliant`, `not met`, `not assessed`, `n/a`, `in progress` ve daha fazlası
+
+**Upload Zone İyileştirmeleri:**
+- Format badge'leri: XLSX (yeşil) / CSV (mavi) / PDF (kırmızı) / JSON (sarı)
+- 10 MB dosya boyutu kontrolü (yükleme öncesi)
+- Dosya seçildikten sonra: ad + boyut göstergesi (indigo banner)
+- Parsing sırasında: dönen spinner + dosya adı
+- Format Guide: hangi formatta ne bekleneceğini açıklayan bilgi kutusu
+
+**Skor Gösterimi (Confirm Adımı):**
+- Single-company import'larda: `0% → ~{estimated_score}%` indicator
+- Skor rengi: ≥70 yeşil / ≥40 amber / <40 kırmızı
+
+**Flow Değişikliği:**
+- CSV/TSV → multi-company modu (wide/long) → mevcut `mapping` adımı (**değişmedi**)
+- XLSX/PDF → single-company modu → yeni `single_mapping` adımı
+- `singleMode: boolean` state ile akış ayrıştırılıyor
+- `STEP_ORDER` array dinamik: singleMode'da `['upload','single_mapping','preview','confirm']`, CSV'de `['upload','mapping','preview','confirm']`
+- Progress bar `STEP_ORDER.length`'e göre dinamik
+
+**Yeni Bağımlılık:**
+- `pdfjs-dist@5.4.624` — `frontend/package.json`'a eklendi
+
+**Değişen Dosyalar:**
+- `frontend/src/components/import/ExcelImportModal.tsx` — tam yeniden yazım
+- `frontend/package.json` — pdfjs-dist eklendi
+- `frontend/package-lock.json` — güncellendi
+
+**Commit:** `7335d98`
 
 ---
 
@@ -1915,6 +1970,15 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 29)
+- **Phase 29 tamamlandı:** XLSX ve PDF import desteği eklendi — ExcelImportModal tam yeniden yazım
+- XLSX: SheetJS ile parse, fuzzy column detection, single-company mapping adımı + 5-satır preview tablosu
+- PDF: pdfjs-dist (dynamic import, CDN worker), CSF ID regex, status keyword context scan, graceful fallback ekranı
+- Upload zone: format badge'leri, 10 MB limit, dosya bilgisi banner, parsing spinner
+- Skor gösterimi: confirm adımında `0% → ~X%` indicator
+- CSV/TSV multi-company flow değişmedi; `singleMode` state ile akış ayrıştırılıyor
+- Commit: `7335d98`
 
 ### 2026-02-20 (Phase 28)
 - **Phase 28 tamamlandı:** Assessments entity filter bug fix
