@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20 (Phase 31)
+**Son Güncelleme:** 2026-02-20 (Phase 32)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,68 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 32: VendorDetail Redesign — Tabs, Date-Grouped Assessments & Trend Chart (Gün 46)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**Yeniden Tasarımlanan Sayfa:** `frontend/src/pages/VendorDetail.shadcn.tsx`
+
+**Önceki Durum:**
+- Breadcrumb navigasyon, inline açılıp kapanan edit formu
+- İki ayrı kart (contact info + risk score), üstte stats row
+- SVG bar chart yerine zaten AreaChart vardı
+- Flat assessment listesi (status/date filtreli, compare checkboxlar)
+
+**Yeni Tasarım:**
+
+**Header Card:**
+- "← Back to Vendors" (ArrowLeft butonu)
+- Letter avatar: vendor adının baş harfi, ada göre renk (`AVATAR_COLORS` array, `charCodeAt(0) % length`)
+- Vendor adı (bold, `var(--text-1)`) + industry (pill badge, `var(--surface-2)`)
+- `CritBadge` (criticality_level) + `StatusBadge` (vendor_status: active/inactive/under_review/terminated)
+- Son assessment tarihi ("Last assessed: dd Mon yyyy" veya "Never assessed")
+- Sağ: `[Edit]` butonu + `[+ New Assessment]` butonu + `[⋮]` overflow menu (Delete)
+
+**4 Stat Kartları:**
+- Total Assessments / Completed / Avg Score (% + color) / Last Assessed date
+
+**3 Tab:**
+1. **Overview** — 2 sütun grid:
+   - Contact Info card: Website, Email, Contact Name, Contact Phone, Notes (ikon + label + değer satırları)
+   - Risk Score card: Criticality badge (büyük) + vendor_status badge + description
+2. **Assessments** — Filters bar (Status dropdown + date From/To + Clear) + compare controls + date-grouped collapsible sections
+   - `assessmentsByMonth` useMemo: `[monthLabel, Assessment[]][]` sorted desc by date
+   - `collapsedInitRef = useRef(false)` — sadece ilk yüklemede en yeni ay açık, gerisini collapsed init
+   - Her satır: assessment adı, status badge, skor badge, tarih, chevron → detay linki, compare checkbox
+   - 2 seçilince "Compare Selected" butonu → `/assessments/:id/compare` navigate
+3. **Compliance Trend** — recharts `AreaChart` + `linearGradient` fill
+   - `trendData` useMemo: `overall_score` olan assessments, `created_at` sıralı, `{ date, score }` objeleri
+   - Gradient: `vendorScoreGrad` id, 0.35 → 0.02 opacity (teal `#14B8A6`)
+
+**Edit Modal:**
+- Inline toggle (eski) → fixed-position modal overlay
+- Alanlar: Name, Industry, Website, Contact Name, Contact Email, Contact Phone, Notes (textarea), Criticality Level (select), Vendor Status (select)
+- `saving` loading state, başarı toast, inline hata banner
+
+**⋮ Overflow Menu:**
+- `useRef` + `mousedown` event listener ile dışarı tıklamada kapanma
+- Tek aksiyon: "Delete Vendor" (kırmızı, Trash2 ikonu) → `DeleteConfirmDialog` açar
+
+**Korunan Özellikler:**
+- `DeleteConfirmDialog` component (import ve kullanım)
+- Compare checkboxlar + navigate to comparison page
+- Status ve date range filtreleri
+- `assessmentsApi.list()` filter by `vendor_id`
+
+**Teknik Notlar:**
+- `T as Tok` import kaldırıldı (kullanılmıyordu), lokal `const T` CSS var referanslarıyla
+- `(editForm as unknown as Record<string, string>)[field]` — generic field iteration için double cast
+
+**Commit:** `c71e36d`
 
 ---
 
@@ -2038,6 +2100,16 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 32)
+- **Phase 32 tamamlandı:** VendorDetail sayfası yeniden tasarlandı
+- Header card: letter avatar (renk addan türetilir) + vendor adı + industry + CritBadge + StatusBadge + son assessment tarihi + [Edit] + [+ New Assessment] + [⋮ Delete]
+- 4 stat kart: Total Assessments / Completed / Avg Score / Last Assessed
+- 3 tab: Overview (contact info + risk score) | Assessments (ay bazında collapsible + filtreler + compare) | Compliance Trend (recharts AreaChart, gradient fill)
+- Edit formu inline toggle → modal overlay'e dönüştürüldü
+- collapsedInitRef: ilk ay açık, gerisini collapsed; veri yenilenmesinde reset
+- Korunanlar: DeleteConfirmDialog, compare checkboxlar, status/date filtreler
+- Commit: `c71e36d`
 
 ### 2026-02-20 (Phase 31)
 - **Phase 31 tamamlandı:** CompanyGroupDetail sayfası yeniden tasarlandı
