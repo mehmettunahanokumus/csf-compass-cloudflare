@@ -13,7 +13,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import type { Env } from '../types/env';
 import { createDbClient } from '../db/client';
 import {
@@ -163,7 +163,29 @@ app.get('/', async (c) => {
 
     const assessmentList = await query;
 
-    return c.json(assessmentList);
+    // Batch-fetch vendors for all assessments that have a vendor_id
+    const vendorIds = [
+      ...new Set(
+        assessmentList.map(a => a.vendor_id).filter((id): id is string => !!id)
+      ),
+    ];
+    const vendorMap: Record<string, typeof vendors.$inferSelect> = {};
+    if (vendorIds.length > 0) {
+      const vendorList = await db
+        .select()
+        .from(vendors)
+        .where(inArray(vendors.id, vendorIds));
+      for (const v of vendorList) {
+        vendorMap[v.id] = v;
+      }
+    }
+
+    const result = assessmentList.map(a => ({
+      ...a,
+      vendor: a.vendor_id ? (vendorMap[a.vendor_id] ?? null) : null,
+    }));
+
+    return c.json(result);
   } catch (error) {
     console.error('Error fetching assessments:', error);
     return c.json({ error: 'Failed to fetch assessments' }, 500);

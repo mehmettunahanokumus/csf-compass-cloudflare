@@ -569,9 +569,9 @@ export default function Assessments() {
     const seen = new Set<string>();
     const out: DropdownOption[] = [];
     for (const a of assessments) {
-      if (a.assessment_type === 'vendor' && a.vendor?.group_id && a.vendor_id && !seen.has(a.vendor_id)) {
+      if (a.assessment_type === 'vendor' && a.vendor && a.vendor.group_id && a.vendor_id && !seen.has(a.vendor_id)) {
         seen.add(a.vendor_id);
-        out.push({ value: a.vendor_id, label: a.vendor!.name });
+        out.push({ value: a.vendor_id, label: a.vendor.name });
       }
     }
     return out.sort((a, b) => a.label.localeCompare(b.label));
@@ -581,9 +581,9 @@ export default function Assessments() {
     const seen = new Set<string>();
     const out: DropdownOption[] = [];
     for (const a of assessments) {
-      if (a.assessment_type === 'vendor' && !a.vendor?.group_id && a.vendor_id && !seen.has(a.vendor_id)) {
+      if (a.assessment_type === 'vendor' && a.vendor && !a.vendor.group_id && a.vendor_id && !seen.has(a.vendor_id)) {
         seen.add(a.vendor_id);
-        out.push({ value: a.vendor_id, label: a.vendor!.name });
+        out.push({ value: a.vendor_id, label: a.vendor.name });
       }
     }
     return out.sort((a, b) => a.label.localeCompare(b.label));
