@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20 (Phase 32)
+**Son Güncelleme:** 2026-02-20 (Phase 33)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,67 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 33: AssessmentDetail Redesign — Tabbed Layout, Stat Cards & Header Card (Gün 47)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**Yeniden Tasarımlanan Sayfa:** `frontend/src/pages/AssessmentDetail.shadcn.tsx`
+
+**Önceki Durum:**
+- Breadcrumb navigasyon (Assessments / name)
+- Floating header: isim + status badge sol, büyük skor sağda
+- Ayrı action buttons satırı (Compare, Vendor Link, Delete)
+- 4 tab: Overview, Items, Vendor, History (Coming Soon)
+- Overview: ComplianceChart + Score Distribution + Details + Quick Actions + FunctionScoreChart + Assessment Tools
+- Items: function selector + item kartları
+- Vendor: invitation management
+- History: "Coming Soon" placeholder
+
+**Yeni Tasarım:**
+
+**Header Card:**
+- "← Back to Assessments" butonu (ArrowLeft)
+- Letter avatar: assessment adının baş harfi, ada göre renk (`AVATAR_COLORS` array, `charCodeAt(0) % length`)
+- Assessment adı (bold, `var(--text-1)`) + `TypeBadge` (Self/Vendor/Group Company) + `AssessmentStatusBadge` (Draft/In Progress/Completed)
+- Meta row: NIST CSF 2.0 · Created date · vendor pill (varsa) · description snippet (varsa)
+- Sağ: `[Wizard]` `[Checklist]` `[Report]` (primary indigo) + `[⋮]` overflow menu
+- ⋮ menu içeriği (vendor type'a göre): Create Vendor Link / Show Vendor Link / View Comparison / separator / Delete Assessment
+
+**4 Stat Kartları:**
+- Overall Score (renkli: ≥80 yeşil / ≥50 turuncu / <50 kırmızı) + sub text (Good compliance / Needs improvement / High risk)
+- Compliant count + "of N controls"
+- Partial count + "of N controls"
+- Non-Compliant count + "of N controls"
+
+**3 Tab (History kaldırıldı):**
+1. **Overview** — 3 bölüm:
+   - Compliance Distribution: stacked horizontal bar (compliant/partial/non-compliant/rest) + color-coded legend (5 kategori)
+   - Assessment Tools: 3 kart hover-lift (Wizard=purple / Checklist=green / Report=indigo)
+   - Details grid: Type, Framework, Created, Last Updated, Vendor (varsa), Completed (varsa) + optional description section
+2. **Items** — Function selector pills + item kartları (status dropdown, evidence upload, AI analyze); tamamen korundu
+3. **Vendor Response** — 3 empty state (Not vendor type / No invitation / Has invitation), vendor link panel, invitation status grid + action buttons; tamamen korundu
+
+**Kaldırılanlar:**
+- Breadcrumb navigasyon → back button
+- Ayrı action buttons satırı → header'a entegre edildi
+- `ComplianceChart` component kullanımı
+- `FunctionScoreChart` component kullanımı (tüm fonksiyonlar için aynı overall_score kullanıyordu — yanıltıcıydı)
+- `History` tab ("Coming Soon" placeholder)
+- `T`, `card`, `sectionLabel` token imports from `../tokens` → lokal `const T` CSS var referansları
+- `Link` import (navigate() ile değiştirildi)
+
+**Teknik Notlar:**
+- `btnBase` const: tekrar eden buton stil objesi
+- `AssessmentStatusBadge`, `TypeBadge`, `ItemStatusBadge`, `InvitationBadge` — 4 bağımsız badge componenti
+- `avatarColor()` fonksiyonu: VendorDetail ile aynı pattern
+- `menuRef = useRef<HTMLDivElement>` + `mousedown` dışarı tıklamada kapanma
+- `(item: any)[]` map ile invitation fields optional rendering
+
+**Commit:** `179d44b`
 
 ---
 
@@ -2100,6 +2161,15 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 33)
+- **Phase 33 tamamlandı:** AssessmentDetail sayfası yeniden tasarlandı
+- Header card: letter avatar (renk addan türetilir) + isim + TypeBadge + StatusBadge + meta row + [Wizard] [Checklist] [Report] + [⋮ overflow]
+- ⋮ menu: Create/Show Vendor Link, View Comparison (invitation completed ise), Delete
+- 4 stat kart: Overall Score (renkli) / Compliant / Partial / Non-Compliant
+- 3 tab: Overview (compliance bar + tools + details) | Items (korundu) | Vendor Response (korundu)
+- Kaldırılanlar: breadcrumb, ayrı action bar, ComplianceChart, FunctionScoreChart, History tab (coming soon)
+- Commit: `179d44b`
 
 ### 2026-02-20 (Phase 32)
 - **Phase 32 tamamlandı:** VendorDetail sayfası yeniden tasarlandı
