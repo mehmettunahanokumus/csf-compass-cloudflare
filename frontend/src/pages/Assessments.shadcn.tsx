@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Search, Shield, MoreVertical,
   Eye, Trash2, Send,
   CheckCircle2, Clock, FileText, ArrowRight,
+  ChevronDown, X,
 } from 'lucide-react';
 import { assessmentsApi } from '@/api/assessments';
 import type { Assessment } from '@/types';
@@ -240,23 +241,248 @@ function AssessmentCard({ assessment, onView, onDelete, onSendToVendor }: CardPr
   );
 }
 
-// ── Filter tab ────────────────────────────────────────────────
+// ── Filter Tab ────────────────────────────────────────────────
 function FilterTab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       style={{
-        padding: '6px 14px', borderRadius: 8,
+        padding: '6px 12px', borderRadius: 8,
         fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
         border: 'none', cursor: 'pointer', transition: 'all 0.14s',
         background: active ? T.accent : T.card,
         color:      active ? '#fff' : T.textSecondary,
         boxShadow:  active ? '0 1px 3px rgba(79,70,229,0.3)' : 'none',
         outline:    active ? 'none' : `1px solid ${T.border}`,
+        whiteSpace: 'nowrap',
       }}
     >
       {label}
     </button>
+  );
+}
+
+// ── Filter Dropdown (no internal search) ─────────────────────
+type DropdownOption = { value: string; label: string };
+function FilterDropdown({ value, onChange, options }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: DropdownOption[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  const selected = options.find(o => o.value === value) ?? options[0];
+  const isDefault = value === options[0].value;
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '7px 10px 7px 12px', borderRadius: 8,
+          border: `1px solid ${isDefault ? T.border : T.accent}`,
+          background: isDefault ? T.card : T.accentLight,
+          fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+          color: isDefault ? T.textSecondary : T.accent,
+          cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.14s',
+        }}
+      >
+        {selected.label}
+        <ChevronDown size={12} style={{
+          transform: open ? 'rotate(180deg)' : 'none',
+          transition: 'transform 0.15s', flexShrink: 0,
+        }} />
+      </button>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
+            minWidth: 160, background: T.card,
+            border: `1px solid ${T.border}`, borderRadius: 10,
+            boxShadow: '0 10px 30px rgba(15,23,42,0.15)',
+            padding: '4px 0', overflow: 'hidden',
+          }}>
+            {options.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '7px 12px', border: 'none', cursor: 'pointer',
+                  fontFamily: T.fontSans, fontSize: 12,
+                  fontWeight: value === opt.value ? 700 : 400,
+                  color: value === opt.value ? T.accent : T.textPrimary,
+                  background: value === opt.value ? T.accentLight : 'transparent',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.05)'; }}
+                onMouseLeave={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Entity Dropdown (with internal search for long lists) ─────
+function EntityDropdown({ options, value, onChange, allLabel, buttonLabel, show }: {
+  options: DropdownOption[];
+  value: string;
+  onChange: (v: string) => void;
+  allLabel: string;
+  buttonLabel: string;
+  show: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [innerSearch, setInnerSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setInnerSearch(''); }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  // Close and reset when show changes
+  useEffect(() => {
+    if (!show) { setOpen(false); setInnerSearch(''); }
+  }, [show]);
+
+  if (!show) return null;
+
+  const showSearch = options.length > 5;
+  const filtered = innerSearch
+    ? options.filter(o => o.label.toLowerCase().includes(innerSearch.toLowerCase()))
+    : options;
+  const selectedLabel = options.find(o => o.value === value)?.label;
+  const isSelected = !!value;
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '7px 10px 7px 12px', borderRadius: 8,
+          border: `1px solid ${isSelected ? T.accent : T.border}`,
+          background: isSelected ? T.accentLight : T.card,
+          fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+          color: isSelected ? T.accent : T.textSecondary,
+          cursor: 'pointer', maxWidth: 200, transition: 'all 0.14s',
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selectedLabel ?? buttonLabel}
+        </span>
+        <ChevronDown size={12} style={{
+          flexShrink: 0,
+          transform: open ? 'rotate(180deg)' : 'none',
+          transition: 'transform 0.15s',
+        }} />
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => { setOpen(false); setInnerSearch(''); }} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
+            minWidth: 210, maxWidth: 280, background: T.card,
+            border: `1px solid ${T.border}`, borderRadius: 10,
+            boxShadow: '0 10px 30px rgba(15,23,42,0.15)', overflow: 'hidden',
+          }}>
+            {showSearch && (
+              <div style={{ padding: '8px 8px 4px', borderBottom: `1px solid ${T.borderLight}` }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={11} style={{
+                    position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+                    color: T.textMuted, pointerEvents: 'none',
+                  }} />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={innerSearch}
+                    onChange={e => setInnerSearch(e.target.value)}
+                    placeholder="Search..."
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      paddingLeft: 26, paddingRight: 8, paddingTop: 5, paddingBottom: 5,
+                      border: `1px solid ${T.border}`, borderRadius: 6,
+                      fontFamily: T.fontSans, fontSize: 11, color: T.textPrimary,
+                      background: T.bg, outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            <div style={{ maxHeight: 240, overflowY: 'auto', padding: '4px 0' }}>
+              {/* All option */}
+              <button
+                onClick={() => { onChange(''); setOpen(false); setInnerSearch(''); }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '7px 12px', border: 'none', cursor: 'pointer',
+                  fontFamily: T.fontSans, fontSize: 12,
+                  fontWeight: !value ? 700 : 400,
+                  color: !value ? T.accent : T.textSecondary,
+                  background: !value ? T.accentLight : 'transparent',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { if (value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.05)'; }}
+                onMouseLeave={e => { if (value) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >
+                {allLabel}
+              </button>
+
+              {filtered.length === 0 && (
+                <div style={{ padding: '8px 12px', fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, fontStyle: 'italic' }}>
+                  No matches
+                </div>
+              )}
+
+              {filtered.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { onChange(opt.value); setOpen(false); setInnerSearch(''); }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '7px 12px', border: 'none', cursor: 'pointer',
+                    fontFamily: T.fontSans, fontSize: 12,
+                    fontWeight: value === opt.value ? 700 : 400,
+                    color: value === opt.value ? T.accent : T.textPrimary,
+                    background: value === opt.value ? T.accentLight : 'transparent',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.05)'; }}
+                  onMouseLeave={e => { if (value !== opt.value) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -265,9 +491,55 @@ export default function Assessments() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
-  const [search,      setSearch]      = useState('');
-  const [filter,      setFilter]      = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Derive all filter state from URL params
+  const search      = searchParams.get('q')      ?? '';
+  const typeFilter  = searchParams.get('type')   ?? 'all';
+  const entityFilter= searchParams.get('entity') ?? '';
+  const statusFilter= searchParams.get('status') ?? 'all';
+  const sortFilter  = searchParams.get('sort')   ?? 'newest';
+
+  // URL param setters
+  const setSearch = (q: string) =>
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      q ? next.set('q', q) : next.delete('q');
+      return next;
+    }, { replace: true });
+
+  const setTypeFilter = (type: string) =>
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      type !== 'all' ? next.set('type', type) : next.delete('type');
+      next.delete('entity'); // reset entity when type changes
+      return next;
+    });
+
+  const setEntityFilter = (entity: string) =>
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      entity ? next.set('entity', entity) : next.delete('entity');
+      return next;
+    });
+
+  const setStatusFilter = (status: string) =>
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      status !== 'all' ? next.set('status', status) : next.delete('status');
+      return next;
+    });
+
+  const setSortFilter = (sort: string) =>
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      sort !== 'newest' ? next.set('sort', sort) : next.delete('sort');
+      return next;
+    });
+
+  const isFiltered = !!(search || typeFilter !== 'all' || entityFilter || statusFilter !== 'all' || sortFilter !== 'newest');
+  const clearFilters = () => setSearchParams({});
 
   useEffect(() => { loadData(); }, []);
 
@@ -292,14 +564,83 @@ export default function Assessments() {
     }
   };
 
-  const filtered = assessments.filter(a => {
-    const matchSearch = a.name.toLowerCase().includes(search.toLowerCase());
-    const matchTab = filter === 'all' || a.assessment_type === filter ||
-      (filter === 'completed'  && a.status === 'completed')  ||
-      (filter === 'in_progress'&& a.status === 'in_progress')||
-      (filter === 'draft'      && a.status === 'draft');
-    return matchSearch && matchTab;
-  });
+  // Build entity option lists from loaded assessments
+  const subsidiaries = useMemo<DropdownOption[]>(() => {
+    const seen = new Set<string>();
+    const out: DropdownOption[] = [];
+    for (const a of assessments) {
+      if (a.assessment_type === 'vendor' && a.vendor?.group_id && a.vendor_id && !seen.has(a.vendor_id)) {
+        seen.add(a.vendor_id);
+        out.push({ value: a.vendor_id, label: a.vendor!.name });
+      }
+    }
+    return out.sort((a, b) => a.label.localeCompare(b.label));
+  }, [assessments]);
+
+  const externalVendors = useMemo<DropdownOption[]>(() => {
+    const seen = new Set<string>();
+    const out: DropdownOption[] = [];
+    for (const a of assessments) {
+      if (a.assessment_type === 'vendor' && !a.vendor?.group_id && a.vendor_id && !seen.has(a.vendor_id)) {
+        seen.add(a.vendor_id);
+        out.push({ value: a.vendor_id, label: a.vendor!.name });
+      }
+    }
+    return out.sort((a, b) => a.label.localeCompare(b.label));
+  }, [assessments]);
+
+  const showEntityDropdown = typeFilter === 'group_company' || typeFilter === 'vendor';
+  const entityOptions  = typeFilter === 'group_company' ? subsidiaries : externalVendors;
+  const entityAllLabel = typeFilter === 'group_company' ? 'All Group Companies' : 'All Vendors';
+  const entityBtnLabel = typeFilter === 'group_company' ? 'Select company...' : 'Select vendor...';
+
+  // Filtered + sorted assessments
+  const filtered = useMemo(() => {
+    let result = assessments;
+
+    // Search (name + vendor name)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        (a.vendor?.name?.toLowerCase().includes(q) ?? false)
+      );
+    }
+
+    // Type filter
+    if (typeFilter === 'self') {
+      result = result.filter(a => a.assessment_type === 'organization');
+    } else if (typeFilter === 'group_company') {
+      result = result.filter(a => a.assessment_type === 'vendor' && !!a.vendor?.group_id);
+    } else if (typeFilter === 'vendor') {
+      result = result.filter(a => a.assessment_type === 'vendor' && !a.vendor?.group_id);
+    }
+
+    // Entity filter (specific subsidiary or vendor)
+    if (entityFilter) {
+      result = result.filter(a => a.vendor_id === entityFilter);
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      result = result.filter(a => a.status === statusFilter);
+    }
+
+    // Sort
+    result = [...result];
+    if (sortFilter === 'oldest') {
+      result.sort((a, b) => a.created_at - b.created_at);
+    } else if (sortFilter === 'score_high') {
+      result.sort((a, b) => (b.overall_score ?? 0) - (a.overall_score ?? 0));
+    } else if (sortFilter === 'score_low') {
+      result.sort((a, b) => (a.overall_score ?? 0) - (b.overall_score ?? 0));
+    } else {
+      // newest (default)
+      result.sort((a, b) => b.created_at - a.created_at);
+    }
+
+    return result;
+  }, [assessments, search, typeFilter, entityFilter, statusFilter, sortFilter]);
 
   const completed  = assessments.filter(a => a.status === 'completed').length;
   const inProgress = assessments.filter(a => a.status === 'in_progress').length;
@@ -377,40 +718,133 @@ export default function Assessments() {
         ))}
       </div>
 
-      {/* Filters + Search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {[
-            { id: 'all',          label: 'All'          },
-            { id: 'organization', label: 'Organization'  },
-            { id: 'vendor',       label: 'Vendor'        },
-            { id: 'completed',    label: 'Completed'     },
-            { id: 'in_progress',  label: 'In Progress'   },
-            { id: 'draft',        label: 'Draft'         },
-          ].map(t => (
-            <FilterTab key={t.id} label={t.label} active={filter === t.id} onClick={() => setFilter(t.id)} />
-          ))}
-        </div>
-        <div style={{ flex: 1 }} />
-        <div style={{ position: 'relative' }}>
-          <Search size={13} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
-          <input
-            type="text"
-            placeholder="Search assessments..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              width: 220, paddingLeft: 34, paddingRight: 12, paddingTop: 7, paddingBottom: 7,
-              borderRadius: 8, border: `1px solid ${T.border}`,
-              fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
-              background: T.card, outline: 'none',
-              boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
-              transition: 'border-color 0.15s',
-            }}
-            onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
-            onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
+      {/* ── Filter Bar ─────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+
+          {/* Search */}
+          <div style={{ position: 'relative' }}>
+            <Search size={13} style={{
+              position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
+              color: T.textMuted, pointerEvents: 'none',
+            }} />
+            <input
+              type="text"
+              placeholder="Search assessments..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: 200, paddingLeft: 32, paddingRight: search ? 28 : 12,
+                paddingTop: 7, paddingBottom: 7,
+                borderRadius: 8, border: `1px solid ${T.border}`,
+                fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
+                background: T.card, outline: 'none',
+                boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+                transition: 'border-color 0.15s',
+              }}
+              onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#A5B4FC'; }}
+              onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = T.border; }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                style={{
+                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', color: T.textMuted, padding: 0,
+                }}
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 24, background: T.borderLight }} />
+
+          {/* Type tabs */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[
+              { id: 'all',           label: 'All'        },
+              { id: 'group_company', label: 'Group Co.'  },
+              { id: 'vendor',        label: 'Vendor'     },
+              { id: 'self',          label: 'Self'        },
+            ].map(t => (
+              <FilterTab
+                key={t.id}
+                label={t.label}
+                active={typeFilter === t.id}
+                onClick={() => setTypeFilter(t.id)}
+              />
+            ))}
+          </div>
+
+          {/* Entity dropdown — appears only when Group Co. or Vendor is selected */}
+          <EntityDropdown
+            options={entityOptions}
+            value={entityFilter}
+            onChange={setEntityFilter}
+            allLabel={entityAllLabel}
+            buttonLabel={entityBtnLabel}
+            show={showEntityDropdown}
           />
+
+          {/* Status dropdown */}
+          <FilterDropdown
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: 'all',         label: 'All Status'  },
+              { value: 'completed',   label: 'Completed'   },
+              { value: 'in_progress', label: 'In Progress' },
+              { value: 'draft',       label: 'Draft'       },
+            ]}
+          />
+
+          {/* Sort dropdown */}
+          <FilterDropdown
+            value={sortFilter}
+            onChange={setSortFilter}
+            options={[
+              { value: 'newest',     label: 'Newest First'   },
+              { value: 'oldest',     label: 'Oldest First'   },
+              { value: 'score_high', label: 'Highest Score'  },
+              { value: 'score_low',  label: 'Lowest Score'   },
+            ]}
+          />
+
+          {/* Clear filters */}
+          {isFiltered && (
+            <button
+              onClick={clearFilters}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '7px 12px', borderRadius: 8,
+                border: `1px solid rgba(239,68,68,0.25)`,
+                background: 'rgba(239,68,68,0.06)',
+                fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+                color: T.danger, cursor: 'pointer', transition: 'all 0.14s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { const b = e.currentTarget; b.style.background = 'rgba(239,68,68,0.12)'; b.style.borderColor = 'rgba(239,68,68,0.4)'; }}
+              onMouseLeave={e => { const b = e.currentTarget; b.style.background = 'rgba(239,68,68,0.06)'; b.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+            >
+              <X size={11} /> Clear filters
+            </button>
+          )}
         </div>
+
+        {/* Result count */}
+        {!loading && (
+          <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
+            Showing{' '}
+            <span style={{ fontWeight: 700, color: T.textSecondary }}>{filtered.length}</span>
+            {' '}assessment{filtered.length !== 1 ? 's' : ''}
+            {isFiltered && assessments.length !== filtered.length && (
+              <span style={{ color: T.textFaint }}> · {assessments.length} total</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Grid */}
@@ -427,14 +861,27 @@ export default function Assessments() {
             <Shield size={24} style={{ color: T.textFaint }} />
           </div>
           <div style={{ fontFamily: T.fontSans, fontSize: 15, fontWeight: 700, color: T.textPrimary }}>
-            {search || filter !== 'all' ? 'No assessments match filters' : 'No assessments yet'}
+            {isFiltered ? 'No assessments match filters' : 'No assessments yet'}
           </div>
           <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', maxWidth: 300 }}>
-            {search || filter !== 'all'
+            {isFiltered
               ? 'Try adjusting your search or filter criteria'
               : 'Create your first security assessment to start evaluating NIST CSF compliance'}
           </div>
-          {!search && filter === 'all' && (
+          {isFiltered ? (
+            <button
+              onClick={clearFilters}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '8px 16px', borderRadius: 8, marginTop: 4,
+                border: `1px solid ${T.border}`, background: T.card,
+                fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+                color: T.textSecondary, cursor: 'pointer',
+              }}
+            >
+              <X size={12} /> Clear all filters
+            </button>
+          ) : (
             <Link to="/assessments/new" style={{ textDecoration: 'none', marginTop: 4 }}>
               <button style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,

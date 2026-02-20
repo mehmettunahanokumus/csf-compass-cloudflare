@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-19 (Phase 24)
+**Son Güncelleme:** 2026-02-20 (Phase 26)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,89 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 26: Assessments Page Enhanced Filters (Gün 40)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**Filter Bar Yeniden Tasarımı:**
+- Eski tek tab grubu (tip + durum karışık) → 4 ayrı kontrol: Type tabs, Entity dropdown, Status dropdown, Sort dropdown
+- Layout: `[🔍 Search] | [All][Group Co.][Vendor][Self] [Entity▾] [Status▾] [Sort▾] [✕ Clear]`
+
+**Type Filter (4 seçenek):**
+- `All` — tüm assessments
+- `Group Co.` — sadece bağlı ortaklık (subsidiary) assessments'ları (`vendor.group_id` dolu)
+- `Vendor` — sadece dış tedarikçi assessments'ları (`vendor.group_id` yok)
+- `Self` — sadece organizasyon kendi assessment'ları (`assessment_type === 'organization'`)
+
+**Entity Dropdown:**
+- Sadece `Group Co.` veya `Vendor` seçildiğinde görünür; tip değişince entityFilter sıfırlanır
+- 5'ten fazla öğede dropdown içi arama kutusu otomatik aktif
+- Seçenekler yüklü assessments'dan türetilir (useMemo ile unique vendors)
+- `EntityDropdown` component: useRef + mousedown event listener ile dışarı tıklamada kapanma
+
+**Status + Sort Dropdowns:**
+- `FilterDropdown` component: dışarı tıklamada kapanır, accent highlight, transition animasyonu
+- Status: All Status / Completed / In Progress / Draft
+- Sort: Newest First (default) / Oldest First / Highest Score / Lowest Score
+
+**URL Param Persistence:**
+- `useSearchParams` — 5 param: `q`, `type`, `entity`, `status`, `sort`
+- Search için `replace: true` (history pollution yok)
+- Sayfa yenilenince veya link paylaşılınca filtreler korunur
+
+**Result Count + Clear:**
+- "Showing N assessments · M total" — filtre barının altında
+- `isFiltered` true olunca kırmızı-tint "Clear filters" butonu
+- Boş durum ekranında "Clear all filters" butonu
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/Assessments.shadcn.tsx` — tam yeniden yazım (yeni componentler: FilterDropdown, EntityDropdown)
+
+---
+
+### Phase 25: Group Company Edit/Delete + Corporate Identity Branding (Gün 39)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**Feature 1A — Group Company Card Edit & Delete:**
+- `CompanyGroups.shadcn.tsx` tam yeniden yazıldı — grup kartlarına hover-based edit (Pencil) + delete (Trash2) butonları eklendi
+- Edit modal: Company Name (required), Description, Risk Level (critical/high/medium/low), Industry, Primary Contact
+- Delete confirmation dialog: uyarı metni + Cancel + Delete
+- `RiskBadge` component: renk kodlu badge (critical=kırmızı, high=turuncu, medium=sarı, low=yeşil) — kart stats row'da görünüyor
+- `e.stopPropagation()` ile kart navigasyon çakışması önleniyor
+- Başarı toast: sağ üst köşede yeşil banner, 3 saniye
+- **DB Migration 0006:** `company_groups` tablosuna `risk_level TEXT DEFAULT 'medium'` ve `primary_contact TEXT` eklendi
+- `schema.ts` + `routes/company-groups.ts` + `types/index.ts` güncellendi
+
+**Feature 1B — Corporate Identity / Branding (Organization Settings):**
+- `Organization.shadcn.tsx` "Coming Soon" placeholder → tam işlevsel branding sayfasına dönüştürüldü
+- Logo upload: drag & drop zone, PNG/JPG/SVG, maks 2MB, `FileReader.readAsDataURL()` ile base64, 120×120 önizleme, "Remove Logo"
+- Company Name: düzenlenebilir text input → sidebar'da görünüyor
+- Primary Color: `<input type="color">` + hex text input + Reset butonu; `--t-accent` CSS variable'ı anlık güncelleniyor
+- Kayıt: localStorage (`csf-org-logo`, `csf-org-name`, `csf-org-color`) — backend değişikliği yok
+- Canlı güncelleme: `window.dispatchEvent(new Event('csf-branding-change'))` → Sidebar aynı anda güncelleniyor
+- Profile preview card: mevcut logo/isim/renk swatch önizlemesi
+
+**Sidebar Güncelleme:**
+- `csf-branding-change` event listener (useEffect ile)
+- `orgLogo`: localStorage'dan base64; `<img>` veya fallback `<ShieldCheck>`
+- `orgName`: localStorage'dan; özel isim veya `'CSF Compass'` fallback
+
+**Değişen Dosyalar:**
+- `worker/migrations/0006_company_groups_extra.sql` (YENİ)
+- `worker/src/db/schema.ts`
+- `worker/src/routes/company-groups.ts`
+- `frontend/src/types/index.ts`
+- `frontend/src/pages/CompanyGroups.shadcn.tsx`
+- `frontend/src/pages/Organization.shadcn.tsx`
+- `frontend/src/components/layout/Sidebar.shadcn.tsx`
+
+**Commit:** `50a5aef`
 
 ---
 
@@ -1136,6 +1219,10 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `company_groups` table (id, organization_id, name, description, industry, logo_url, timestamps)
 - `vendors.group_id` TEXT column (nullable FK → company_groups.id ON DELETE SET NULL)
 - Index: `idx_company_groups_org`, `idx_vendors_group`
+
+**0006_company_groups_extra.sql** (2026-02-20)
+- `ALTER TABLE company_groups ADD COLUMN risk_level TEXT DEFAULT 'medium'`
+- `ALTER TABLE company_groups ADD COLUMN primary_contact TEXT`
 
 ---
 
@@ -1748,6 +1835,100 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 26)
+- **Phase 26 tamamlandı:** Assessments Sayfası Gelişmiş Filtreler
+
+**Type Filter Değişikliği:**
+- Eski: `[All][Organization][Vendor][Completed][In Progress][Draft]` (tek tab grubu, tip + durum karışık)
+- Yeni: `[All][Group Co.][Vendor][Self]` (sadece tip, ayrı dropdown'larla durum ve sıralama)
+- `Organization` → `Self` (`assessment_type === 'organization'`)
+- `Group Co.` → `assessment_type === 'vendor'` + `vendor.group_id` dolu (bağlı ortaklıklar)
+- `Vendor` → `assessment_type === 'vendor'` + `vendor.group_id` yok (dış tedarikçiler)
+
+**Entity Dropdown (yeni, bağlamsal):**
+- Sadece `Group Co.` veya `Vendor` seçildiğinde görünür
+- `Group Co.` seçilince: tüm bağlı ortaklıklar listelenir (yüklü assessment'lardan türetilir)
+- `Vendor` seçilince: tüm dış tedarikçiler listelenir
+- 5'ten fazla seçenek varsa dropdown içinde arama kutusu otomatik açılır
+- Seçili entity accent rengiyle vurgulanır
+- Tip değiştiğinde entity filter otomatik sıfırlanır
+
+**Status Dropdown (yeni):**
+- Eski status tab butonları (Completed/In Progress/Draft) kaldırıldı
+- `FilterDropdown` componenti: `All Status / Completed / In Progress / Draft`
+- Varsayılan dışında seçildiğinde accent rengiyle vurgulanır
+
+**Sort Dropdown (yeni):**
+- `FilterDropdown` componenti: `Newest First / Oldest First / Highest Score / Lowest Score`
+- Varsayılan: `Newest First` (created_at azalan)
+
+**URL Query Param Kalıcılığı:**
+- Tüm filtreler URL'ye yazılıyor: `?q=...&type=...&entity=...&status=...&sort=...`
+- `setSearchParams` + `replace: true` (search için) ile history pollution önleniyor
+- Sayfayı bookmark'lamak veya paylaşmak mümkün
+
+**Filter Logic & UX:**
+- Tüm filtreler AND mantığıyla çalışıyor (`useMemo` ile hesaplama)
+- Search alanı assessment adı + vendor adı üzerinden çalışıyor
+- "Showing N assessments · M total" sayacı filtre barının altında
+- `isFiltered` → kırmızı-tint "Clear filters" butonu gösterilir
+- Boş durum sayfasında da "Clear all filters" butonu
+- Filter bar layout: `[🔍 Search] | [All][Group Co.][Vendor][Self] [Entity▾] [Status▾] [Sort▾] [✕ Clear]`
+
+**Yeni Componentler:**
+- `FilterDropdown` — dışarı tıklamada kapanan, accent highlight, useRef+useEffect ile clean
+- `EntityDropdown` — opsiyonel iç arama, "All" seçeneği dahil, maxHeight:240 scrollable
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/Assessments.shadcn.tsx` — tam yeniden yazım
+
+---
+
+### 2026-02-20 (Phase 25)
+- **Phase 25 tamamlandı:** Group Company Edit/Delete + Corporate Identity / Branding Upload
+
+**Feature 1A — Group Company Edit & Delete (CompanyGroups.shadcn.tsx):**
+- Edit button (Pencil icon) + Delete button (Trash2 icon) on each group card; appear on hover, hidden at rest
+- Edit modal alanları: Company Name (required), Description (textarea), Risk Level dropdown (critical/high/medium/low), Industry (text), Primary Contact (text)
+- Delete confirmation dialog: "Delete [Name]?" uyarı metni + Cancel + Delete butonu
+- `hoveredId` state ile hover tespiti; `e.stopPropagation()` ile kart navigasyon çakışması önleniyor
+- `handleUpdate()` → `companyGroupsApi.update()`; `handleDelete()` → `companyGroupsApi.delete()`
+- Başarı toast (sağ üst, yeşil, 3 saniye)
+- Kart stats row'a `RiskBadge` (renk kodlu: critical=kırmızı, high=turuncu, medium=sarı, low=yeşil) + `primary_contact` metni eklendi
+- **DB Migration 0006:** `company_groups` tablosuna `risk_level TEXT DEFAULT 'medium'` ve `primary_contact TEXT` eklendi
+- `worker/src/db/schema.ts` — company_groups'a iki yeni alan eklendi
+- `worker/src/routes/company-groups.ts` — PATCH endpoint'e `risk_level` + `primary_contact` set eklendi
+- `frontend/src/types/index.ts` — `CompanyGroup` interface'e `risk_level` + `primary_contact` eklendi
+
+**Feature 1B — Corporate Identity / Branding Upload (Organization.shadcn.tsx tam yeniden yazım):**
+- Tam işlevsel branding bölümü (önceki "Coming Soon" placeholder yerine)
+- **Logo Upload:** Drag & drop zone; PNG/JPG/SVG kabul, maks 2MB; `FileReader.readAsDataURL()` ile base64'e dönüştürülüyor; 120×120 önizleme + "Remove Logo" butonu; validasyon hataları inline gösteriliyor
+- **Company Name:** Düzenlenebilir text input; sidebar'da görünüyor
+- **Primary Color:** `<input type="color">` + hex text input; "Reset" butonu (`#6366F1` default); canlı önizleme
+- **Kayıt:** localStorage (`csf-org-logo`, `csf-org-name`, `csf-org-color`) — backend değişikliği yok, demo için yeterli
+- **Canlı güncelleme:** `window.dispatchEvent(new Event('csf-branding-change'))` ile aynı sekmedeki Sidebar anında güncelleniyor
+- `document.documentElement.style.setProperty('--t-accent', color)` ile accent rengi CSS variable'ı anlık değişiyor
+- Profile preview card: mevcut logo/isim/renk swatch'ı gösteriyor
+- Coming Soon modüller (Users, Security, Integrations, Notifications, Billing) sayfanın altında `opacity: 0.7` ile korunuyor
+
+**Sidebar Güncelleme (Sidebar.shadcn.tsx):**
+- `useEffect` ile `csf-branding-change` event dinleniyor
+- `orgLogo` state: localStorage'dan base64 logo; varsa `<img>`, yoksa `<ShieldCheck>` gösteriyor
+- `orgName` state: localStorage'dan org adı; varsa özel ad, yoksa `'CSF Compass'` fallback
+
+**Değişen Dosyalar:**
+- `worker/migrations/0006_company_groups_extra.sql` (YENİ)
+- `worker/src/db/schema.ts`
+- `worker/src/routes/company-groups.ts`
+- `frontend/src/types/index.ts`
+- `frontend/src/pages/CompanyGroups.shadcn.tsx` — tam yeniden yazım (edit/delete + RiskBadge)
+- `frontend/src/pages/Organization.shadcn.tsx` — tam yeniden yazım (branding bölümü)
+- `frontend/src/components/layout/Sidebar.shadcn.tsx` — logo + name + color live update
+
+**Commit:** `50a5aef`
+
+---
 
 ### 2026-02-19 (Phase 24)
 - **Phase 24 tamamlandı:** Global Chatbot + AI Assistant Dual Mode
