@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20 (Phase 30)
+**Son Güncelleme:** 2026-02-20 (Phase 31)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,50 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 31: CompanyGroupDetail Redesign — Tabs, Date-Grouped Assessments & Trend Chart (Gün 45)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**Yeniden Tasarımlanan Sayfa:** `frontend/src/pages/CompanyGroupDetail.shadcn.tsx`
+
+**Header Card:**
+- 52×52 avatar (Building2, indigo bg) + grup adı (h1, 800 weight) + industry pill + Risk Level badge + son assessment tarihi
+- Primary `Add Subsidiary` butonu + `⋮` overflow menu (Import Excel, Refresh) — 3 ayrı butondan daha temiz
+
+**Stats Row (4 kart):**
+- Subsidiaries (şirket sayısı, indigo) · Total Assessments (tüm assessments, purple) · Avg Score (renk-kodlu) · Last Update (timeAgo metni)
+
+**3 Tab Layout:**
+
+| Tab | İçerik |
+|-----|--------|
+| **Overview** | Subsidiaries tablosu (Edit/Delete korundu) + CSF Function Scores karşılaştırma tablosu |
+| **Assessments** | Tüm subsidiaries'lerin tüm assessments'ları ay bazında gruplu — en yeni ay açık, diğerleri collapsed; her satır tıklanabilir → assessment detayına |
+| **Compliance Trend** | recharts `LineChart` — subsidiary başına bir renkli çizgi, zaman içinde skor değişimi; <2 data point ise boş durum mesajı |
+
+**Veri Yükleme:**
+- `companyGroupsApi.getSummary()` + `assessmentsApi.list()` paralel fetch (Promise.all)
+- Client-side filter: tüm org assessments → sadece bu grubun vendor ID'lerine ait olanlar
+- Yeni API endpoint gerekmedi
+
+**Collapsible Month Groups (Assessments Tab):**
+- `collapsedMonths: Set<string>` state — ay grubuna tıklayınca toggle
+- `collapsedInitRef` ile tek seferlik init: ilk yükleme sonrası sadece en yeni ay açık, diğerleri collapsed
+- Data reload sonrası init sıfırlanıyor (kullanıcı manuel değiştirmişse korunmaz — intentional)
+
+**Trend Chart Data Structure:**
+- `trendData`: kronolojik sıralı data points — `{ date: "Feb 12", "Company A": 67.3, "Company B": 45.0 }`
+- Her vendor için ayrı `Line` — `LINE_COLORS` array (8 renk, loop)
+- `connectNulls={false}`: o tarihte assessment yoksa çizgi kopuyor
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/CompanyGroupDetail.shadcn.tsx` — tam yeniden yazım (664 ekle / 402 sil)
+
+**Commit:** `d15c5ba`
 
 ---
 
@@ -1994,6 +2038,14 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 31)
+- **Phase 31 tamamlandı:** CompanyGroupDetail sayfası yeniden tasarlandı
+- Header card: avatar + grup adı + industry + risk badge + son assessment tarihi + Add Subsidiary + ⋮ menu
+- 4 stats kart: Subsidiaries, Total Assessments, Avg Score, Last Update
+- 3 tab: Overview (subsidiaries tablo + CSF karşılaştırma) | Assessments (ay bazında collapsible) | Compliance Trend (recharts LineChart, her subsidiary ayrı çizgi)
+- Veri: `assessmentsApi.list()` paralel fetch + client-side vendor ID filter
+- Commit: `d15c5ba`
 
 ### 2026-02-20 (Phase 30)
 - **Phase 30 tamamlandı:** Favicon ve CsfLogo brand komponenti eklendi
