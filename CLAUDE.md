@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20 (Phase 29)
+**Son Güncelleme:** 2026-02-20 (Phase 30)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,30 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 30: Favicon & CsfLogo Brand Component (Gün 44)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**Yeni Dosyalar:**
+- `frontend/public/favicon.svg` — Ana favicon: teal gradient (`#14B8A6 → #0D9488`) rounded square (rx=7), beyaz shield overlay, beyaz bold "C" lettermark; SVG formatı tüm modern tarayıcılarda destekleniyor
+- `frontend/public/favicon.ico` — Eski tarayıcı fallback'i: Node.js ile programatik olarak üretilen binary ICO, 16×16 + 32×32 BGRA bitmap içeriyor
+- `frontend/src/components/CsfLogo.tsx` — Yeniden kullanılabilir React SVG komponenti; `size` ve `className` prop'ları; her instance için benzersiz gradient ID (`csf-logo-grad-${size}`)
+
+**Tasarım Detayları:**
+- Rounded square arka plan: 32×32 viewBox, rx=7, teal linear gradient
+- Shield path: `rgba(255,255,255,0.13)` yarı-saydam beyaz overlay
+- "C" lettermark: system-ui font, fontWeight 700, fill white, fontSize 14
+- Siber güvenlik/compliance temasına uygun, minimal ve professional
+
+**Güncellenen Dosyalar:**
+- `frontend/index.html` — `vite.svg` kaldırıldı; SVG → ICO → apple-touch-icon sırasında favicon link'leri eklendi
+- `frontend/src/components/layout/Sidebar.shadcn.tsx` — `CsfLogo` import edildi, `ShieldCheck` lucide ikonu kaldırıldı; default logo artık `<CsfLogo size={34} />` (kullanıcının custom org logosu varsa yine öncelikli)
+
+**Commit:** `e8775c4`
 
 ---
 
@@ -1970,6 +1994,14 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 30)
+- **Phase 30 tamamlandı:** Favicon ve CsfLogo brand komponenti eklendi
+- `favicon.svg`: teal gradient rounded square + shield overlay + "C" lettermark (SVG, modern tarayıcılar)
+- `favicon.ico`: programatik binary ICO (16×16 + 32×32 BGRA bitmap, legacy fallback)
+- `CsfLogo.tsx`: yeniden kullanılabilir React SVG komponenti (`size`, `className` prop'ları)
+- `index.html`: favicon link'leri güncellendi (SVG önce, ICO fallback, apple-touch-icon)
+- `Sidebar.shadcn.tsx`: ShieldCheck ikonu → CsfLogo komponenti; custom org logo hâlâ öncelikli
 
 ### 2026-02-20 (Phase 29)
 - **Phase 29 tamamlandı:** XLSX ve PDF import desteği eklendi — ExcelImportModal tam yeniden yazım
