@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20 (Phase 33)
+**Son Güncelleme:** 2026-02-20 (Phase 34)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -2161,6 +2161,17 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 34)
+- **Phase 34 tamamlandı:** Dashboard sayfası yeniden tasarlandı
+- Statik `csfData` BarChart kaldırıldı → recharts AreaChart (gerçek tamamlanan assessment'lardan son 8 skor, kronolojik)
+- Statik `recentActivity` feed kaldırıldı → Quick Access nav kartları (Assessments/Vendors/Group Companies/Analytics, canlı sayım)
+- Local `const T` CSS var objesi — `T/card/sectionLabel` token importları kaldırıldı
+- `useMemo` ile tüm computed değerler: `completed`, `inProgress`, `drafts`, `highRisk`, `avgScore`, `trendData`
+- `TrendTooltip` component recharts hover için
+- Dark mode tablo header: hardcoded `#F8FAFC` → `var(--surface-2)` düzeltildi
+- Tamamlanan assessment < 2 ise trend chart empty state gösteriyor
+- Commit: `7fd0e64`
 
 ### 2026-02-20 (Phase 33)
 - **Phase 33 tamamlandı:** AssessmentDetail sayfası yeniden tasarlandı
