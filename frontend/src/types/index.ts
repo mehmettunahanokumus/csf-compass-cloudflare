@@ -300,6 +300,8 @@ export interface CompanyGroup {
   description?: string;
   industry?: string;
   logo_url?: string;
+  risk_level?: 'low' | 'medium' | 'high' | 'critical';
+  primary_contact?: string;
   vendor_count?: number;
   created_at: string;
   updated_at: string;

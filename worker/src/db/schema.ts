@@ -55,6 +55,8 @@ export const company_groups = sqliteTable('company_groups', {
   description: text('description'),
   industry: text('industry'),
   logo_url: text('logo_url'),
+  risk_level: text('risk_level').default('medium'),
+  primary_contact: text('primary_contact'),
   created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updated_at: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (table) => ({

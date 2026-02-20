@@ -146,6 +146,8 @@ app.patch('/:id', async (c) => {
         description: body.description,
         industry: body.industry,
         logo_url: body.logo_url,
+        risk_level: body.risk_level,
+        primary_contact: body.primary_contact,
         updated_at: new Date(),
       })
       .where(eq(company_groups.id, groupId))

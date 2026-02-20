@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
+
+const LS_LOGO  = 'csf-org-logo';
+const LS_NAME  = 'csf-org-name';
+const LS_COLOR = 'csf-org-color';
 import {
   LayoutDashboard,
   FileCheck,
@@ -86,6 +90,20 @@ interface Props {
 export default function AppSidebar({ open, onClose }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip] = useState<string | null>(null);
+  const [orgLogo, setOrgLogo] = useState<string | null>(() => localStorage.getItem(LS_LOGO));
+  const [orgName, setOrgName] = useState<string | null>(() => localStorage.getItem(LS_NAME));
+
+  // Listen for branding changes from Organization settings page
+  useEffect(() => {
+    const handler = () => {
+      setOrgLogo(localStorage.getItem(LS_LOGO));
+      setOrgName(localStorage.getItem(LS_NAME));
+      const color = localStorage.getItem(LS_COLOR);
+      if (color) document.documentElement.style.setProperty('--t-accent', color);
+    };
+    window.addEventListener('csf-branding-change', handler);
+    return () => window.removeEventListener('csf-branding-change', handler);
+  }, []);
 
   const w = collapsed ? 64 : 256;
 
@@ -132,7 +150,7 @@ export default function AppSidebar({ open, onClose }: Props) {
           overflow: 'hidden',
           transition: 'padding 0.22s',
         }}>
-          {/* Logo icon */}
+          {/* Logo icon — custom or default shield */}
           <div style={{
             width: 36,
             height: 36,
@@ -143,8 +161,12 @@ export default function AppSidebar({ open, onClose }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
+            overflow: 'hidden',
           }}>
-            <ShieldCheck size={18} style={{ color: '#818CF8' }} />
+            {orgLogo
+              ? <img src={orgLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              : <ShieldCheck size={18} style={{ color: '#818CF8' }} />
+            }
           </div>
 
           {/* Brand name — hidden when collapsed */}
@@ -157,8 +179,10 @@ export default function AppSidebar({ open, onClose }: Props) {
                 color: '#F8FAFC',
                 letterSpacing: '-0.01em',
                 whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}>
-                CSF Compass
+                {orgName || 'CSF Compass'}
               </div>
               <div style={{
                 fontFamily: 'JetBrains Mono, monospace',
