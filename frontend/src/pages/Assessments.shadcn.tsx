@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Search, Shield, MoreVertical,
   Eye, Trash2, Send,
@@ -15,7 +15,6 @@ const T = {
   card:        'var(--card)',
   border:      'var(--border)',
   borderLight: 'rgba(148,163,184,0.12)',
-  bg:          'var(--bg)',
   surface2:    'var(--surface-2)',
   text1:       'var(--text-1)',
   text2:       'var(--text-2)',
@@ -27,7 +26,6 @@ const T = {
   danger:      '#EF4444',
   dangerLight: 'rgba(239,68,68,0.08)',
   fontSans:    'var(--font-sans)',
-  fontDisplay: 'var(--font-display)',
   fontMono:    'var(--font-mono)',
 } as const;
 
@@ -50,7 +48,7 @@ function scoreColor(s: number) {
 // ── Status Pill ───────────────────────────────────────────────
 const STATUS_CFG: Record<string, { bg: string; color: string; label: string; icon: React.ReactNode }> = {
   completed:   { bg: 'rgba(34,197,94,0.1)',   color: '#22C55E',        label: 'Completed',   icon: <CheckCircle2 size={10} /> },
-  in_progress: { bg: 'rgba(99,102,241,0.1)',  color: '#6366F1',        label: 'In Progress', icon: <Clock size={10} /> },
+  in_progress: { bg: 'rgba(99,102,241,0.1)',  color: T.accent,         label: 'In Progress', icon: <Clock size={10} /> },
   draft:       { bg: 'rgba(148,163,184,0.1)', color: 'var(--text-3)',  label: 'Draft',       icon: <FileText size={10} /> },
 };
 function StatusPill({ status }: { status: string }) {
@@ -443,7 +441,7 @@ function EntityDropdown({ options, value, onChange, allLabel, buttonLabel, show 
                       paddingLeft: 26, paddingRight: 8, paddingTop: 5, paddingBottom: 5,
                       border: `1px solid ${T.border}`, borderRadius: 6,
                       fontFamily: T.fontSans, fontSize: 11, color: T.text1,
-                      background: T.bg, outline: 'none',
+                      background: T.surface2, outline: 'none',
                     }}
                   />
                 </div>
@@ -643,30 +641,29 @@ export default function Assessments() {
             )}
           </p>
         </div>
-        <Link to="/assessments/new" style={{ textDecoration: 'none' }}>
-          <button
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7,
-              padding: '9px 18px', borderRadius: 9,
-              background: T.accent, color: '#fff',
-              fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
-              border: 'none', cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(99,102,241,0.3)',
-              transition: 'opacity 0.15s, box-shadow 0.15s',
-            }}
-            onMouseEnter={e => { const b = e.currentTarget; b.style.opacity = '0.9'; b.style.boxShadow = '0 4px 12px rgba(99,102,241,0.35)'; }}
-            onMouseLeave={e => { const b = e.currentTarget; b.style.opacity = '1';   b.style.boxShadow = '0 1px 3px rgba(99,102,241,0.3)'; }}
-          >
-            <Plus size={15} /> New Assessment
-          </button>
-        </Link>
+        <button
+          onClick={() => navigate('/assessments/new')}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            padding: '9px 18px', borderRadius: 9,
+            background: T.accent, color: '#fff',
+            fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+            border: 'none', cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(99,102,241,0.3)',
+            transition: 'opacity 0.15s, box-shadow 0.15s',
+          }}
+          onMouseEnter={e => { const b = e.currentTarget; b.style.opacity = '0.9'; b.style.boxShadow = '0 4px 12px rgba(99,102,241,0.35)'; }}
+          onMouseLeave={e => { const b = e.currentTarget; b.style.opacity = '1';   b.style.boxShadow = '0 1px 3px rgba(99,102,241,0.3)'; }}
+        >
+          <Plus size={15} /> New Assessment
+        </button>
       </div>
 
       {/* ── Stats strip ──────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {[
           { icon: <CheckCircle2 size={15} />, label: 'Completed',   value: loading ? '—' : String(completed),  color: '#22C55E',      lightBg: 'rgba(34,197,94,0.1)'  },
-          { icon: <Clock size={15} />,        label: 'In Progress', value: loading ? '—' : String(inProgress), color: '#6366F1',      lightBg: 'rgba(99,102,241,0.1)' },
+          { icon: <Clock size={15} />,        label: 'In Progress', value: loading ? '—' : String(inProgress), color: T.accent,      lightBg: 'rgba(99,102,241,0.1)' },
           { icon: <FileText size={15} />,     label: 'Draft',       value: loading ? '—' : String(drafts),     color: T.text3,        lightBg: T.borderLight          },
           { icon: <Shield size={15} />,       label: 'Avg Score',   value: loading ? '—' : (avgScore > 0 ? `${avgScore}%` : '—'), color: avgScoreColor, lightBg: avgScore >= 70 ? 'rgba(34,197,94,0.1)' : avgScore >= 50 ? 'rgba(245,158,11,0.1)' : avgScore > 0 ? 'rgba(239,68,68,0.1)' : T.borderLight },
         ].map(s => (
@@ -679,7 +676,7 @@ export default function Assessments() {
               {s.icon}
             </div>
             <div>
-              <div style={{ fontFamily: T.fontDisplay, fontSize: 26, fontWeight: 700, color: s.color, lineHeight: 1 }}>
+              <div style={{ fontFamily: T.fontMono, fontSize: 26, fontWeight: 700, color: s.color, lineHeight: 1 }}>
                 {s.value}
               </div>
               <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.text3, marginTop: 2 }}>
@@ -834,17 +831,18 @@ export default function Assessments() {
               <X size={12} /> Clear all filters
             </button>
           ) : (
-            <Link to="/assessments/new" style={{ textDecoration: 'none', marginTop: 4 }}>
-              <button style={{
+            <button
+              onClick={() => navigate('/assessments/new')}
+              style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '9px 18px', borderRadius: 9,
+                padding: '9px 18px', borderRadius: 9, marginTop: 4,
                 background: T.accent, color: '#fff',
                 fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
                 border: 'none', cursor: 'pointer',
-              }}>
-                <Plus size={14} /> Create Assessment
-              </button>
-            </Link>
+              }}
+            >
+              <Plus size={14} /> Create Assessment
+            </button>
           )}
         </div>
 
