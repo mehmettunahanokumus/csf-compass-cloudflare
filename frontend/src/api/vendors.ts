@@ -32,11 +32,21 @@ export interface UpdateVendorData {
 
 export const vendorsApi = {
   /**
-   * List vendors for organization
+   * List vendors for organization (external only, excludes group subsidiaries)
    */
   list: async (): Promise<Vendor[]> => {
     const response = await apiClient.get<Vendor[]>('/api/vendors', {
       params: { organization_id: DEMO_ORG_ID, exclude_grouped: 'true' },
+    });
+    return response.data;
+  },
+
+  /**
+   * List ALL vendors including group subsidiaries (used for New Assessment step 2)
+   */
+  listAll: async (): Promise<Vendor[]> => {
+    const response = await apiClient.get<Vendor[]>('/api/vendors', {
+      params: { organization_id: DEMO_ORG_ID },
     });
     return response.data;
   },

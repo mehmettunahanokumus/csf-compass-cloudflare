@@ -2,7 +2,7 @@
 
 > Bu dosya, Claude Code için proje bağlamını hızlıca anlamak amacıyla hazırlanmıştır. Tüm geçmiş değişiklikleri, kararları ve önemli dönüm noktalarını içerir.
 
-**Son Güncelleme:** 2026-02-20 (Phase 26)
+**Son Güncelleme:** 2026-02-20 (Phase 27)
 **Proje Adı:** CSF Compass - Cloudflare Edition
 **Versiyon:** 1.0.0 (Production)
 
@@ -532,6 +532,59 @@ Commit: `c86edb5` - Cladude Code Agentic Devs
 - `frontend/src/pages/AssessmentChecklist.shadcn.tsx` — getTipForItem() fonksiyonu, Details butonu, gelişmiş panel
 
 **Commit:** `99cf8d3` — feat: Add Implementation Guide to Wizard and enhanced Details panel to Checklist
+
+---
+
+### Phase 27: New Assessment Flow — 3-Step Entity Selection (Gün 41)
+**Tamamlanma:** 2026-02-20
+
+✅ Tamamlanan:
+
+**Yeniden Tasarımlanan Assessment Oluşturma Akışı (`NewAssessment.new.tsx`):**
+
+Eski akış: 2 seçenek (Organization / Vendor) → Assessment Details
+
+Yeni akış: 3 adım
+
+**Step 1 — Assessment Type (3 kart):**
+- 🏢 **Group Company** (mavi) — iç bağlı ortaklık değerlendirmesi
+- 📦 **Vendor** (mor) — dış tedarikçi değerlendirmesi
+- 🛡 **Self-Assessment** (indigo) — kendi organizasyon değerlendirmesi
+- Kart hover: üst sınır rengi + yukarı kalkma animasyonu
+
+**Step 2 — Company/Vendor Seçimi (Group Company ve Vendor için):**
+- Üstte arama çubuğu (live filter, X ile temizle)
+- Her entity için seçilebilir kart:
+  - Şirket/vendor adı (bold) + Risk badge (criticality_level)
+  - Industry + son assessment tarihi veya "No assessments yet"
+  - Son skor badge'i (sağda % göstergesi)
+- Boş liste: "Go to Group Companies / Go to Vendors" linki
+- Back + Next navigasyon (Next: vendorId seçilene kadar disabled)
+- maxHeight: 380px scroll, autoFocus arama kutusu
+
+**Step 3 — Assessment Details:**
+- Assessment Name (required) + Description
+- Summary card: Type / Company/Vendor adı / NIST CSF 2.0 / 120 Subcategories
+- Inline hata mesajı (alert() kaldırıldı)
+- Back: self → Step 1, diğerleri → Step 2
+
+**Progress Stepper:**
+- Self-Assessment: 2 daire (Step 1 Type, Step 2 Details)
+- Group Company / Vendor: 3 daire (Step 1 Type, Step 2 Company, Step 3 Details)
+- Step geçişinde daireler dolup check ikonu gösteriyor
+
+**Veri Modeli Değişikliği Yok:**
+- Group Company → `assessment_type: 'vendor'` + `vendor_id` (subsidiary vendor)
+- Vendor → `assessment_type: 'vendor'` + `vendor_id`
+- Self → `assessment_type: 'organization'`, `vendor_id: undefined`
+
+**`frontend/src/api/vendors.ts`:**
+- `listAll()` yeni metod eklendi: `GET /api/vendors?organization_id=xxx` (exclude_grouped filtresi yok)
+- Step 2'de subsidiary tespiti için kullanılıyor: `allVendors.filter(v => !!v.group_id)`
+
+**Değişen Dosyalar:**
+- `frontend/src/pages/NewAssessment.new.tsx` — tam yeniden yazım
+- `frontend/src/api/vendors.ts` — `listAll()` eklendi
 
 ---
 
@@ -1835,6 +1888,15 @@ GROUP BY f.id, c.id;
 ---
 
 ## Change Log
+
+### 2026-02-20 (Phase 27)
+- **Phase 27 tamamlandı:** New Assessment Flow — 3-step entity selection
+- `NewAssessment.new.tsx` tam yeniden yazım: 2 opsiyon → 3 kart (Group Company / Vendor / Self-Assessment)
+- Step 2 eklendi: arama + scrollable entity kartları (ad, risk badge, industry, skor, son tarih)
+- Self-Assessment Step 2'yi atlıyor (2-adım akış); diğerleri 3 adım
+- Progress stepper totalSteps'e göre dinamik (2 veya 3 daire)
+- `vendorsApi.listAll()` eklendi: tüm vendor'lar (exclude_grouped yok), subsidiaries için client-side filter
+- Inline hata mesajı, alert() kaldırıldı
 
 ### 2026-02-20 (Phase 26)
 - **Phase 26 tamamlandı:** Assessments Sayfası Gelişmiş Filtreler
