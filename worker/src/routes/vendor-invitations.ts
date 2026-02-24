@@ -386,18 +386,20 @@ app.patch('/:token/items/:itemId', async (c) => {
 
     // 5. Update assessment_item
     const body = await c.req.json();
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date(Date.now()),
+    };
+    if (body.status !== undefined) updateData.status = body.status;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+
     const updatedItem = await db
       .update(assessment_items)
-      .set({
-        status: body.status,
-        notes: body.notes,
-        updated_at: new Date(Date.now()),
-      })
+      .set(updateData)
       .where(eq(assessment_items.id, itemId))
       .returning();
 
     // 6. Recalculate assessment score
-    await updateAssessmentScore(db, c.env.DB, invitationResult.vendor_self_assessment_id as string);
+    await updateAssessmentScore(db, invitationResult.vendor_self_assessment_id as string);
 
     // 7. Update last_accessed_at
     await c.env.DB.prepare(
