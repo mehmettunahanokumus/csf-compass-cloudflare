@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Shield,
@@ -9,8 +9,10 @@ import {
   Ban,
   AlertCircle,
   Send,
-  ChevronRight,
+  ChevronDown,
   Loader2,
+  Info,
+  Check,
 } from 'lucide-react';
 import { vendorInvitationsApi } from '../api/vendor-invitations';
 import { csfApi } from '../api/csf';
@@ -23,7 +25,13 @@ import type {
 import { getErrorMessage, formatDate } from '../api/client';
 import { T, card, sectionLabel } from '../tokens';
 
-// ── Helpers ──────────────────────────────────────────────
+// ── Status config ──────────────────────────────────────
+const STATUS_OPTIONS = [
+  { value: 'compliant',      label: 'Compliant',      bg: T.successLight, color: T.success, border: T.successBorder },
+  { value: 'partial',        label: 'Partial',         bg: T.warningLight, color: T.warning, border: T.warningBorder },
+  { value: 'non_compliant',  label: 'Non-Compliant',  bg: T.dangerLight,  color: T.danger,  border: T.dangerBorder },
+  { value: 'not_applicable', label: 'N/A',             bg: T.borderLight,  color: T.textMuted, border: T.border },
+] as const;
 
 function getStatusIcon(status: string) {
   switch (status) {
@@ -40,15 +48,98 @@ function getStatusIcon(status: string) {
   }
 }
 
-const STATUS_OPTIONS = [
-  { value: 'compliant',      label: 'Compliant',     bg: T.successLight, color: T.success, border: T.successBorder },
-  { value: 'partial',        label: 'Partial',       bg: T.warningLight, color: T.warning, border: T.warningBorder },
-  { value: 'non_compliant',  label: 'Non-Compliant', bg: T.dangerLight,  color: T.danger,  border: T.dangerBorder },
-  { value: 'not_applicable', label: 'Not Applicable',bg: T.borderLight,  color: T.textMuted, border: T.border },
-] as const;
+function statusLabel(status: string) {
+  return status === 'compliant' ? 'Compliant'
+    : status === 'partial' ? 'Partial'
+    : status === 'non_compliant' ? 'Non-Compliant'
+    : status === 'not_applicable' ? 'N/A'
+    : 'Not Assessed';
+}
 
-// ── Component ────────────────────────────────────────────
+// ── Evidence examples by CSF function prefix ───────────
+function getEvidenceExamples(subcategoryId: string): string[] {
+  const prefix = subcategoryId?.split('.')[0] || '';
+  switch (prefix) {
+    case 'GV': return [
+      'Cybersecurity policy documents and approval records',
+      'Risk management framework documentation',
+      'Board/leadership meeting minutes discussing cyber risk',
+      'Roles and responsibilities matrix (RACI)',
+    ];
+    case 'ID': return [
+      'Asset inventory or CMDB export',
+      'Network architecture diagrams',
+      'Data classification and flow documentation',
+      'Business impact analysis (BIA) reports',
+    ];
+    case 'PR': return [
+      'Access control policy and user provisioning records',
+      'Security awareness training completion reports',
+      'Encryption standards and implementation evidence',
+      'Change management and patch records',
+    ];
+    case 'DE': return [
+      'SIEM/monitoring tool configuration and alert rules',
+      'Log retention policy and sample logs',
+      'Intrusion detection/prevention system reports',
+      'Vulnerability scan results from last 90 days',
+    ];
+    case 'RS': return [
+      'Incident response plan and playbooks',
+      'Incident response drill/tabletop exercise results',
+      'Communication plan for security incidents',
+      'Post-incident review reports',
+    ];
+    case 'RC': return [
+      'Business continuity and disaster recovery plans',
+      'Backup verification and restoration test results',
+      'Recovery time objective (RTO/RPO) documentation',
+      'Lessons learned from past recovery exercises',
+    ];
+    default: return [
+      'Relevant policy or procedure documentation',
+      'Implementation evidence (screenshots, configs)',
+      'Audit or review records from last 12 months',
+      'Third-party assessment or certification reports',
+    ];
+  }
+}
 
+// ── Toast component ────────────────────────────────────
+function Toast({ message, type, onClose }: { message: string; type: 'error' | 'success'; onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+  const isErr = type === 'error';
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '12px 18px', borderRadius: 10, maxWidth: 400,
+      background: isErr ? T.dangerLight : T.successLight,
+      border: `1px solid ${isErr ? T.dangerBorder : T.successBorder}`,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+      animation: 'vp-toast-in 200ms ease-out',
+    }}>
+      {isErr
+        ? <AlertCircle size={16} style={{ color: T.danger, flexShrink: 0 }} />
+        : <Check size={16} style={{ color: T.success, flexShrink: 0 }} />
+      }
+      <span style={{ fontFamily: T.fontSans, fontSize: 13, color: isErr ? T.danger : T.success }}>
+        {message}
+      </span>
+    </div>
+  );
+}
+
+// ── Animation CSS ──────────────────────────────────────
+const ANIM_CSS = `
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes vp-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+`;
+
+// ── Component ──────────────────────────────────────────
 export default function VendorPortalShadcn() {
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
@@ -62,6 +153,12 @@ export default function VendorPortalShadcn() {
   const [completed, setCompleted] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [expandedInfo, setExpandedInfo] = useState<Set<string>>(new Set());
+  const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+
+  // Notes debounce refs
+  const notesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     if (token) validateToken();
@@ -105,20 +202,64 @@ export default function VendorPortalShadcn() {
     }
   };
 
-  const handleStatusChange = async (itemId: string, status: string) => {
+  // ── Status change with optimistic UI ──
+  const handleStatusChange = useCallback(async (itemId: string, status: string) => {
     if (!token) return;
+
+    // Save previous state for rollback
+    const prevItems = items;
+
+    // Optimistic update
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, status: status as AssessmentItem['status'] } : item
+    ));
+    setSavingItems(prev => new Set(prev).add(itemId));
+
     try {
       const updatedItem = await vendorInvitationsApi.updateItem(token, itemId, {
         status: status as 'compliant' | 'partial' | 'non_compliant' | 'not_assessed' | 'not_applicable',
       });
-      setItems((prevItems) =>
-        prevItems.map((item) => (item.id === itemId ? updatedItem : item)),
-      );
+      // Merge API response with existing CSF metadata (API returns flat row without joins)
+      setItems(prev => prev.map(item =>
+        item.id === itemId
+          ? { ...item, status: updatedItem.status, notes: updatedItem.notes, updated_at: updatedItem.updated_at }
+          : item
+      ));
     } catch (err) {
-      console.error('Failed to update item:', err);
-      alert(getErrorMessage(err));
+      // Revert on failure
+      setItems(prevItems);
+      setToast({ message: `Failed to save: ${getErrorMessage(err)}`, type: 'error' });
+    } finally {
+      setSavingItems(prev => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
     }
-  };
+  }, [token, items]);
+
+  // ── Notes auto-save on blur / debounce ──
+  const handleNotesChange = useCallback((itemId: string, notes: string) => {
+    // Update local state immediately
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, notes } : item
+    ));
+
+    // Debounce API call
+    if (notesTimers.current[itemId]) clearTimeout(notesTimers.current[itemId]);
+    notesTimers.current[itemId] = setTimeout(async () => {
+      if (!token) return;
+      try {
+        const currentItem = items.find(i => i.id === itemId);
+        await vendorInvitationsApi.updateItem(token, itemId, {
+          status: (currentItem?.status || 'not_assessed') as any,
+          notes,
+        });
+      } catch (err) {
+        setToast({ message: `Failed to save notes: ${getErrorMessage(err)}`, type: 'error' });
+      }
+    }, 800);
+  }, [token, items]);
 
   const handleSubmit = async () => {
     if (!token) return;
@@ -127,12 +268,20 @@ export default function VendorPortalShadcn() {
       setSubmitting(true);
       await vendorInvitationsApi.complete(token);
       setCompleted(true);
-      alert('Assessment submitted successfully!');
     } catch (err) {
-      alert(getErrorMessage(err));
+      setToast({ message: getErrorMessage(err), type: 'error' });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const toggleInfo = (itemId: string) => {
+    setExpandedInfo(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
   };
 
   const filteredItems = items.filter((item) => item.function?.id === selectedFunction);
@@ -141,23 +290,24 @@ export default function VendorPortalShadcn() {
   const progressPct = totalItems > 0 ? Math.round((assessedItems / totalItems) * 100) : 0;
 
   // ── Loading state ──
-
   if (loading) {
     return (
-      <div style={{
-        display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center',
-        background: T.bg,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: T.textSecondary }}>
-          <Loader2 size={20} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
-          <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Validating invitation...</span>
+      <>
+        <style>{ANIM_CSS}</style>
+        <div style={{
+          display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center',
+          background: T.bg,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: T.textSecondary }}>
+            <Loader2 size={20} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Validating invitation...</span>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // ── Error state ──
-
   if (error) {
     return (
       <div style={{
@@ -191,7 +341,6 @@ export default function VendorPortalShadcn() {
   if (!validationData || !assessment) return null;
 
   // ── Completed state ──
-
   if (completed) {
     return (
       <div style={{
@@ -223,9 +372,12 @@ export default function VendorPortalShadcn() {
   }
 
   // ── Main render ──
-
   return (
     <div style={{ minHeight: '100vh', background: T.bg }}>
+      <style>{ANIM_CSS}</style>
+
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Header */}
       <header style={{
@@ -324,7 +476,7 @@ export default function VendorPortalShadcn() {
               Assessment Progress
             </span>
             <span style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textSecondary }}>
-              {assessedItems} of {totalItems} completed
+              {assessedItems} of {totalItems} controls assessed
             </span>
           </div>
           <div style={{ width: '100%', height: 10, background: T.borderLight, borderRadius: 999, overflow: 'hidden' }}>
@@ -352,13 +504,15 @@ export default function VendorPortalShadcn() {
               <span style={sectionLabel}>NIST Cybersecurity Framework Assessment</span>
             </div>
             <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, lineHeight: 1.6, marginBottom: 20, paddingLeft: 11 }}>
-              Please review each category and indicate your compliance status. Your progress is saved automatically.
+              Click on each control to set your compliance status. Click the <Info size={12} style={{ display: 'inline', verticalAlign: 'middle', color: T.accent }} /> icon for guidance on what's required.
             </p>
 
             {/* Function Tabs */}
             <div style={{ borderBottom: `1px solid ${T.border}`, display: 'flex', gap: 2, overflowX: 'auto' }}>
               {functions.map((func) => {
                 const isSelected = selectedFunction === func.id;
+                const funcItems = items.filter(i => i.function?.id === func.id);
+                const funcAssessed = funcItems.filter(i => i.status !== 'not_assessed').length;
                 return (
                   <button
                     key={func.id}
@@ -370,12 +524,20 @@ export default function VendorPortalShadcn() {
                       borderBottom: isSelected ? `2px solid ${T.accent}` : '2px solid transparent',
                       color: isSelected ? T.accent : T.textMuted,
                       background: 'transparent', transition: 'all 0.14s',
-                      marginBottom: -1,
+                      marginBottom: -1, position: 'relative',
                     }}
                     onMouseEnter={e => { if (!isSelected) { (e.currentTarget as HTMLButtonElement).style.color = T.textSecondary; } }}
-                    onMouseLeave={e => { if (!isSelected) { (e.currentTarget as HTMLButtonElement).style.color = T.textMuted; } }}
+                    onMouseLeave={e => { if (!isSelected) { (e.currentTarget as HTMLButtonElement).style.color = isSelected ? T.accent : T.textMuted; } }}
                   >
                     {func.name}
+                    {funcItems.length > 0 && (
+                      <span style={{
+                        marginLeft: 6, fontFamily: T.fontMono, fontSize: 10,
+                        color: funcAssessed === funcItems.length ? T.success : T.textFaint,
+                      }}>
+                        {funcAssessed}/{funcItems.length}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -401,32 +563,30 @@ export default function VendorPortalShadcn() {
             ) : (
               filteredItems.map((item) => {
                 const isExpanded = expandedItem === item.id;
+                const isInfoOpen = expandedInfo.has(item.id);
+                const isSaving = savingItems.has(item.id);
                 const statusStyle =
-                  item.status === 'compliant'      ? { bg: T.successLight, color: T.success, border: T.successBorder, label: 'Compliant' } :
-                  item.status === 'partial'         ? { bg: T.warningLight, color: T.warning, border: T.warningBorder, label: 'Partial' } :
-                  item.status === 'non_compliant'   ? { bg: T.dangerLight, color: T.danger, border: T.dangerBorder, label: 'Non-Compliant' } :
-                  item.status === 'not_applicable'  ? { bg: T.borderLight, color: T.textMuted, border: T.border, label: 'N/A' } :
-                                                      { bg: T.borderLight, color: T.textMuted, border: T.border, label: 'Not Assessed' };
+                  item.status === 'compliant'      ? { bg: T.successLight, color: T.success, border: T.successBorder } :
+                  item.status === 'partial'         ? { bg: T.warningLight, color: T.warning, border: T.warningBorder } :
+                  item.status === 'non_compliant'   ? { bg: T.dangerLight, color: T.danger, border: T.dangerBorder } :
+                  item.status === 'not_applicable'  ? { bg: T.borderLight, color: T.textMuted, border: T.border } :
+                                                      { bg: T.borderLight, color: T.textMuted, border: T.border };
 
                 return (
                   <div key={item.id} style={{
-                    borderRadius: 10, border: `1px solid ${T.border}`,
+                    borderRadius: 10, border: `1px solid ${isExpanded ? T.accentBorder : T.border}`,
                     overflow: 'hidden', transition: 'border-color 0.14s',
                   }}>
-                    {/* Item Header */}
-                    <button
-                      onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                    {/* Item Header — always visible */}
+                    <div
                       style={{
                         display: 'flex', width: '100%', alignItems: 'flex-start', gap: 14,
-                        padding: '16px 20px', textAlign: 'left', border: 'none',
-                        background: 'transparent', cursor: 'pointer', transition: 'background 0.12s',
+                        padding: '16px 20px',
                       }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = T.borderLight; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                     >
                       {getStatusIcon(item.status)}
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                           <span style={{ fontFamily: T.fontMono, fontSize: 11, fontWeight: 700, color: T.accent }}>
                             {item.subcategory?.id}
                           </span>
@@ -438,33 +598,112 @@ export default function VendorPortalShadcn() {
                             background: statusStyle.bg, color: statusStyle.color,
                             border: `1px solid ${statusStyle.border}`,
                           }}>
-                            {statusStyle.label}
+                            {statusLabel(item.status)}
                           </span>
+                          {isSaving && (
+                            <Loader2 size={12} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
+                          )}
                         </div>
-                        <p style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary, margin: 0 }}>
+                        <p
+                          onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                          style={{
+                            fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+                            color: T.textPrimary, margin: 0, cursor: 'pointer',
+                          }}
+                        >
                           {item.subcategory?.name}
                         </p>
-                        {item.subcategory?.description && (
-                          <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, marginTop: 4, lineHeight: 1.6 }}>
-                            {item.subcategory.description}
-                          </p>
-                        )}
                       </div>
-                      <ChevronRight
-                        size={16}
-                        style={{
-                          flexShrink: 0, color: T.textMuted,
-                          transform: isExpanded ? 'rotate(90deg)' : 'none',
-                          transition: 'transform 0.2s',
-                        }}
-                      />
-                    </button>
 
-                    {/* Expanded: Status Selection */}
+                      {/* Info toggle + Expand toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleInfo(item.id); }}
+                          title="Control details & guidance"
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: 28, height: 28, borderRadius: 6,
+                            border: 'none', cursor: 'pointer', transition: 'all 0.12s',
+                            background: isInfoOpen ? T.accentLight : 'transparent',
+                            color: isInfoOpen ? T.accent : T.textMuted,
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = T.accentLight; e.currentTarget.style.color = T.accent; }}
+                          onMouseLeave={e => { if (!isInfoOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textMuted; } }}
+                        >
+                          <Info size={15} />
+                        </button>
+                        <button
+                          onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: 28, height: 28, borderRadius: 6,
+                            border: 'none', cursor: 'pointer', transition: 'all 0.12s',
+                            background: 'transparent', color: T.textMuted,
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = T.borderLight; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <ChevronDown
+                            size={16}
+                            style={{
+                              transform: isExpanded ? 'rotate(180deg)' : 'none',
+                              transition: 'transform 0.2s',
+                            }}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Info Panel — expandable description + evidence */}
+                    {isInfoOpen && (
+                      <div style={{
+                        margin: '0 20px 12px',
+                        padding: 14,
+                        background: T.bg,
+                        border: `1px solid ${T.border}`,
+                        borderLeft: `3px solid ${T.accent}`,
+                        borderRadius: 8,
+                      }}>
+                        {/* What's Required */}
+                        <div style={{
+                          fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', letterSpacing: '0.06em',
+                          color: T.textPrimary, marginBottom: 6,
+                        }}>
+                          What's Required
+                        </div>
+                        <p style={{
+                          fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary,
+                          lineHeight: 1.65, margin: '0 0 14px',
+                        }}>
+                          {item.subcategory?.description || 'No description available for this control.'}
+                        </p>
+
+                        {/* Evidence Examples */}
+                        <div style={{
+                          fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
+                          textTransform: 'uppercase', letterSpacing: '0.06em',
+                          color: T.textPrimary, marginBottom: 6,
+                        }}>
+                          Evidence Examples
+                        </div>
+                        <ul style={{
+                          margin: 0, paddingLeft: 18,
+                          fontFamily: T.fontSans, fontSize: 13,
+                          color: T.textSecondary, lineHeight: 1.8,
+                        }}>
+                          {getEvidenceExamples(item.subcategory?.id || '').map((ex, i) => (
+                            <li key={i}>{ex}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Expanded: Status buttons + Notes */}
                     {isExpanded && (
                       <div style={{
                         borderTop: `1px solid ${T.borderLight}`,
-                        padding: '14px 20px 16px',
+                        padding: '14px 20px 18px',
                         background: T.bg,
                       }}>
                         <p style={{ ...sectionLabel, marginBottom: 10 }}>Select compliance status</p>
@@ -475,16 +714,20 @@ export default function VendorPortalShadcn() {
                               <button
                                 key={value}
                                 onClick={() => handleStatusChange(item.id, value)}
+                                disabled={isSaving}
                                 style={{
-                                  padding: '7px 16px', borderRadius: 8,
+                                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                                  padding: '8px 16px', borderRadius: 8,
                                   fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
-                                  border: `1px solid ${isActive ? border : T.border}`,
+                                  border: `1.5px solid ${isActive ? border : T.border}`,
                                   background: isActive ? bg : T.card,
                                   color: isActive ? color : T.textSecondary,
-                                  cursor: 'pointer', transition: 'all 0.14s',
+                                  cursor: isSaving ? 'wait' : 'pointer',
+                                  transition: 'all 0.14s',
+                                  opacity: isSaving ? 0.6 : 1,
                                 }}
                                 onMouseEnter={e => {
-                                  if (!isActive) {
+                                  if (!isActive && !isSaving) {
                                     const el = e.currentTarget as HTMLButtonElement;
                                     el.style.borderColor = border;
                                     el.style.background = bg;
@@ -492,7 +735,7 @@ export default function VendorPortalShadcn() {
                                   }
                                 }}
                                 onMouseLeave={e => {
-                                  if (!isActive) {
+                                  if (!isActive && !isSaving) {
                                     const el = e.currentTarget as HTMLButtonElement;
                                     el.style.borderColor = T.border;
                                     el.style.background = T.card;
@@ -500,10 +743,39 @@ export default function VendorPortalShadcn() {
                                   }
                                 }}
                               >
+                                {isActive && <Check size={13} />}
                                 {label}
                               </button>
                             );
                           })}
+                        </div>
+
+                        {/* Notes textarea */}
+                        <div style={{ marginTop: 14 }}>
+                          <label style={{
+                            display: 'block', fontFamily: T.fontSans, fontSize: 11,
+                            fontWeight: 600, color: T.textMuted, marginBottom: 5,
+                            textTransform: 'uppercase', letterSpacing: '0.06em',
+                          }}>
+                            Notes <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+                          </label>
+                          <textarea
+                            value={item.notes || ''}
+                            onChange={(e) => handleNotesChange(item.id, e.target.value)}
+                            placeholder="Add any notes or comments about this control..."
+                            style={{
+                              width: '100%', boxSizing: 'border-box',
+                              minHeight: 60, resize: 'vertical',
+                              padding: '10px 12px', borderRadius: 8,
+                              border: `1px solid ${T.border}`,
+                              background: T.card,
+                              fontFamily: T.fontSans, fontSize: 13,
+                              color: T.textPrimary, lineHeight: 1.6,
+                              outline: 'none', transition: 'border-color 0.15s',
+                            }}
+                            onFocus={e => { e.currentTarget.style.borderColor = T.accent; }}
+                            onBlur={e => { e.currentTarget.style.borderColor = T.border; }}
+                          />
                         </div>
                       </div>
                     )}
