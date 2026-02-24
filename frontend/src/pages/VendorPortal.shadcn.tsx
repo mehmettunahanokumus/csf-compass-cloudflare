@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Shield,
   Lock,
   CheckCircle,
   XCircle,
@@ -19,7 +18,7 @@ import type {
   CsfFunction,
 } from '../types';
 import { getErrorMessage, formatDate } from '../api/client';
-import { T, card, sectionLabel } from '../tokens';
+import { T, card } from '../tokens';
 import ControlItem from '../components/assessment/ControlItem';
 
 // ── Toast component ────────────────────────────────────
@@ -329,6 +328,19 @@ export default function VendorPortalShadcn() {
     );
   }
 
+  // ── Computed: per-function counts for compact tabs ──
+  const funcCounts = useMemo(() => {
+    const map: Record<string, { total: number; assessed: number }> = {};
+    for (const func of functions) {
+      const funcItems = items.filter(i => i.function?.id === func.id);
+      map[func.id] = { total: funcItems.length, assessed: funcItems.filter(i => i.status !== 'not_assessed').length };
+    }
+    return map;
+  }, [items, functions]);
+
+  // Short function name: "Govern" from "Govern (GV)"
+  const shortFuncName = (name: string) => name.replace(/\s*\(.*\)$/, '');
+
   // ── Main render ──
   return (
     <div style={{ minHeight: '100vh', background: T.bg }}>
@@ -337,289 +349,208 @@ export default function VendorPortalShadcn() {
       {/* Toast */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Header */}
+      {/* ─── Compact Header Bar ─── */}
       <header style={{
-        position: 'sticky', top: 0, zIndex: 10,
         borderBottom: `1px solid ${T.border}`,
-        background: 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(8px)',
-        boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
+        background: T.card,
       }}>
         <div style={{
           margin: '0 auto', maxWidth: 900,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 24px',
+          padding: '10px 20px',
+          gap: 12,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: T.accentLight, border: `1px solid ${T.accentBorder}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+            <Lock size={15} style={{ color: T.accent, flexShrink: 0 }} />
+            <span style={{
+              fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
-              <Shield size={20} style={{ color: T.accent }} />
-            </div>
-            <div>
-              <h1 style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: T.textPrimary, margin: 0, letterSpacing: '0.02em' }}>
-                CSF Compass
-              </h1>
-              <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, marginTop: 1 }}>
-                Vendor Assessment Portal
-              </p>
-            </div>
+              {assessment.name}
+            </span>
+            <span style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {validationData.vendor_contact_name ? `• ${validationData.vendor_contact_name}` : ''}
+              {validationData.invitation?.token_expires_at
+                ? ` • Expires ${formatDate(validationData.invitation.token_expires_at)}`
+                : ''}
+            </span>
           </div>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '5px 12px',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px',
             background: T.successLight, border: `1px solid ${T.successBorder}`,
-            borderRadius: 999,
+            borderRadius: 999, flexShrink: 0,
           }}>
-            <Lock size={12} style={{ color: T.success }} />
-            <span style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.success }}>
-              Secure Session
+            <Lock size={10} style={{ color: T.success }} />
+            <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.success }}>
+              Secure
             </span>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main style={{ margin: '0 auto', maxWidth: 900, padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-        {/* Welcome Card */}
-        <div style={{ ...card, padding: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18 }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-              background: T.accentLight, border: `1px solid ${T.accentBorder}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Lock size={22} style={{ color: T.accent }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: T.textPrimary, margin: '0 0 8px', letterSpacing: '0.01em' }}>
-                Secure Vendor Assessment
-              </h2>
-              <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textSecondary, lineHeight: 1.7, marginBottom: 14 }}>
-                Welcome{validationData.vendor_contact_name ? `, ${validationData.vendor_contact_name}` : ''}.
-                You've been invited to complete a cybersecurity assessment for{' '}
-                <span style={{ fontWeight: 700, color: T.textPrimary }}>{assessment.name}</span>.
-                Please answer each question honestly and provide supporting documentation where applicable.
-              </p>
-              {validationData.invitation?.message && (
-                <div style={{
-                  marginBottom: 14, padding: 14, borderRadius: 9,
-                  background: T.accentLight, border: `1px solid ${T.accentBorder}`,
-                }}>
-                  <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.accent, margin: 0 }}>
-                    {validationData.invitation.message}
-                  </p>
-                </div>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: T.fontSans, fontSize: 11, color: T.textMuted }}>
-                  <Lock size={12} />
-                  Encrypted communication
-                </span>
-                <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.textMuted }}>
-                  Expires {formatDate(validationData.invitation?.token_expires_at)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Card */}
-        <div style={{ ...card, padding: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontFamily: T.fontDisplay, fontSize: 15, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.02em' }}>
-              Assessment Progress
-            </span>
-            <span style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textSecondary }}>
-              {assessedItems} of {totalItems} controls assessed
-            </span>
-          </div>
-          <div style={{ width: '100%', height: 10, background: T.borderLight, borderRadius: 999, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', borderRadius: 999, transition: 'width 0.5s ease-out',
-              width: `${progressPct}%`,
-              background: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
-            }} />
-          </div>
-          <div style={{ marginTop: 8, textAlign: 'right' }}>
-            <span style={{
-              fontFamily: T.fontDisplay, fontSize: 14, fontWeight: 700,
-              color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
-            }}>
-              {progressPct}%
-            </span>
-          </div>
-        </div>
-
-        {/* Assessment Card */}
-        <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ padding: '24px 24px 0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
-              <span style={sectionLabel}>NIST Cybersecurity Framework Assessment</span>
-            </div>
-            <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, lineHeight: 1.6, marginBottom: 20, paddingLeft: 11 }}>
-              Use the status buttons on each control to set your compliance status. Click <strong style={{ color: T.accent }}>Details</strong> for guidance on what's required.
-            </p>
-
-            {/* Function Tabs */}
-            <div style={{ borderBottom: `1px solid ${T.border}`, display: 'flex', gap: 2, overflowX: 'auto' }}>
-              {functions.map((func) => {
-                const isSelected = selectedFunction === func.id;
-                const funcItems = items.filter(i => i.function?.id === func.id);
-                const funcAssessed = funcItems.filter(i => i.status !== 'not_assessed').length;
-                return (
-                  <button
-                    key={func.id}
-                    onClick={() => setSelectedFunction(func.id)}
-                    style={{
-                      padding: '10px 18px', fontFamily: T.fontDisplay,
-                      fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
-                      whiteSpace: 'nowrap', border: 'none', cursor: 'pointer',
-                      borderBottom: isSelected ? `2px solid ${T.accent}` : '2px solid transparent',
-                      color: isSelected ? T.accent : T.textMuted,
-                      background: 'transparent', transition: 'all 0.14s',
-                      marginBottom: -1, position: 'relative',
-                    }}
-                    onMouseEnter={e => { if (!isSelected) { (e.currentTarget as HTMLButtonElement).style.color = T.textSecondary; } }}
-                    onMouseLeave={e => { if (!isSelected) { (e.currentTarget as HTMLButtonElement).style.color = isSelected ? T.accent : T.textMuted; } }}
-                  >
-                    {func.name}
-                    {funcItems.length > 0 && (
-                      <span style={{
-                        marginLeft: 6, fontFamily: T.fontMono, fontSize: 10,
-                        color: funcAssessed === funcItems.length ? T.success : T.textFaint,
-                      }}>
-                        {funcAssessed}/{funcItems.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Sticky Progress Bar + Status Filter */}
+      {/* ─── Sticky: Function Tabs + Progress + Filters ─── */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: T.card,
+        borderBottom: `1px solid ${T.border}`,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+      }}>
+        <div style={{ margin: '0 auto', maxWidth: 900, padding: '0 20px' }}>
+          {/* Function tabs row */}
           <div style={{
-            position: 'sticky', top: 68, zIndex: 5,
-            padding: '10px 24px',
-            background: T.card,
-            borderBottom: `1px solid ${T.border}`,
-            boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+            display: 'flex', alignItems: 'center', gap: 0,
+            overflowX: 'auto', paddingTop: 6,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textSecondary }}>
-                <span style={{ fontWeight: 700, color: T.accent }}>{assessedItems}</span> of {totalItems} assessed
-              </span>
+            {functions.map((func) => {
+              const isSelected = selectedFunction === func.id;
+              const counts = funcCounts[func.id] || { total: 0, assessed: 0 };
+              return (
+                <button
+                  key={func.id}
+                  onClick={() => setSelectedFunction(func.id)}
+                  style={{
+                    padding: '7px 12px', fontFamily: T.fontSans,
+                    fontSize: 11, fontWeight: isSelected ? 700 : 500,
+                    whiteSpace: 'nowrap', border: 'none', cursor: 'pointer',
+                    borderBottom: isSelected ? `2px solid ${T.accent}` : '2px solid transparent',
+                    color: isSelected ? T.accent : T.textMuted,
+                    background: 'transparent', transition: 'all 0.12s',
+                    marginBottom: -1,
+                  }}
+                >
+                  {shortFuncName(func.name)}
+                  <span style={{
+                    marginLeft: 4, fontFamily: T.fontMono, fontSize: 9,
+                    color: counts.assessed === counts.total && counts.total > 0 ? T.success : T.textFaint,
+                  }}>
+                    {counts.assessed}/{counts.total}
+                  </span>
+                </button>
+              );
+            })}
+            {/* Progress % right-aligned */}
+            <div style={{ marginLeft: 'auto', paddingLeft: 12, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               <span style={{
-                fontFamily: T.fontMono, fontSize: 12, fontWeight: 700,
+                fontFamily: T.fontMono, fontSize: 11, fontWeight: 700,
                 color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
               }}>
                 {progressPct}%
               </span>
-            </div>
-            <div style={{
-              width: '100%', height: 5, background: T.border, borderRadius: 999,
-              overflow: 'hidden', marginBottom: 8,
-            }}>
-              <div style={{
-                height: '100%', borderRadius: 999,
-                background: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
-                width: `${progressPct}%`,
-                transition: 'width 0.4s ease',
-              }} />
-            </div>
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {STATUS_FILTER_OPTIONS.map(({ value, label }) => {
-                const isActive = statusFilter === value;
-                return (
-                  <button
-                    key={value}
-                    onClick={() => setStatusFilter(value)}
-                    style={{
-                      padding: '3px 9px', borderRadius: 5,
-                      fontFamily: T.fontSans, fontSize: 10, fontWeight: isActive ? 600 : 500,
-                      background: isActive ? T.accentLight : 'transparent',
-                      border: `1px solid ${isActive ? T.accentBorder : T.border}`,
-                      color: isActive ? T.accent : T.textMuted,
-                      cursor: 'pointer', transition: 'all 0.14s',
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+              <span style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted }}>
+                ({assessedItems}/{totalItems})
+              </span>
             </div>
           </div>
 
-          {/* Assessment Items */}
-          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {loadingItems ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '8px 0' }}>
-                {[1, 2, 3].map((i) => (
-                  <div key={i} style={{ borderRadius: 10, border: `1px solid ${T.border}`, padding: 20 }}>
-                    <div style={{ height: 12, width: 80, borderRadius: 4, background: T.borderLight, marginBottom: 12 }} />
-                    <div style={{ height: 15, width: '60%', borderRadius: 4, background: T.borderLight, marginBottom: 8 }} />
-                    <div style={{ height: 11, width: '85%', borderRadius: 4, background: T.borderLight }} />
-                  </div>
-                ))}
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textMuted, textAlign: 'center', padding: '40px 0' }}>
-                No assessment items found for this category
-              </p>
-            ) : (
-              filteredItems.map((item) => (
-                <ControlItem
-                  key={item.id}
-                  item={item}
-                  mode="interactive"
-                  statusOptions="vendor"
-                  showNotes={true}
-                  showGuidance={false}
-                  expanded={expandedItems.has(item.id)}
-                  onToggleExpand={toggleExpand}
-                  onStatusChange={handleStatusChange}
-                  onNotesChange={handleNotesChange}
-                  isSaving={savingItems.has(item.id)}
-                />
-              ))
-            )}
+          {/* Thin progress bar */}
+          <div style={{
+            width: '100%', height: 3, background: T.borderLight, borderRadius: 999,
+            overflow: 'hidden', margin: '4px 0',
+          }}>
+            <div style={{
+              height: '100%', borderRadius: 999,
+              background: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
+              width: `${progressPct}%`,
+              transition: 'width 0.4s ease',
+            }} />
           </div>
+
+          {/* Filter chips */}
+          <div style={{ display: 'flex', gap: 4, paddingBottom: 7 }}>
+            {STATUS_FILTER_OPTIONS.map(({ value, label }) => {
+              const isActive = statusFilter === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => setStatusFilter(value)}
+                  style={{
+                    padding: '2px 8px', borderRadius: 4,
+                    fontFamily: T.fontSans, fontSize: 10, fontWeight: isActive ? 600 : 500,
+                    background: isActive ? T.accentLight : 'transparent',
+                    border: `1px solid ${isActive ? T.accentBorder : 'transparent'}`,
+                    color: isActive ? T.accent : T.textMuted,
+                    cursor: 'pointer', transition: 'all 0.12s',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Controls List ─── */}
+      <main style={{ margin: '0 auto', maxWidth: 900, padding: '10px 20px 0' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {loadingItems ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 0' }}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} style={{ borderRadius: 8, border: `1px solid ${T.border}`, padding: 14 }}>
+                  <div style={{ height: 10, width: 70, borderRadius: 3, background: T.borderLight, marginBottom: 10 }} />
+                  <div style={{ height: 12, width: '55%', borderRadius: 3, background: T.borderLight, marginBottom: 6 }} />
+                  <div style={{ height: 10, width: '80%', borderRadius: 3, background: T.borderLight }} />
+                </div>
+              ))}
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', padding: '32px 0' }}>
+              {statusFilter !== 'all'
+                ? `No ${statusFilter === 'unanswered' ? 'unanswered' : statusFilter.replace('_', '-')} controls in this function`
+                : 'No controls found for this function'}
+            </p>
+          ) : (
+            filteredItems.map((item) => (
+              <ControlItem
+                key={item.id}
+                item={item}
+                mode="interactive"
+                statusOptions="vendor"
+                showNotes={true}
+                showGuidance={false}
+                expanded={expandedItems.has(item.id)}
+                onToggleExpand={toggleExpand}
+                onStatusChange={handleStatusChange}
+                onNotesChange={handleNotesChange}
+                isSaving={savingItems.has(item.id)}
+              />
+            ))
+          )}
         </div>
 
         {/* Submit Footer */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 32 }}>
-          <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
-            Your progress is saved automatically when you change a status
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 0 32px', marginTop: 8,
+        }}>
+          <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, margin: 0 }}>
+            Progress saved automatically
           </p>
           <button
             onClick={handleSubmit}
             disabled={submitting}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 24px', borderRadius: 9,
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '8px 20px', borderRadius: 8,
               background: submitting ? T.borderLight : T.accent,
               color: submitting ? T.textMuted : '#fff', border: 'none',
-              fontFamily: T.fontDisplay, fontSize: 15, fontWeight: 700, letterSpacing: '0.02em',
+              fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
               cursor: submitting ? 'not-allowed' : 'pointer',
               boxShadow: submitting ? 'none' : '0 1px 3px rgba(79,70,229,0.3)',
               transition: 'all 0.14s',
             }}
-            onMouseEnter={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.background = '#4338CA'; }}
-            onMouseLeave={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.background = T.accent; }}
+            onMouseEnter={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.opacity = '0.9'; }}
+            onMouseLeave={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
           >
             {submitting ? (
               <>
-                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
                 Submitting...
               </>
             ) : (
               <>
-                <Send size={16} />
+                <Send size={14} />
                 Submit Assessment
               </>
             )}
@@ -628,10 +559,10 @@ export default function VendorPortalShadcn() {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: `1px solid ${T.border}`, marginTop: 24 }}>
-        <div style={{ margin: '0 auto', maxWidth: 900, padding: '20px 24px' }}>
-          <p style={{ textAlign: 'center', fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, margin: 0 }}>
-            Powered by CSF Compass — NIST Cybersecurity Framework 2.0
+      <footer style={{ borderTop: `1px solid ${T.border}` }}>
+        <div style={{ margin: '0 auto', maxWidth: 900, padding: '14px 20px' }}>
+          <p style={{ textAlign: 'center', fontFamily: T.fontSans, fontSize: 10, color: T.textMuted, margin: 0 }}>
+            CSF Compass — NIST CSF 2.0
           </p>
         </div>
       </footer>
