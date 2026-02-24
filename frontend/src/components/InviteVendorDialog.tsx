@@ -70,7 +70,7 @@ export default function InviteVendorDialog({
   const [error, setError] = useState<string | null>(null);
   const [vendorLink, setVendorLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [invitationResponse, setInvitationResponse] = useState<SendInvitationResponse | null>(null);
+  const [_invitationResponse, setInvitationResponse] = useState<SendInvitationResponse | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Reset form state when dialog opens
