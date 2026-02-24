@@ -202,13 +202,45 @@ export default function AssessmentDetail() {
     } catch { alert('Failed to copy link to clipboard'); }
   };
 
-  const handleStatusChange = async (itemId: string, status: string) => {
+  const handleStatusChange = useCallback(async (itemId: string, status: string) => {
     if (!id) return;
+
+    // Optimistic update — item stays in place, only status changes
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, status: status as AssessmentItem['status'] } : item
+    ));
+
+    // Auto-scroll to next control
+    requestAnimationFrame(() => {
+      const allControls = document.querySelectorAll('[id^="control-"]');
+      const arr = Array.from(allControls);
+      const currentEl = document.getElementById(`control-${itemId}`);
+      const currentIdx = currentEl ? arr.indexOf(currentEl) : -1;
+      if (currentIdx >= 0 && currentIdx < arr.length - 1) {
+        const nextEl = arr[currentIdx + 1] as HTMLElement;
+        const rect = nextEl.getBoundingClientRect();
+        if (rect.top > window.innerHeight - 120) {
+          nextEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    });
+
     try {
-      await assessmentsApi.updateItem(id, itemId, { status: status as any });
-      await Promise.all([loadItems(selectedFunction), loadData()]);
-    } catch (err) { alert(getErrorMessage(err)); }
-  };
+      const updated = await assessmentsApi.updateItem(id, itemId, { status: status as AssessmentItem['status'] });
+      // Merge only safe fields (preserve CSF metadata)
+      setItems(prev => prev.map(item =>
+        item.id === itemId
+          ? { ...item, status: updated.status, notes: updated.notes, updated_at: updated.updated_at }
+          : item
+      ));
+      // Refresh assessment stats (score) in background
+      loadData();
+    } catch (err) {
+      // Reload items on error to get correct state
+      if (selectedFunction) loadItems(selectedFunction);
+      console.error('Failed to update status:', getErrorMessage(err));
+    }
+  }, [id, selectedFunction]);
 
   const handleFileUpload = async (itemId: string, file: File) => {
     if (!id) return;

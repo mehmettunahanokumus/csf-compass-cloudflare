@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Shield,
@@ -56,6 +56,15 @@ const ANIM_CSS = `
 @keyframes vp-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
+type StatusFilter = 'all' | 'unanswered' | 'compliant' | 'partial' | 'non_compliant';
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'unanswered', label: 'Unanswered' },
+  { value: 'compliant', label: 'Compliant' },
+  { value: 'partial', label: 'Partial' },
+  { value: 'non_compliant', label: 'Non-Compliant' },
+];
+
 // ── Component ──────────────────────────────────────────
 export default function VendorPortalShadcn() {
   const { token } = useParams<{ token: string }>();
@@ -72,6 +81,7 @@ export default function VendorPortalShadcn() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   // Notes debounce refs
   const notesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -118,18 +128,42 @@ export default function VendorPortalShadcn() {
     }
   };
 
+  // Ref for rollback on API failure (avoids stale closure)
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  // Auto-scroll helper: scroll to bring the next control into view
+  const scrollToNextControl = useCallback((itemId: string) => {
+    requestAnimationFrame(() => {
+      const allControls = document.querySelectorAll('[id^="control-"]');
+      const arr = Array.from(allControls);
+      const currentEl = document.getElementById(`control-${itemId}`);
+      const currentIdx = currentEl ? arr.indexOf(currentEl) : -1;
+      if (currentIdx >= 0 && currentIdx < arr.length - 1) {
+        const nextEl = arr[currentIdx + 1] as HTMLElement;
+        const rect = nextEl.getBoundingClientRect();
+        if (rect.top > window.innerHeight - 120) {
+          nextEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    });
+  }, []);
+
   // ── Status change with optimistic UI ──
   const handleStatusChange = useCallback(async (itemId: string, status: string) => {
     if (!token) return;
 
     // Save previous state for rollback
-    const prevItems = items;
+    const prevItems = itemsRef.current;
 
     // Optimistic update
     setItems(prev => prev.map(item =>
       item.id === itemId ? { ...item, status: status as AssessmentItem['status'] } : item
     ));
     setSavingItems(prev => new Set(prev).add(itemId));
+
+    // Auto-scroll to next control
+    scrollToNextControl(itemId);
 
     try {
       const updatedItem = await vendorInvitationsApi.updateItem(token, itemId, {
@@ -152,7 +186,7 @@ export default function VendorPortalShadcn() {
         return next;
       });
     }
-  }, [token, items]);
+  }, [token, scrollToNextControl]);
 
   // ── Notes auto-save on blur / debounce ──
   const handleNotesChange = useCallback((itemId: string, notes: string) => {
@@ -199,7 +233,16 @@ export default function VendorPortalShadcn() {
     });
   }, []);
 
-  const filteredItems = items.filter((item) => item.function?.id === selectedFunction);
+  const filteredItems = useMemo(() => {
+    let filtered = items.filter((item) => item.function?.id === selectedFunction);
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((item) => {
+        if (statusFilter === 'unanswered') return item.status === 'not_assessed';
+        return item.status === statusFilter;
+      });
+    }
+    return filtered;
+  }, [items, selectedFunction, statusFilter]);
   const totalItems = items.length;
   const assessedItems = items.filter((i) => i.status !== 'not_assessed').length;
   const progressPct = totalItems > 0 ? Math.round((assessedItems / totalItems) * 100) : 0;
@@ -453,6 +496,59 @@ export default function VendorPortalShadcn() {
                         {funcAssessed}/{funcItems.length}
                       </span>
                     )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sticky Progress Bar + Status Filter */}
+          <div style={{
+            position: 'sticky', top: 68, zIndex: 5,
+            padding: '10px 24px',
+            background: T.card,
+            borderBottom: `1px solid ${T.border}`,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textSecondary }}>
+                <span style={{ fontWeight: 700, color: T.accent }}>{assessedItems}</span> of {totalItems} assessed
+              </span>
+              <span style={{
+                fontFamily: T.fontMono, fontSize: 12, fontWeight: 700,
+                color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
+              }}>
+                {progressPct}%
+              </span>
+            </div>
+            <div style={{
+              width: '100%', height: 5, background: T.border, borderRadius: 999,
+              overflow: 'hidden', marginBottom: 8,
+            }}>
+              <div style={{
+                height: '100%', borderRadius: 999,
+                background: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
+                width: `${progressPct}%`,
+                transition: 'width 0.4s ease',
+              }} />
+            </div>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {STATUS_FILTER_OPTIONS.map(({ value, label }) => {
+                const isActive = statusFilter === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setStatusFilter(value)}
+                    style={{
+                      padding: '3px 9px', borderRadius: 5,
+                      fontFamily: T.fontSans, fontSize: 10, fontWeight: isActive ? 600 : 500,
+                      background: isActive ? T.accentLight : 'transparent',
+                      border: `1px solid ${isActive ? T.accentBorder : T.border}`,
+                      color: isActive ? T.accent : T.textMuted,
+                      cursor: 'pointer', transition: 'all 0.14s',
+                    }}
+                  >
+                    {label}
                   </button>
                 );
               })}

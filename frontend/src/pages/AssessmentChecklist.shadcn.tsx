@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, Search } from 'lucide-react';
 import { assessmentsApi } from '../api/assessments';
@@ -10,6 +10,16 @@ import ControlItem from '../components/assessment/ControlItem';
 
 const cardStyle = card;
 const FUNCTION_TABS = ['All', 'GV', 'ID', 'PR', 'DE', 'RS', 'RC'];
+
+type StatusFilter = 'all' | 'unanswered' | 'compliant' | 'partial' | 'non_compliant';
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'unanswered', label: 'Unanswered' },
+  { value: 'compliant', label: 'Compliant' },
+  { value: 'partial', label: 'Partial' },
+  { value: 'non_compliant', label: 'Non-Compliant' },
+];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -23,9 +33,14 @@ export default function AssessmentChecklist() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   // Single expand state for ControlItem detail panels
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  // Ref for rollback on API failure (avoids stale closure)
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -55,6 +70,10 @@ export default function AssessmentChecklist() {
     return assessed === 0 ? 0 : (distribution.compliant / assessed) * 100;
   }, [items, distribution]);
 
+  const assessedCount = useMemo(() =>
+    items.filter(i => i.status !== 'not_assessed').length
+  , [items]);
+
   const filteredItems = useMemo(() => {
     let filtered = items;
     if (activeTab !== 'All') {
@@ -72,8 +91,14 @@ export default function AssessmentChecklist() {
         (item.category?.name || '').toLowerCase().includes(q)
       );
     }
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((item) => {
+        if (statusFilter === 'unanswered') return item.status === 'not_assessed';
+        return item.status === statusFilter;
+      });
+    }
     return filtered;
-  }, [items, activeTab, searchQuery]);
+  }, [items, activeTab, searchQuery, statusFilter]);
 
   const groupedItems = useMemo(() => {
     const groups: Record<string, { categoryId: string; categoryName: string; functionName: string; items: AssessmentItem[] }> = {};
@@ -95,13 +120,52 @@ export default function AssessmentChecklist() {
     });
   }, []);
 
-  const handleStatusChange = async (itemId: string, newStatus: string) => {
+  // Auto-scroll helper: scroll to bring the next control into view
+  const scrollToNextControl = useCallback((itemId: string) => {
+    requestAnimationFrame(() => {
+      const allControls = document.querySelectorAll('[id^="control-"]');
+      const arr = Array.from(allControls);
+      const currentEl = document.getElementById(`control-${itemId}`);
+      const currentIdx = currentEl ? arr.indexOf(currentEl) : -1;
+      if (currentIdx >= 0 && currentIdx < arr.length - 1) {
+        const nextEl = arr[currentIdx + 1] as HTMLElement;
+        const rect = nextEl.getBoundingClientRect();
+        // Only scroll if the next item is partially below the viewport
+        if (rect.top > window.innerHeight - 120) {
+          nextEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    });
+  }, []);
+
+  const handleStatusChange = useCallback(async (itemId: string, newStatus: string) => {
     if (!id) return;
+
+    // Capture previous state for rollback
+    const prevItems = itemsRef.current;
+
+    // Optimistic update — item stays in place, only status changes
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, status: newStatus as AssessmentItem['status'] } : item
+    ));
+
+    // Auto-scroll to next control
+    scrollToNextControl(itemId);
+
     try {
       const updated = await assessmentsApi.updateItem(id, itemId, { status: newStatus as AssessmentItem['status'] });
-      setItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, ...updated } : item)));
-    } catch (err) { console.error('Failed to update status:', getErrorMessage(err)); }
-  };
+      // Merge only safe fields from API response (preserve CSF metadata)
+      setItems(prev => prev.map(item =>
+        item.id === itemId
+          ? { ...item, status: updated.status, notes: updated.notes, updated_at: updated.updated_at }
+          : item
+      ));
+    } catch (err) {
+      // Rollback on failure
+      setItems(prevItems);
+      console.error('Failed to update status:', getErrorMessage(err));
+    }
+  }, [id, scrollToNextControl]);
 
   if (loading) {
     return (
@@ -129,6 +193,7 @@ export default function AssessmentChecklist() {
 
   const scoreColor = complianceScore >= 80 ? T.success : complianceScore >= 50 ? T.warning : T.danger;
   const circumference = 2 * Math.PI * 50;
+  const progressPct = items.length > 0 ? (assessedCount / items.length) * 100 : 0;
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -252,12 +317,64 @@ export default function AssessmentChecklist() {
         </div>
       </div>
 
-      {/* Results count */}
-      {searchQuery && (
-        <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary, margin: 0 }}>
-          Showing <span style={{ fontFamily: T.fontMono, color: T.accent }}>{filteredItems.length}</span> of {items.length} subcategories
-        </p>
-      )}
+      {/* Sticky Progress Bar + Status Filter */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: T.card,
+        border: `1px solid ${T.border}`,
+        borderRadius: 12,
+        padding: '12px 16px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <span style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textSecondary }}>
+            <span style={{ fontWeight: 700, color: T.accent }}>{assessedCount}</span> of {items.length} assessed
+          </span>
+          <span style={{
+            fontFamily: T.fontMono, fontSize: 12, fontWeight: 700,
+            color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
+          }}>
+            {Math.round(progressPct)}%
+          </span>
+        </div>
+        <div style={{
+          width: '100%', height: 6, background: T.border, borderRadius: 999,
+          overflow: 'hidden', marginBottom: 10,
+        }}>
+          <div style={{
+            height: '100%', borderRadius: 999,
+            background: T.accent,
+            width: `${progressPct}%`,
+            transition: 'width 0.4s ease',
+          }} />
+        </div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+          {STATUS_FILTER_OPTIONS.map(({ value, label }) => {
+            const isActive = statusFilter === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setStatusFilter(value)}
+                style={{
+                  padding: '4px 10px', borderRadius: 6,
+                  fontFamily: T.fontSans, fontSize: 11, fontWeight: isActive ? 600 : 500,
+                  background: isActive ? T.accentLight : 'transparent',
+                  border: `1px solid ${isActive ? T.accentBorder : T.border}`,
+                  color: isActive ? T.accent : T.textMuted,
+                  cursor: 'pointer', transition: 'all 0.14s',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+          {(searchQuery || statusFilter !== 'all') && (
+            <span style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, marginLeft: 8 }}>
+              Showing <span style={{ fontFamily: T.fontMono, color: T.accent }}>{filteredItems.length}</span> of {items.length}
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* Grouped Items */}
       {groupedItems.length === 0 ? (

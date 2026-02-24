@@ -77,7 +77,7 @@ export default function ControlItem({
   // ── Readonly mode ──────────────────────────────────────────────────────────
   if (!isInteractive) {
     return (
-      <div style={{
+      <div id={`control-${item.id}`} style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '9px 14px', borderRadius: 8,
         background: T.card, border: `1px solid ${T.border}`,
@@ -103,7 +103,7 @@ export default function ControlItem({
   const guidance = getImplementationGuidance(subcategoryId);
 
   return (
-    <div style={{
+    <div id={`control-${item.id}`} style={{
       borderRadius: 12,
       border: `1px solid ${expanded ? T.accentBorder : T.border}`,
       borderLeft: `3px solid ${accentColor}`,
