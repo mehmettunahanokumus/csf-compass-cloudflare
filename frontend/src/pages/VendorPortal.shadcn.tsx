@@ -8,9 +8,12 @@ import {
   Send,
   Loader2,
   Check,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { vendorInvitationsApi } from '../api/vendor-invitations';
 import { csfApi } from '../api/csf';
+import { useTheme } from '../hooks/useTheme';
 import type {
   ValidateTokenResponse,
   Assessment,
@@ -81,6 +84,11 @@ export default function VendorPortalShadcn() {
   const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  // Theme toggle
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const toggleTheme = useCallback(() => setTheme(isDark ? 'light' : 'dark'), [isDark, setTheme]);
 
   // Notes debounce refs
   const notesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -356,9 +364,8 @@ export default function VendorPortalShadcn() {
         background: T.card,
       }}>
         <div style={{
-          margin: '0 auto', maxWidth: 900,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 20px',
+          padding: '10px 24px',
           gap: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
@@ -376,16 +383,34 @@ export default function VendorPortalShadcn() {
                 : ''}
             </span>
           </div>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '4px 10px',
-            background: T.successLight, border: `1px solid ${T.successBorder}`,
-            borderRadius: 999, flexShrink: 0,
-          }}>
-            <Lock size={10} style={{ color: T.success }} />
-            <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.success }}>
-              Secure
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 30, height: 30, borderRadius: 7,
+                border: `1px solid ${T.border}`, background: 'transparent',
+                color: T.textMuted, cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = T.accentLight; e.currentTarget.style.color = T.accent; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textMuted; }}
+            >
+              {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+            {/* Secure badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '4px 10px',
+              background: T.successLight, border: `1px solid ${T.successBorder}`,
+              borderRadius: 999,
+            }}>
+              <Lock size={10} style={{ color: T.success }} />
+              <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.success }}>
+                Secure
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -397,7 +422,7 @@ export default function VendorPortalShadcn() {
         borderBottom: `1px solid ${T.border}`,
         boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
       }}>
-        <div style={{ margin: '0 auto', maxWidth: 900, padding: '0 20px' }}>
+        <div style={{ padding: '0 24px' }}>
           {/* Function tabs row */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 0,
@@ -483,7 +508,7 @@ export default function VendorPortalShadcn() {
       </div>
 
       {/* ─── Controls List ─── */}
-      <main style={{ margin: '0 auto', maxWidth: 900, padding: '10px 20px 0' }}>
+      <main style={{ padding: '10px 24px 0' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {loadingItems ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 0' }}>
@@ -561,7 +586,7 @@ export default function VendorPortalShadcn() {
 
       {/* Footer */}
       <footer style={{ borderTop: `1px solid ${T.border}` }}>
-        <div style={{ margin: '0 auto', maxWidth: 900, padding: '14px 20px' }}>
+        <div style={{ padding: '14px 24px' }}>
           <p style={{ textAlign: 'center', fontFamily: T.fontSans, fontSize: 10, color: T.textMuted, margin: 0 }}>
             CSF Compass — NIST CSF 2.0
           </p>
