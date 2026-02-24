@@ -5,13 +5,9 @@ import {
   Lock,
   CheckCircle,
   XCircle,
-  Circle,
-  Ban,
   AlertCircle,
   Send,
-  ChevronDown,
   Loader2,
-  Info,
   Check,
 } from 'lucide-react';
 import { vendorInvitationsApi } from '../api/vendor-invitations';
@@ -24,86 +20,7 @@ import type {
 } from '../types';
 import { getErrorMessage, formatDate } from '../api/client';
 import { T, card, sectionLabel } from '../tokens';
-
-// ── Status config ──────────────────────────────────────
-const STATUS_OPTIONS = [
-  { value: 'compliant',      label: 'Compliant',      bg: T.successLight, color: T.success, border: T.successBorder },
-  { value: 'partial',        label: 'Partial',         bg: T.warningLight, color: T.warning, border: T.warningBorder },
-  { value: 'non_compliant',  label: 'Non-Compliant',  bg: T.dangerLight,  color: T.danger,  border: T.dangerBorder },
-  { value: 'not_applicable', label: 'N/A',             bg: T.borderLight,  color: T.textMuted, border: T.border },
-] as const;
-
-function getStatusIcon(status: string) {
-  switch (status) {
-    case 'compliant':
-      return <CheckCircle size={18} style={{ color: T.success, flexShrink: 0 }} />;
-    case 'partial':
-      return <AlertCircle size={18} style={{ color: T.warning, flexShrink: 0 }} />;
-    case 'non_compliant':
-      return <XCircle size={18} style={{ color: T.danger, flexShrink: 0 }} />;
-    case 'not_applicable':
-      return <Ban size={18} style={{ color: T.textMuted, flexShrink: 0 }} />;
-    default:
-      return <Circle size={18} style={{ color: T.textFaint, flexShrink: 0 }} />;
-  }
-}
-
-function statusLabel(status: string) {
-  return status === 'compliant' ? 'Compliant'
-    : status === 'partial' ? 'Partial'
-    : status === 'non_compliant' ? 'Non-Compliant'
-    : status === 'not_applicable' ? 'N/A'
-    : 'Not Assessed';
-}
-
-// ── Evidence examples by CSF function prefix ───────────
-function getEvidenceExamples(subcategoryId: string): string[] {
-  const prefix = subcategoryId?.split('.')[0] || '';
-  switch (prefix) {
-    case 'GV': return [
-      'Cybersecurity policy documents and approval records',
-      'Risk management framework documentation',
-      'Board/leadership meeting minutes discussing cyber risk',
-      'Roles and responsibilities matrix (RACI)',
-    ];
-    case 'ID': return [
-      'Asset inventory or CMDB export',
-      'Network architecture diagrams',
-      'Data classification and flow documentation',
-      'Business impact analysis (BIA) reports',
-    ];
-    case 'PR': return [
-      'Access control policy and user provisioning records',
-      'Security awareness training completion reports',
-      'Encryption standards and implementation evidence',
-      'Change management and patch records',
-    ];
-    case 'DE': return [
-      'SIEM/monitoring tool configuration and alert rules',
-      'Log retention policy and sample logs',
-      'Intrusion detection/prevention system reports',
-      'Vulnerability scan results from last 90 days',
-    ];
-    case 'RS': return [
-      'Incident response plan and playbooks',
-      'Incident response drill/tabletop exercise results',
-      'Communication plan for security incidents',
-      'Post-incident review reports',
-    ];
-    case 'RC': return [
-      'Business continuity and disaster recovery plans',
-      'Backup verification and restoration test results',
-      'Recovery time objective (RTO/RPO) documentation',
-      'Lessons learned from past recovery exercises',
-    ];
-    default: return [
-      'Relevant policy or procedure documentation',
-      'Implementation evidence (screenshots, configs)',
-      'Audit or review records from last 12 months',
-      'Third-party assessment or certification reports',
-    ];
-  }
-}
+import ControlItem from '../components/assessment/ControlItem';
 
 // ── Toast component ────────────────────────────────────
 function Toast({ message, type, onClose }: { message: string; type: 'error' | 'success'; onClose: () => void }) {
@@ -152,8 +69,7 @@ export default function VendorPortalShadcn() {
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
-  const [expandedItem, setExpandedItem] = useState<string | null>(null);
-  const [expandedInfo, setExpandedInfo] = useState<Set<string>>(new Set());
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
@@ -275,14 +191,13 @@ export default function VendorPortalShadcn() {
     }
   };
 
-  const toggleInfo = (itemId: string) => {
-    setExpandedInfo(prev => {
+  const toggleExpand = useCallback((itemId: string) => {
+    setExpandedItems(prev => {
       const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
       return next;
     });
-  };
+  }, []);
 
   const filteredItems = items.filter((item) => item.function?.id === selectedFunction);
   const totalItems = items.length;
@@ -504,7 +419,7 @@ export default function VendorPortalShadcn() {
               <span style={sectionLabel}>NIST Cybersecurity Framework Assessment</span>
             </div>
             <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, lineHeight: 1.6, marginBottom: 20, paddingLeft: 11 }}>
-              Click on each control to set your compliance status. Click the <Info size={12} style={{ display: 'inline', verticalAlign: 'middle', color: T.accent }} /> icon for guidance on what's required.
+              Use the status buttons on each control to set your compliance status. Click <strong style={{ color: T.accent }}>Details</strong> for guidance on what's required.
             </p>
 
             {/* Function Tabs */}
@@ -561,227 +476,21 @@ export default function VendorPortalShadcn() {
                 No assessment items found for this category
               </p>
             ) : (
-              filteredItems.map((item) => {
-                const isExpanded = expandedItem === item.id;
-                const isInfoOpen = expandedInfo.has(item.id);
-                const isSaving = savingItems.has(item.id);
-                const statusStyle =
-                  item.status === 'compliant'      ? { bg: T.successLight, color: T.success, border: T.successBorder } :
-                  item.status === 'partial'         ? { bg: T.warningLight, color: T.warning, border: T.warningBorder } :
-                  item.status === 'non_compliant'   ? { bg: T.dangerLight, color: T.danger, border: T.dangerBorder } :
-                  item.status === 'not_applicable'  ? { bg: T.borderLight, color: T.textMuted, border: T.border } :
-                                                      { bg: T.borderLight, color: T.textMuted, border: T.border };
-
-                return (
-                  <div key={item.id} style={{
-                    borderRadius: 10, border: `1px solid ${isExpanded ? T.accentBorder : T.border}`,
-                    overflow: 'hidden', transition: 'border-color 0.14s',
-                  }}>
-                    {/* Item Header — always visible */}
-                    <div
-                      style={{
-                        display: 'flex', width: '100%', alignItems: 'flex-start', gap: 14,
-                        padding: '16px 20px',
-                      }}
-                    >
-                      {getStatusIcon(item.status)}
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                          <span style={{ fontFamily: T.fontMono, fontSize: 11, fontWeight: 700, color: T.accent }}>
-                            {item.subcategory?.id}
-                          </span>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center',
-                            padding: '2px 8px', borderRadius: 999,
-                            fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
-                            letterSpacing: '0.05em', textTransform: 'uppercase',
-                            background: statusStyle.bg, color: statusStyle.color,
-                            border: `1px solid ${statusStyle.border}`,
-                          }}>
-                            {statusLabel(item.status)}
-                          </span>
-                          {isSaving && (
-                            <Loader2 size={12} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
-                          )}
-                        </div>
-                        <p
-                          onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                          style={{
-                            fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
-                            color: T.textPrimary, margin: 0, cursor: 'pointer',
-                          }}
-                        >
-                          {item.subcategory?.name}
-                        </p>
-                      </div>
-
-                      {/* Info toggle + Expand toggle */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggleInfo(item.id); }}
-                          title="Control details & guidance"
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            width: 28, height: 28, borderRadius: 6,
-                            border: 'none', cursor: 'pointer', transition: 'all 0.12s',
-                            background: isInfoOpen ? T.accentLight : 'transparent',
-                            color: isInfoOpen ? T.accent : T.textMuted,
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = T.accentLight; e.currentTarget.style.color = T.accent; }}
-                          onMouseLeave={e => { if (!isInfoOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textMuted; } }}
-                        >
-                          <Info size={15} />
-                        </button>
-                        <button
-                          onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            width: 28, height: 28, borderRadius: 6,
-                            border: 'none', cursor: 'pointer', transition: 'all 0.12s',
-                            background: 'transparent', color: T.textMuted,
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = T.borderLight; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                        >
-                          <ChevronDown
-                            size={16}
-                            style={{
-                              transform: isExpanded ? 'rotate(180deg)' : 'none',
-                              transition: 'transform 0.2s',
-                            }}
-                          />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Info Panel — expandable description + evidence */}
-                    {isInfoOpen && (
-                      <div style={{
-                        margin: '0 20px 12px',
-                        padding: 14,
-                        background: T.bg,
-                        border: `1px solid ${T.border}`,
-                        borderLeft: `3px solid ${T.accent}`,
-                        borderRadius: 8,
-                      }}>
-                        {/* What's Required */}
-                        <div style={{
-                          fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
-                          textTransform: 'uppercase', letterSpacing: '0.06em',
-                          color: T.textPrimary, marginBottom: 6,
-                        }}>
-                          What's Required
-                        </div>
-                        <p style={{
-                          fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary,
-                          lineHeight: 1.65, margin: '0 0 14px',
-                        }}>
-                          {item.subcategory?.description || 'No description available for this control.'}
-                        </p>
-
-                        {/* Evidence Examples */}
-                        <div style={{
-                          fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
-                          textTransform: 'uppercase', letterSpacing: '0.06em',
-                          color: T.textPrimary, marginBottom: 6,
-                        }}>
-                          Evidence Examples
-                        </div>
-                        <ul style={{
-                          margin: 0, paddingLeft: 18,
-                          fontFamily: T.fontSans, fontSize: 13,
-                          color: T.textSecondary, lineHeight: 1.8,
-                        }}>
-                          {getEvidenceExamples(item.subcategory?.id || '').map((ex, i) => (
-                            <li key={i}>{ex}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Expanded: Status buttons + Notes */}
-                    {isExpanded && (
-                      <div style={{
-                        borderTop: `1px solid ${T.borderLight}`,
-                        padding: '14px 20px 18px',
-                        background: T.bg,
-                      }}>
-                        <p style={{ ...sectionLabel, marginBottom: 10 }}>Select compliance status</p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {STATUS_OPTIONS.map(({ value, label, bg, color, border }) => {
-                            const isActive = item.status === value;
-                            return (
-                              <button
-                                key={value}
-                                onClick={() => handleStatusChange(item.id, value)}
-                                disabled={isSaving}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                                  padding: '8px 16px', borderRadius: 8,
-                                  fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
-                                  border: `1.5px solid ${isActive ? border : T.border}`,
-                                  background: isActive ? bg : T.card,
-                                  color: isActive ? color : T.textSecondary,
-                                  cursor: isSaving ? 'wait' : 'pointer',
-                                  transition: 'all 0.14s',
-                                  opacity: isSaving ? 0.6 : 1,
-                                }}
-                                onMouseEnter={e => {
-                                  if (!isActive && !isSaving) {
-                                    const el = e.currentTarget as HTMLButtonElement;
-                                    el.style.borderColor = border;
-                                    el.style.background = bg;
-                                    el.style.color = color;
-                                  }
-                                }}
-                                onMouseLeave={e => {
-                                  if (!isActive && !isSaving) {
-                                    const el = e.currentTarget as HTMLButtonElement;
-                                    el.style.borderColor = T.border;
-                                    el.style.background = T.card;
-                                    el.style.color = T.textSecondary;
-                                  }
-                                }}
-                              >
-                                {isActive && <Check size={13} />}
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Notes textarea */}
-                        <div style={{ marginTop: 14 }}>
-                          <label style={{
-                            display: 'block', fontFamily: T.fontSans, fontSize: 11,
-                            fontWeight: 600, color: T.textMuted, marginBottom: 5,
-                            textTransform: 'uppercase', letterSpacing: '0.06em',
-                          }}>
-                            Notes <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
-                          </label>
-                          <textarea
-                            value={item.notes || ''}
-                            onChange={(e) => handleNotesChange(item.id, e.target.value)}
-                            placeholder="Add any notes or comments about this control..."
-                            style={{
-                              width: '100%', boxSizing: 'border-box',
-                              minHeight: 60, resize: 'vertical',
-                              padding: '10px 12px', borderRadius: 8,
-                              border: `1px solid ${T.border}`,
-                              background: T.card,
-                              fontFamily: T.fontSans, fontSize: 13,
-                              color: T.textPrimary, lineHeight: 1.6,
-                              outline: 'none', transition: 'border-color 0.15s',
-                            }}
-                            onFocus={e => { e.currentTarget.style.borderColor = T.accent; }}
-                            onBlur={e => { e.currentTarget.style.borderColor = T.border; }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+              filteredItems.map((item) => (
+                <ControlItem
+                  key={item.id}
+                  item={item}
+                  mode="interactive"
+                  statusOptions="vendor"
+                  showNotes={true}
+                  showGuidance={false}
+                  expanded={expandedItems.has(item.id)}
+                  onToggleExpand={toggleExpand}
+                  onStatusChange={handleStatusChange}
+                  onNotesChange={handleNotesChange}
+                  isSaving={savingItems.has(item.id)}
+                />
+              ))
             )}
           </div>
         </div>

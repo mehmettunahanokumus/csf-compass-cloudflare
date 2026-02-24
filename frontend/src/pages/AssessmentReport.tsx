@@ -16,31 +16,12 @@ import { csfApi } from '../api/csf';
 import { getErrorMessage } from '../api/client';
 import type { Assessment, AssessmentItem, CsfFunction } from '../types';
 import { T, card } from '../tokens';
+import ControlItem, { statusLabel, statusBadgeStyle } from '../components/assessment/ControlItem';
 
 // ─── small helpers ────────────────────────────────────────────────────────────
 
 function scoreColorOf(score: number) {
   return score >= 75 ? T.success : score >= 50 ? T.warning : T.danger;
-}
-
-function statusBadge(status: string): React.CSSProperties {
-  const base: React.CSSProperties = {
-    fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
-    padding: '2px 8px', borderRadius: 20, display: 'inline-block',
-  };
-  switch (status) {
-    case 'compliant':     return { ...base, background: T.successLight, color: T.success, border: `1px solid ${T.successBorder}` };
-    case 'partial':       return { ...base, background: T.warningLight, color: T.warning, border: `1px solid ${T.warningBorder}` };
-    case 'non_compliant': return { ...base, background: T.dangerLight,  color: T.danger,  border: `1px solid ${T.dangerBorder}`  };
-    default:              return { ...base, background: T.bg,            color: T.textMuted, border: `1px solid ${T.border}`     };
-  }
-}
-
-function statusLabel(status: string) {
-  return (
-    { compliant: 'Compliant', partial: 'Partial', non_compliant: 'Non-Compliant', not_assessed: 'Not Assessed', not_applicable: 'N/A' }
-    [status] ?? status
-  );
 }
 
 function CardHeader({ label, right }: { label: string; right?: React.ReactNode }) {
@@ -564,17 +545,7 @@ export default function AssessmentReport() {
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {cat.items.map(item => (
-                              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', borderRadius: 8, background: T.card, border: `1px solid ${T.border}` }}>
-                                <span style={{ fontFamily: T.fontMono, fontSize: 11, color: T.accent, flexShrink: 0, width: 76 }}>
-                                  {item.subcategory?.id}
-                                </span>
-                                <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, flex: 1, lineHeight: 1.5 }}>
-                                  {item.subcategory?.name || item.subcategory?.description?.substring(0, 90)}
-                                </span>
-                                <span style={{ ...statusBadge(item.status || 'not_assessed'), flexShrink: 0 }}>
-                                  {statusLabel(item.status || 'not_assessed')}
-                                </span>
-                              </div>
+                              <ControlItem key={item.id} item={item} mode="readonly" />
                             ))}
                           </div>
                         </div>
@@ -654,7 +625,7 @@ export default function AssessmentReport() {
                         </div>
                       </td>
                       <td style={{ padding: '12px 20px', verticalAlign: 'top' }}>
-                        <span style={statusBadge(item.status || 'not_assessed')}>
+                        <span style={statusBadgeStyle(item.status || 'not_assessed')}>
                           {statusLabel(item.status || 'not_assessed')}
                         </span>
                       </td>

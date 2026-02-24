@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Trash2, Upload, Brain, GitCompare, Link2, Copy,
@@ -16,6 +16,7 @@ import type {
 import { getErrorMessage, formatDate } from '../api/client';
 import InviteVendorDialog from '../components/InviteVendorDialog';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import ControlItem from '../components/assessment/ControlItem';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -94,25 +95,6 @@ function TypeBadge({ assessment }: { assessment: Assessment }) {
   );
 }
 
-function ItemStatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    compliant:      { bg: T.successLight,              color: T.success, label: 'Compliant' },
-    partial:        { bg: T.warningLight,              color: T.warning, label: 'Partial' },
-    non_compliant:  { bg: T.dangerLight,               color: T.danger,  label: 'Non-Compliant' },
-    not_applicable: { bg: 'rgba(100,116,139,0.08)',    color: '#94A3B8', label: 'N/A' },
-    not_assessed:   { bg: 'rgba(100,116,139,0.08)',    color: '#94A3B8', label: 'Not Assessed' },
-  };
-  const s = map[status] || { bg: 'rgba(100,116,139,0.08)', color: '#94A3B8', label: status };
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', flexShrink: 0,
-      fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
-      padding: '2px 8px', borderRadius: 20,
-      background: s.bg, color: s.color,
-    }}>{s.label}</span>
-  );
-}
-
 function InvitationBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string }> = {
     completed: { bg: T.successLight, color: T.success },
@@ -152,7 +134,16 @@ export default function AssessmentDetail() {
   const [deleteOpen, setDeleteOpen]   = useState(false);
   const [activeTab, setActiveTab]     = useState<'overview' | 'items' | 'vendor'>('overview');
   const [showMenu, setShowMenu]       = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const toggleExpandItem = useCallback((itemId: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      return next;
+    });
+  }, []);
 
   useEffect(() => { loadData(); loadInvitation(); }, [id]);
   useEffect(() => { if (selectedFunction && id) loadItems(selectedFunction); }, [selectedFunction, id]);
@@ -682,106 +673,70 @@ export default function AssessmentDetail() {
           {/* Item cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {items.map(item => (
-              <div
+              <ControlItem
                 key={item.id}
-                style={{ ...cardBase, padding: 20, transition: 'box-shadow 0.14s' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = 'none'}
-              >
-                {/* Top: ID + description + badge */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: T.fontMono, fontSize: 12, fontWeight: 600, color: T.accent, marginBottom: 6 }}>
-                      {item.subcategory?.id}
-                    </div>
-                    <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2, lineHeight: 1.6 }}>
-                      {item.subcategory?.description}
-                    </div>
-                    {item.ai_suggested_status && (
-                      <div style={{
-                        marginTop: 10, padding: '8px 12px', borderRadius: 8,
-                        background: T.accentLight, border: `1px solid ${T.accentBorder}`,
-                        display: 'flex', alignItems: 'flex-start', gap: 8,
-                      }}>
-                        <Brain size={13} style={{ color: T.accent, flexShrink: 0, marginTop: 1 }} />
-                        <div>
-                          <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.accent }}>
-                            AI Suggestion: <strong>{item.ai_suggested_status}</strong>
-                            &nbsp;({(item.ai_confidence_score! * 100).toFixed(0)}% confidence)
-                          </span>
-                          {item.ai_reasoning && (
-                            <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, marginTop: 4 }}>
-                              {item.ai_reasoning}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <ItemStatusBadge status={item.status || 'not_assessed'} />
-                </div>
-
-                {/* Bottom: controls */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
-                  <div>
-                    <label style={{ fontFamily: T.fontMono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
-                      Status
+                item={item}
+                mode="interactive"
+                statusOptions="full"
+                showNotes={false}
+                showGuidance={false}
+                expanded={expandedItems.has(item.id)}
+                onToggleExpand={toggleExpandItem}
+                onStatusChange={handleStatusChange}
+                renderActions={(it) => (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <label style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '5px 12px', borderRadius: 7,
+                      background: T.surface2, border: `1px solid ${T.border}`,
+                      fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.text2, cursor: 'pointer',
+                    }}>
+                      <Upload size={12} />
+                      {uploadingFor === it.id ? 'Uploading…' : 'Upload'}
+                      <input
+                        type="file" style={{ display: 'none' }}
+                        onChange={e => e.target.files?.[0] && handleFileUpload(it.id, e.target.files[0])}
+                        disabled={uploadingFor === it.id}
+                      />
                     </label>
-                    <select
-                      value={item.status || 'not_assessed'}
-                      onChange={e => handleStatusChange(item.id, e.target.value)}
-                      style={{
-                        width: '100%', padding: '7px 10px', borderRadius: 8,
-                        background: T.surface2, border: `1px solid ${T.border}`,
-                        fontFamily: T.fontSans, fontSize: 13, color: T.text1,
-                        outline: 'none', cursor: 'pointer',
-                      }}
-                    >
-                      <option value="not_assessed">Not Assessed</option>
-                      <option value="compliant">Compliant</option>
-                      <option value="partial">Partially Compliant</option>
-                      <option value="non_compliant">Non-Compliant</option>
-                      <option value="not_applicable">Not Applicable</option>
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontFamily: T.fontMono, fontSize: 10, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
-                        Evidence
-                      </label>
-                      <label style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        width: '100%', padding: '7px 0', borderRadius: 8,
-                        background: T.surface2, border: `1px solid ${T.border}`,
-                        fontFamily: T.fontSans, fontSize: 13, color: T.text2, cursor: 'pointer',
-                      }}>
-                        <Upload size={13} />
-                        {uploadingFor === item.id ? 'Uploading…' : 'Upload File'}
-                        <input
-                          type="file" style={{ display: 'none' }}
-                          onChange={e => e.target.files?.[0] && handleFileUpload(item.id, e.target.files[0])}
-                          disabled={uploadingFor === item.id}
-                        />
-                      </label>
-                    </div>
                     <button
-                      onClick={() => handleAnalyze(item)}
-                      disabled={analyzingItem === item.id}
+                      onClick={() => handleAnalyze(it)}
+                      disabled={analyzingItem === it.id}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 5,
-                        padding: '7px 12px', borderRadius: 8, flexShrink: 0,
+                        padding: '5px 12px', borderRadius: 7, flexShrink: 0,
                         background: T.accentLight, border: `1px solid ${T.accentBorder}`,
-                        fontFamily: T.fontSans, fontSize: 13, fontWeight: 500, color: T.accent,
-                        cursor: analyzingItem === item.id ? 'not-allowed' : 'pointer',
-                        opacity: analyzingItem === item.id ? 0.6 : 1,
+                        fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.accent,
+                        cursor: analyzingItem === it.id ? 'not-allowed' : 'pointer',
+                        opacity: analyzingItem === it.id ? 0.6 : 1,
                       }}
                     >
-                      <Brain size={13} />
-                      {analyzingItem === item.id ? 'Analyzing…' : 'AI'}
+                      <Brain size={12} />
+                      {analyzingItem === it.id ? 'Analyzing…' : 'AI'}
                     </button>
                   </div>
-                </div>
-              </div>
+                )}
+                renderExtra={(it) => it.ai_suggested_status ? (
+                  <div style={{
+                    padding: '8px 12px', borderRadius: 8,
+                    background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                  }}>
+                    <Brain size={13} style={{ color: T.accent, flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.accent }}>
+                        AI Suggestion: <strong>{it.ai_suggested_status}</strong>
+                        &nbsp;({(it.ai_confidence_score! * 100).toFixed(0)}% confidence)
+                      </span>
+                      {it.ai_reasoning && (
+                        <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, marginTop: 4 }}>
+                          {it.ai_reasoning}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              />
             ))}
           </div>
         </div>
