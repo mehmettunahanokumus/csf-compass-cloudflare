@@ -246,6 +246,20 @@ export default function VendorPortalShadcn() {
   const assessedItems = items.filter((i) => i.status !== 'not_assessed').length;
   const progressPct = totalItems > 0 ? Math.round((assessedItems / totalItems) * 100) : 0;
 
+  // ── Computed: per-function counts for compact tabs ──
+  // (Must be before early returns — React hooks must always run in same order)
+  const funcCounts = useMemo(() => {
+    const map: Record<string, { total: number; assessed: number }> = {};
+    for (const func of functions) {
+      const funcItems = items.filter(i => i.function?.id === func.id);
+      map[func.id] = { total: funcItems.length, assessed: funcItems.filter(i => i.status !== 'not_assessed').length };
+    }
+    return map;
+  }, [items, functions]);
+
+  // Short function name: "Govern" from "Govern (GV)"
+  const shortFuncName = (name: string) => name.replace(/\s*\(.*\)$/, '');
+
   // ── Loading state ──
   if (loading) {
     return (
@@ -327,19 +341,6 @@ export default function VendorPortalShadcn() {
       </div>
     );
   }
-
-  // ── Computed: per-function counts for compact tabs ──
-  const funcCounts = useMemo(() => {
-    const map: Record<string, { total: number; assessed: number }> = {};
-    for (const func of functions) {
-      const funcItems = items.filter(i => i.function?.id === func.id);
-      map[func.id] = { total: funcItems.length, assessed: funcItems.filter(i => i.status !== 'not_assessed').length };
-    }
-    return map;
-  }, [items, functions]);
-
-  // Short function name: "Govern" from "Govern (GV)"
-  const shortFuncName = (name: string) => name.replace(/\s*\(.*\)$/, '');
 
   // ── Main render ──
   return (
