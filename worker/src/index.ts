@@ -24,7 +24,10 @@ app.use('*', logger());
 // For production, configure both to use same root domain or deploy Worker under Pages /_worker.js
 
 // Vendor invitations CORS (requires credentials for session cookies)
-app.use('/api/vendor-invitations/*', async (c, next) => {
+// IMPORTANT: Register for BOTH the exact path and wildcard sub-paths.
+// '/api/vendor-invitations/*' does NOT match '/api/vendor-invitations' (no trailing segment).
+// The POST to create an invitation hits the exact path, so both patterns are needed.
+const vendorInvitationsCors = async (c: any, next: any) => {
   const origin = c.req.header('origin') || '';
   const allowedOrigins = c.env.ALLOWED_ORIGINS?.split(',').filter(Boolean) || ['http://localhost:5173'];
 
@@ -46,7 +49,9 @@ app.use('/api/vendor-invitations/*', async (c, next) => {
   }
 
   await next();
-});
+};
+app.use('/api/vendor-invitations', vendorInvitationsCors);
+app.use('/api/vendor-invitations/*', vendorInvitationsCors);
 
 // General API CORS (exclude vendor invitations - they have their own CORS)
 app.use('*', async (c, next) => {
