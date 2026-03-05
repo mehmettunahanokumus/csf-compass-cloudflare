@@ -81,9 +81,10 @@ export const vendorInvitationsApi = {
   /**
    * Mark vendor self-assessment as complete (public endpoint with session cookie auth)
    */
-  async complete(token: string): Promise<{ success: boolean; completed_at: number }> {
+  async complete(token: string, respondentName?: string): Promise<{ success: boolean; completed_at: number }> {
     const response = await vendorApiClient.post<{ success: boolean; completed_at: number }>(
-      `/api/vendor-invitations/${token}/complete`
+      `/api/vendor-invitations/${token}/complete`,
+      respondentName ? { respondent_name: respondentName } : undefined
     );
     return response.data;
   },

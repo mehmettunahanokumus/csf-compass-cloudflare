@@ -466,14 +466,22 @@ app.post('/:token/complete', async (c) => {
       return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
     }
 
-    // 4. Update invitation status to 'completed'
+    // 4. Update invitation status to 'completed' + respondent name
     const completedAt = Date.now();
+    let respondentName: string | null = null;
+    try {
+      const body = await c.req.json();
+      respondentName = body?.respondent_name || null;
+    } catch { /* no body is fine */ }
 
     await c.env.DB.prepare(
       `UPDATE vendor_assessment_invitations
-       SET invitation_status = 'completed', completed_at = ?, last_accessed_at = ?, updated_at = ?
+       SET invitation_status = 'completed', completed_at = ?, last_accessed_at = ?, updated_at = ?${respondentName ? ', respondent_name = ?' : ''}
        WHERE id = ?`
-    ).bind(completedAt, Date.now(), Date.now(), invitationId).run();
+    ).bind(...(respondentName
+      ? [completedAt, Date.now(), Date.now(), respondentName, invitationId]
+      : [completedAt, Date.now(), Date.now(), invitationId]
+    )).run();
 
     // 5. Update vendor_self_assessment status to 'completed'
     const db = createDbClient(c.env.DB);

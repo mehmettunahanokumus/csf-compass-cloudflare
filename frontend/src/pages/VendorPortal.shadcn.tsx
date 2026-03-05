@@ -60,11 +60,11 @@ const ANIM_CSS = `
 
 type StatusFilter = 'all' | 'unanswered' | 'compliant' | 'partial' | 'non_compliant';
 const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'unanswered', label: 'Unanswered' },
-  { value: 'compliant', label: 'Compliant' },
-  { value: 'partial', label: 'Partial' },
-  { value: 'non_compliant', label: 'Non-Compliant' },
+  { value: 'all', label: 'Tumu' },
+  { value: 'unanswered', label: 'Cevaplanmamis' },
+  { value: 'compliant', label: 'Uyumlu' },
+  { value: 'partial', label: 'Kismi Uyumlu' },
+  { value: 'non_compliant', label: 'Uyumsuz' },
 ];
 
 // ── Component ──────────────────────────────────────────
@@ -84,6 +84,8 @@ export default function VendorPortalShadcn() {
   const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [respondentName, setRespondentName] = useState('');
+  const [respondentSaved, setRespondentSaved] = useState(false);
 
   // Theme toggle
   const { theme, setTheme } = useTheme();
@@ -220,10 +222,10 @@ export default function VendorPortalShadcn() {
 
   const handleSubmit = async () => {
     if (!token) return;
-    if (!confirm('Are you sure you want to submit this assessment? You will not be able to make changes after submission.')) return;
+    if (!confirm('Degerlendirmeyi gondermek istediginizden emin misiniz? Gonderim sonrasi degisiklik yapamazsiniz.')) return;
     try {
       setSubmitting(true);
-      await vendorInvitationsApi.complete(token);
+      await vendorInvitationsApi.complete(token, respondentName.trim() || undefined);
       setCompleted(true);
     } catch (err) {
       setToast({ message: getErrorMessage(err), type: 'error' });
@@ -265,8 +267,11 @@ export default function VendorPortalShadcn() {
     return map;
   }, [items, functions]);
 
-  // Short function name: "Govern" from "Govern (GV)"
-  const shortFuncName = (name: string) => name.replace(/\s*\(.*\)$/, '');
+  // Short function name: "Govern" from "Govern (GV)", with Turkish if available
+  const shortFuncName = (func: CsfFunction) => {
+    const en = func.name.replace(/\s*\(.*\)$/, '');
+    return func.name_tr || en;
+  };
 
   // ── Loading state ──
   if (loading) {
@@ -279,7 +284,7 @@ export default function VendorPortalShadcn() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: T.textSecondary }}>
             <Loader2 size={20} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Validating invitation...</span>
+            <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Davetiye dogrulanıyor...</span>
           </div>
         </div>
       </>
@@ -303,14 +308,14 @@ export default function VendorPortalShadcn() {
               <XCircle size={20} style={{ color: T.danger }} />
             </div>
             <h1 style={{ fontFamily: T.fontDisplay, fontSize: 22, fontWeight: 700, color: T.textPrimary, margin: 0, letterSpacing: '0.01em' }}>
-              Invalid Invitation
+              Gecersiz Davetiye
             </h1>
           </div>
           <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textSecondary, lineHeight: 1.7, marginBottom: 20 }}>
             {error}
           </p>
           <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
-            Please contact the organization that sent you this invitation for assistance.
+            Yardim icin bu davetiyeyi gonderen kurulusla iletisime gecin.
           </p>
         </div>
       </div>
@@ -337,13 +342,13 @@ export default function VendorPortalShadcn() {
             </div>
           </div>
           <h1 style={{ fontFamily: T.fontDisplay, fontSize: 24, fontWeight: 700, color: T.textPrimary, margin: '0 0 10px', letterSpacing: '0.01em' }}>
-            Assessment Completed
+            Degerlendirme Tamamlandi
           </h1>
           <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textSecondary, lineHeight: 1.7, marginBottom: 20 }}>
-            Thank you for completing the cybersecurity assessment. Your responses have been submitted successfully.
+            Siber guvenlik degerlendirmesini tamamladiginiz icin tesekkur ederiz. Yanitlariniz basariyla gonderildi.
           </p>
           <p style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textMuted }}>
-            Completed on {formatDate(validationData.invitation?.completed_at || undefined)}
+            Tamamlanma tarihi: {formatDate(validationData.invitation?.completed_at || undefined)}
           </p>
         </div>
       </div>
@@ -379,7 +384,7 @@ export default function VendorPortalShadcn() {
             <span style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {validationData.vendor_contact_name ? `• ${validationData.vendor_contact_name}` : ''}
               {validationData.invitation?.token_expires_at
-                ? ` • Expires ${formatDate(validationData.invitation.token_expires_at)}`
+                ? ` • Son tarih: ${formatDate(validationData.invitation.token_expires_at)}`
                 : ''}
             </span>
           </div>
@@ -408,7 +413,7 @@ export default function VendorPortalShadcn() {
             }}>
               <Lock size={10} style={{ color: T.success }} />
               <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.success }}>
-                Secure
+                Guvenli
               </span>
             </div>
           </div>
@@ -445,7 +450,7 @@ export default function VendorPortalShadcn() {
                     marginBottom: -1,
                   }}
                 >
-                  {shortFuncName(func.name)}
+                  {shortFuncName(func)}
                   <span style={{
                     marginLeft: 4, fontFamily: T.fontMono, fontSize: 9,
                     color: counts.assessed === counts.total && counts.total > 0 ? T.success : T.textFaint,
@@ -507,6 +512,50 @@ export default function VendorPortalShadcn() {
         </div>
       </div>
 
+      {/* ─── Respondent Name ─── */}
+      {!respondentSaved && (
+        <div style={{
+          margin: '12px 24px 0', padding: 16, borderRadius: 10,
+          background: T.card, border: `1px solid ${T.accentBorder}`,
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
+          <label style={{
+            fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.textPrimary,
+          }}>
+            Degerlendirmeyi dolduran kisinin bilgileri
+          </label>
+          <input
+            type="text"
+            value={respondentName}
+            onChange={e => setRespondentName(e.target.value)}
+            placeholder="Ad Soyad"
+            style={{
+              padding: '8px 12px', borderRadius: 8,
+              border: `1px solid ${T.border}`, background: T.bg,
+              fontFamily: T.fontSans, fontSize: 13, color: T.textPrimary,
+              outline: 'none', transition: 'border-color 0.15s',
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = T.accent; }}
+            onBlur={e => { e.currentTarget.style.borderColor = T.border; }}
+          />
+          <button
+            onClick={() => { if (respondentName.trim()) setRespondentSaved(true); }}
+            disabled={!respondentName.trim()}
+            style={{
+              alignSelf: 'flex-end',
+              padding: '6px 16px', borderRadius: 7,
+              background: respondentName.trim() ? T.accent : T.borderLight,
+              color: respondentName.trim() ? '#fff' : T.textMuted,
+              border: 'none', fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
+              cursor: respondentName.trim() ? 'pointer' : 'not-allowed',
+              transition: 'all 0.14s',
+            }}
+          >
+            Devam Et
+          </button>
+        </div>
+      )}
+
       {/* ─── Controls List ─── */}
       <main style={{ padding: '10px 24px 0' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -523,8 +572,8 @@ export default function VendorPortalShadcn() {
           ) : filteredItems.length === 0 ? (
             <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', padding: '32px 0' }}>
               {statusFilter !== 'all'
-                ? `No ${statusFilter === 'unanswered' ? 'unanswered' : statusFilter.replace('_', '-')} controls in this function`
-                : 'No controls found for this function'}
+                ? `Bu fonksiyonda ${statusFilter === 'unanswered' ? 'cevaplanmamis' : statusFilter === 'compliant' ? 'uyumlu' : statusFilter === 'partial' ? 'kismi uyumlu' : 'uyumsuz'} kontrol bulunamadi`
+                : 'Bu fonksiyonda kontrol bulunamadi'}
             </p>
           ) : (
             filteredItems.map((item) => (
@@ -551,7 +600,7 @@ export default function VendorPortalShadcn() {
           padding: '16px 0 32px', marginTop: 8,
         }}>
           <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, margin: 0 }}>
-            Progress saved automatically
+            Ilerleme otomatik kaydedilir
           </p>
           <button
             onClick={handleSubmit}
@@ -572,12 +621,12 @@ export default function VendorPortalShadcn() {
             {submitting ? (
               <>
                 <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                Submitting...
+                Gonderiliyor...
               </>
             ) : (
               <>
                 <Send size={14} />
-                Submit Assessment
+                Degerlendirmeyi Gonder
               </>
             )}
           </button>

@@ -344,6 +344,7 @@ export const vendor_assessment_invitations = sqliteTable('vendor_assessment_invi
 
   vendor_contact_email: text('vendor_contact_email').notNull(),
   vendor_contact_name: text('vendor_contact_name'),
+  respondent_name: text('respondent_name'),
 
   // JWT tokens (signed with JWT_SECRET)
   access_token: text('access_token').notNull().unique(),

@@ -188,15 +188,20 @@ export default function ControlItem({
         }}>
           <div>
             <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
-              Description
+              Aciklama / Description
             </span>
             <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: '4px 0 0', lineHeight: 1.6 }}>
               {controlDescription}
             </p>
+            {item.subcategory?.description_tr && (
+              <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, fontStyle: 'italic', margin: '4px 0 0', lineHeight: 1.6 }}>
+                {item.subcategory.description_tr}
+              </p>
+            )}
           </div>
           <div>
             <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
-              What This Means
+              Ne Anlama Geliyor / What This Means
             </span>
             <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: '4px 0 0', lineHeight: 1.6 }}>
               {guidance.capability}
@@ -205,7 +210,7 @@ export default function ControlItem({
           {item.subcategory?.priority && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
-                Priority:
+                Oncelik / Priority:
               </span>
               <span style={{
                 fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
