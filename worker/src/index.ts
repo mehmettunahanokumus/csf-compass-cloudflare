@@ -31,8 +31,9 @@ const vendorInvitationsCors = async (c: any, next: any) => {
   const origin = c.req.header('origin') || '';
   const allowedOrigins = c.env.ALLOWED_ORIGINS?.split(',').filter(Boolean) || ['http://localhost:5173'];
 
-  // Check if origin is allowed
-  const isAllowed = allowedOrigins.includes(origin);
+  // Check if origin is allowed (exact match or *.csf-compass.pages.dev wildcard)
+  const isAllowed = allowedOrigins.includes(origin)
+    || /^https:\/\/[a-f0-9]+\.csf-compass\.pages\.dev$/.test(origin);
 
   // Set CORS headers
   if (isAllowed) {
@@ -65,7 +66,9 @@ app.use('*', async (c, next) => {
   const allowedOrigins = c.env.ALLOWED_ORIGINS?.split(',').filter(Boolean) || ['http://localhost:5173'];
 
   // Allow all origins for general API endpoints (or restrict to allowed list)
-  c.header('Access-Control-Allow-Origin', allowedOrigins.includes(origin) ? origin : '*');
+  const isGeneralAllowed = allowedOrigins.includes(origin)
+    || /^https:\/\/[a-f0-9]+\.csf-compass\.pages\.dev$/.test(origin);
+  c.header('Access-Control-Allow-Origin', isGeneralAllowed ? origin : '*');
   c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 

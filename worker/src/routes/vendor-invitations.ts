@@ -81,13 +81,28 @@ app.post('/', async (c) => {
       return c.json({ error: 'Assessment must have a vendor_id' }, 400);
     }
 
-    // Clone assessment for vendor self-assessment
-    const vendorAssessmentId = await cloneAssessmentForVendor(
-      db,
-      c.env.DB,
-      body.organization_assessment_id,
-      assessment.organization_id
-    );
+    // Check for existing active invitation for this org assessment
+    // Reuse vendor_self_assessment if one exists (avoid duplicate cloning)
+    const existingInvitation = await c.env.DB.prepare(
+      `SELECT * FROM vendor_assessment_invitations
+       WHERE organization_assessment_id = ? AND revoked_at IS NULL
+       ORDER BY created_at DESC LIMIT 1`
+    ).bind(body.organization_assessment_id).first();
+
+    let vendorAssessmentId: string;
+
+    if (existingInvitation && existingInvitation.vendor_self_assessment_id) {
+      // Reuse existing vendor self-assessment
+      vendorAssessmentId = existingInvitation.vendor_self_assessment_id as string;
+    } else {
+      // Clone assessment for vendor self-assessment (first time only)
+      vendorAssessmentId = await cloneAssessmentForVendor(
+        db,
+        c.env.DB,
+        body.organization_assessment_id,
+        assessment.organization_id
+      );
+    }
 
     // Generate JWT access token
     const tokenExpiryDays = body.token_expiry_days || 7; // Default 7 days
