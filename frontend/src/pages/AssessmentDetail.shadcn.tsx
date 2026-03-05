@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Trash2, Upload, Brain, GitCompare, Link2, Copy,
   FileText, Calendar, Building2, BarChart3, ClipboardList, CheckSquare,
-  ArrowLeft, MoreHorizontal, MessageSquare,
+  ArrowLeft, MoreHorizontal, MessageSquare, Sun, Moon,
 } from 'lucide-react';
 import { assessmentsApi } from '../api/assessments';
 import { csfApi } from '../api/csf';
@@ -14,6 +14,7 @@ import type {
   Assessment, AssessmentItem, CsfFunction, VendorAssessmentInvitation, SendInvitationResponse,
 } from '../types';
 import { getErrorMessage, formatDate } from '../api/client';
+import { useTheme } from '../hooks/useTheme';
 import InviteVendorDialog from '../components/InviteVendorDialog';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import ControlItem from '../components/assessment/ControlItem';
@@ -137,6 +138,10 @@ export default function AssessmentDetail() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const toggleTheme = useCallback(() => setTheme(isDark ? 'light' : 'dark'), [isDark, setTheme]);
+
   const toggleExpandItem = useCallback((itemId: string) => {
     setExpandedItems(prev => {
       const next = new Set(prev);
@@ -158,10 +163,10 @@ export default function AssessmentDetail() {
     return () => document.removeEventListener('mousedown', handler);
   }, [showMenu]);
 
-  const loadData = async () => {
+  const loadData = async (background = false) => {
     if (!id) return;
     try {
-      setLoading(true);
+      if (!background) setLoading(true);
       const [assessmentData, functionsData] = await Promise.all([
         assessmentsApi.get(id),
         csfApi.getFunctions(),
@@ -172,7 +177,7 @@ export default function AssessmentDetail() {
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
@@ -234,7 +239,7 @@ export default function AssessmentDetail() {
           : item
       ));
       // Refresh assessment stats (score) in background
-      loadData();
+      loadData(true);
     } catch (err) {
       // Reload items on error to get correct state
       if (selectedFunction) loadItems(selectedFunction);
@@ -424,6 +429,20 @@ export default function AssessmentDetail() {
             }}
           >
             <FileText size={14} /> Report
+          </button>
+
+          {/* dark/light toggle */}
+          <button
+            onClick={toggleTheme}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 34, height: 34, borderRadius: 8,
+              background: T.card, border: `1px solid ${T.border}`,
+              color: T.text2, cursor: 'pointer',
+            }}
+          >
+            {isDark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
 
           {/* ⋮ overflow menu */}

@@ -13,7 +13,7 @@
  */
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Check, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, Loader2, Info } from 'lucide-react';
 import type { AssessmentItem } from '../../types';
 import { T } from '../../tokens';
 import {
@@ -69,6 +69,7 @@ export default function ControlItem({
 
   // Internal state for the guidance sub-panel (platforms collapsible)
   const [platformsOpen, setPlatformsOpen] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const subcategoryId = item.subcategory?.id || '';
   const controlDescription = item.subcategory?.description
@@ -88,6 +89,11 @@ export default function ControlItem({
         </span>
         <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, flex: 1, lineHeight: 1.5 }}>
           {item.subcategory?.name || item.subcategory?.description?.substring(0, 90)}
+          {item.subcategory?.description_tr && (
+            <span style={{ display: 'block', fontSize: 11, color: T.textMuted, fontStyle: 'italic', marginTop: 2 }}>
+              {item.subcategory.description_tr}
+            </span>
+          )}
         </span>
         <span style={{ ...statusBadgeStyle(status), flexShrink: 0 }}>
           {statusLabel(status)}
@@ -121,6 +127,21 @@ export default function ControlItem({
             <span style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 500, color: T.textPrimary }}>
               {item.subcategory?.name}
             </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 20, height: 20, borderRadius: '50%',
+                background: showInfo ? T.accentLight : 'transparent',
+                border: `1px solid ${showInfo ? T.accentBorder : T.border}`,
+                color: showInfo ? T.accent : T.textMuted,
+                cursor: 'pointer', transition: 'all 0.14s',
+                flexShrink: 0,
+              }}
+              title="Control details"
+            >
+              <Info size={11} />
+            </button>
           </div>
           <p style={{
             fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary,
@@ -129,6 +150,15 @@ export default function ControlItem({
           }}>
             {controlDescription}
           </p>
+          {item.subcategory?.description_tr && (
+            <p style={{
+              fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, fontStyle: 'italic',
+              margin: '4px 0 0', lineHeight: 1.6,
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+            }}>
+              {item.subcategory.description_tr}
+            </p>
+          )}
         </div>
 
         {/* Status badge */}
@@ -148,6 +178,46 @@ export default function ControlItem({
           )}
         </div>
       </div>
+
+      {/* ── Info panel (toggle via i button) ── */}
+      {showInfo && (
+        <div style={{
+          margin: '0 18px', padding: '12px 14px', borderRadius: 8,
+          background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <div>
+            <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
+              Description
+            </span>
+            <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: '4px 0 0', lineHeight: 1.6 }}>
+              {controlDescription}
+            </p>
+          </div>
+          <div>
+            <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
+              What This Means
+            </span>
+            <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: '4px 0 0', lineHeight: 1.6 }}>
+              {guidance.capability}
+            </p>
+          </div>
+          {item.subcategory?.priority && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
+                Priority:
+              </span>
+              <span style={{
+                fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
+                color: item.subcategory.priority === 'high' ? T.danger : item.subcategory.priority === 'medium' ? T.warning : T.success,
+                textTransform: 'capitalize' as const,
+              }}>
+                {item.subcategory.priority}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Button row (always visible in interactive mode) ── */}
       <div style={{
@@ -268,6 +338,11 @@ export default function ControlItem({
               <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.65 }}>
                 {controlDescription}
               </p>
+              {item.subcategory?.description_tr && (
+                <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, fontStyle: 'italic', margin: '6px 0 0', lineHeight: 1.65 }}>
+                  {item.subcategory.description_tr}
+                </p>
+              )}
             </div>
 
             {/* Evidence requirements */}

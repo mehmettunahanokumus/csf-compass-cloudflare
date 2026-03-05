@@ -160,6 +160,8 @@ export const csf_functions = sqliteTable('csf_functions', {
   id: text('id').primaryKey(), // GV, ID, PR, DE, RS, RC
   name: text('name').notNull(),
   description: text('description'),
+  name_tr: text('name_tr'),
+  description_tr: text('description_tr'),
   sort_order: integer('sort_order').notNull(),
 });
 
@@ -171,6 +173,8 @@ export const csf_categories = sqliteTable('csf_categories', {
   function_id: text('function_id').notNull().references(() => csf_functions.id),
   name: text('name').notNull(),
   description: text('description'),
+  name_tr: text('name_tr'),
+  description_tr: text('description_tr'),
   sort_order: integer('sort_order').notNull(),
 });
 
@@ -182,6 +186,8 @@ export const csf_subcategories = sqliteTable('csf_subcategories', {
   category_id: text('category_id').notNull().references(() => csf_categories.id),
   name: text('name').notNull(),
   description: text('description'),
+  name_tr: text('name_tr'),
+  description_tr: text('description_tr'),
   priority: text('priority').default('medium'), // high, medium, low
   sort_order: integer('sort_order').notNull(),
 });

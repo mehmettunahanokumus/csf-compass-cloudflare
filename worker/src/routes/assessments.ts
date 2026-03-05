@@ -24,6 +24,12 @@ import {
   csf_functions,
   wizard_progress,
   vendors,
+  evidence_files,
+  vendor_assessment_invitations,
+  vendor_audit_log,
+  ai_analysis_logs,
+  gap_recommendations,
+  executive_summaries,
 } from '../db/schema';
 import { updateAssessmentScore, getAssessmentStats } from '../lib/scoring';
 
@@ -398,6 +404,42 @@ app.delete('/:id', async (c) => {
       return c.json({ error: 'Assessment not found' }, 404);
     }
 
+    // Explicitly delete all related records since D1 does not enforce
+    // PRAGMA foreign_keys by default, so ON DELETE CASCADE won't fire.
+
+    // 1. Delete audit logs for invitations linked to this assessment
+    const invitations = await db
+      .select({ id: vendor_assessment_invitations.id })
+      .from(vendor_assessment_invitations)
+      .where(eq(vendor_assessment_invitations.organization_assessment_id, id));
+
+    if (invitations.length > 0) {
+      const invitationIds = invitations.map(inv => inv.id);
+      await db.delete(vendor_audit_log).where(inArray(vendor_audit_log.invitation_id, invitationIds));
+    }
+
+    // 2. Delete vendor assessment invitations
+    await db.delete(vendor_assessment_invitations).where(eq(vendor_assessment_invitations.organization_assessment_id, id));
+
+    // 3. Delete evidence files
+    await db.delete(evidence_files).where(eq(evidence_files.assessment_id, id));
+
+    // 4. Delete AI analysis logs
+    await db.delete(ai_analysis_logs).where(eq(ai_analysis_logs.assessment_id, id));
+
+    // 5. Delete gap recommendations
+    await db.delete(gap_recommendations).where(eq(gap_recommendations.assessment_id, id));
+
+    // 6. Delete executive summaries
+    await db.delete(executive_summaries).where(eq(executive_summaries.assessment_id, id));
+
+    // 7. Delete wizard progress
+    await db.delete(wizard_progress).where(eq(wizard_progress.assessment_id, id));
+
+    // 8. Delete assessment items
+    await db.delete(assessment_items).where(eq(assessment_items.assessment_id, id));
+
+    // 9. Finally delete the assessment itself
     await db.delete(assessments).where(eq(assessments.id, id));
 
     return c.json({ message: 'Assessment deleted successfully' });
@@ -448,17 +490,21 @@ app.get('/:id/items', async (c) => {
           id: csf_subcategories.id,
           name: csf_subcategories.name,
           description: csf_subcategories.description,
+          name_tr: csf_subcategories.name_tr,
+          description_tr: csf_subcategories.description_tr,
           priority: csf_subcategories.priority,
           category_id: csf_subcategories.category_id,
         },
         category: {
           id: csf_categories.id,
           name: csf_categories.name,
+          name_tr: csf_categories.name_tr,
           function_id: csf_categories.function_id,
         },
         function: {
           id: csf_functions.id,
           name: csf_functions.name,
+          name_tr: csf_functions.name_tr,
         },
       })
       .from(assessment_items)

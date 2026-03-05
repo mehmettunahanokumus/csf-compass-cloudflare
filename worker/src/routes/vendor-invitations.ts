@@ -291,16 +291,20 @@ app.get('/:token/items', async (c) => {
           id: csf_subcategories.id,
           name: csf_subcategories.name,
           description: csf_subcategories.description,
+          name_tr: csf_subcategories.name_tr,
+          description_tr: csf_subcategories.description_tr,
           category_id: csf_subcategories.category_id,
         },
         category: {
           id: csf_categories.id,
           name: csf_categories.name,
+          name_tr: csf_categories.name_tr,
           function_id: csf_categories.function_id,
         },
         function: {
           id: csf_functions.id,
           name: csf_functions.name,
+          name_tr: csf_functions.name_tr,
           description: csf_functions.description,
         }
       })

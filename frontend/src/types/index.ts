@@ -84,6 +84,8 @@ export interface CsfFunction {
   id: string;
   name: string;
   description?: string;
+  name_tr?: string;
+  description_tr?: string;
   sort_order: number;
 }
 
@@ -92,6 +94,8 @@ export interface CsfCategory {
   function_id: string;
   name: string;
   description?: string;
+  name_tr?: string;
+  description_tr?: string;
   sort_order: number;
 }
 
@@ -100,6 +104,8 @@ export interface CsfSubcategory {
   category_id: string;
   name: string;
   description?: string;
+  name_tr?: string;
+  description_tr?: string;
   priority: 'high' | 'medium' | 'low';
   sort_order: number;
 }
@@ -121,17 +127,21 @@ export interface AssessmentItem {
     id: string;
     name: string;
     description?: string;
+    name_tr?: string;
+    description_tr?: string;
     priority: string;
     category_id: string;
   };
   category?: {
     id: string;
     name: string;
+    name_tr?: string;
     function_id: string;
   };
   function?: {
     id: string;
     name: string;
+    name_tr?: string;
   };
 }
 
