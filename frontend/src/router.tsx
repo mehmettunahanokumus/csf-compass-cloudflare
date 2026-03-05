@@ -2,7 +2,7 @@
  * React Router Configuration
  */
 
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import AppLayout from './components/layout/AppShell.shadcn';
 import Dashboard from './pages/Dashboard.shadcn';
 import Assessments from './pages/Assessments.shadcn';
@@ -27,11 +27,20 @@ import CompanyGroups from './pages/CompanyGroups.shadcn';
 import CompanyGroupDetail from './pages/CompanyGroupDetail.shadcn';
 import AssessmentHistoryComparison from './pages/AssessmentHistoryComparison.shadcn';
 
+function VendorPortalRedirect() {
+  const { token } = useParams<{ token: string }>();
+  return <Navigate to={`/assess/${token}`} replace />;
+}
+
 export const router = createBrowserRouter([
   // Public routes (outside AppLayout)
   {
-    path: '/vendor-portal/:token',
+    path: '/assess/:token',
     element: <VendorPortal />,
+  },
+  {
+    path: '/vendor-portal/:token',
+    element: <VendorPortalRedirect />,
   },
 
   // Protected routes (inside AppLayout)

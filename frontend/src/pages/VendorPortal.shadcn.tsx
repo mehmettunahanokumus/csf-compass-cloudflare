@@ -1,30 +1,27 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  Lock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Send,
-  Loader2,
-  Check,
-  Sun,
-  Moon,
-} from 'lucide-react';
+import { XCircle, AlertCircle, Check, Loader2 } from 'lucide-react';
 import { vendorInvitationsApi } from '../api/vendor-invitations';
 import { csfApi } from '../api/csf';
-import { useTheme } from '../hooks/useTheme';
 import type {
   ValidateTokenResponse,
   Assessment,
   AssessmentItem,
   CsfFunction,
+  CsfCategory,
 } from '../types';
-import { getErrorMessage, formatDate } from '../api/client';
+import { getErrorMessage } from '../api/client';
 import { T, card } from '../tokens';
-import ControlItem from '../components/assessment/ControlItem';
+import { VpHeader } from '../components/vendor-portal/VpHeader';
+import { VpWelcome } from '../components/vendor-portal/VpWelcome';
+import { VpComplete } from '../components/vendor-portal/VpComplete';
+import VpAssessment from '../components/vendor-portal/VpAssessment';
+import VpReview from '../components/vendor-portal/VpReview';
 
-// ── Toast component ────────────────────────────────────
+// ── Phases ────────────────────────────────────────────────
+type Phase = 'loading' | 'error' | 'welcome' | 'assessment' | 'review' | 'completed';
+
+// ── Toast component ───────────────────────────────────────
 function Toast({ message, type, onClose }: { message: string; type: 'error' | 'success'; onClose: () => void }) {
   useEffect(() => {
     const timer = setTimeout(onClose, 4000);
@@ -52,49 +49,45 @@ function Toast({ message, type, onClose }: { message: string; type: 'error' | 's
   );
 }
 
-// ── Animation CSS ──────────────────────────────────────
 const ANIM_CSS = `
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes vp-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
-type StatusFilter = 'all' | 'unanswered' | 'compliant' | 'partial' | 'non_compliant';
-const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Tumu' },
-  { value: 'unanswered', label: 'Cevaplanmamis' },
-  { value: 'compliant', label: 'Uyumlu' },
-  { value: 'partial', label: 'Kismi Uyumlu' },
-  { value: 'non_compliant', label: 'Uyumsuz' },
-];
-
-// ── Component ──────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────
 export default function VendorPortalShadcn() {
   const { token } = useParams<{ token: string }>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // Data state
   const [validationData, setValidationData] = useState<ValidateTokenResponse | null>(null);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [items, setItems] = useState<AssessmentItem[]>([]);
   const [functions, setFunctions] = useState<CsfFunction[]>([]);
+  const [categories, setCategories] = useState<CsfCategory[]>([]);
   const [selectedFunction, setSelectedFunction] = useState<string | null>(null);
+
+  // Phase state
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [error, setError] = useState<string | null>(null);
+
+  // UI state
   const [submitting, setSubmitting] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const [loadingItems, setLoadingItems] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [respondentName, setRespondentName] = useState('');
-  const [respondentSaved, setRespondentSaved] = useState(false);
-
-  // Theme toggle
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  const toggleTheme = useCallback(() => setTheme(isDark ? 'light' : 'dark'), [isDark, setTheme]);
 
   // Notes debounce refs
   const notesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
+  // ── Progress ──
+  const totalItems = items.length;
+  const assessedItems = useMemo(() => items.filter(i => i.status !== 'not_assessed').length, [items]);
+  const progressPct = totalItems > 0 ? Math.round((assessedItems / totalItems) * 100) : 0;
+
+  // ── Token validation ──
   useEffect(() => {
     if (token) validateToken();
   }, [token]);
@@ -102,46 +95,50 @@ export default function VendorPortalShadcn() {
   const validateToken = async () => {
     if (!token) return;
     try {
-      setLoading(true);
+      setPhase('loading');
       const data = await vendorInvitationsApi.validate(token);
       if (!data.valid) {
         setError(data.error || 'Invalid or expired invitation link');
+        setPhase('error');
         return;
       }
       setValidationData(data);
       setAssessment(data.assessment || null);
-      setCompleted(data.invitation?.invitation_status === 'completed');
+
+      if (data.invitation?.invitation_status === 'completed') {
+        setPhase('completed');
+        return;
+      }
+
       if (data.assessment && token) {
         await loadAssessmentData(token);
       }
+      setPhase('welcome');
     } catch (err) {
       setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
+      setPhase('error');
     }
   };
 
   const loadAssessmentData = async (tokenValue: string) => {
     try {
-      setLoadingItems(true);
-      const functionsData = await csfApi.getFunctions();
+      const [functionsData, categoriesData, itemsData] = await Promise.all([
+        csfApi.getFunctions(),
+        csfApi.getCategories(),
+        vendorInvitationsApi.getItems(tokenValue),
+      ]);
       setFunctions(functionsData);
+      setCategories(categoriesData);
       if (functionsData.length > 0) setSelectedFunction(functionsData[0].id);
-      const itemsData = await vendorInvitationsApi.getItems(tokenValue);
       setItems(itemsData);
     } catch (err) {
       console.error('Failed to load assessment data:', err);
       setError(getErrorMessage(err));
-    } finally {
-      setLoadingItems(false);
+      setPhase('error');
     }
   };
 
-  // Ref for rollback on API failure (avoids stale closure)
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-
-  // Auto-scroll helper: scroll to bring the next control into view
+  // ── Auto-scroll helper ──
   const scrollToNextControl = useCallback((itemId: string) => {
     requestAnimationFrame(() => {
       const allControls = document.querySelectorAll('[id^="control-"]');
@@ -161,31 +158,24 @@ export default function VendorPortalShadcn() {
   // ── Status change with optimistic UI ──
   const handleStatusChange = useCallback(async (itemId: string, status: string) => {
     if (!token) return;
-
-    // Save previous state for rollback
     const prevItems = itemsRef.current;
 
-    // Optimistic update
     setItems(prev => prev.map(item =>
       item.id === itemId ? { ...item, status: status as AssessmentItem['status'] } : item
     ));
     setSavingItems(prev => new Set(prev).add(itemId));
-
-    // Auto-scroll to next control
     scrollToNextControl(itemId);
 
     try {
       const updatedItem = await vendorInvitationsApi.updateItem(token, itemId, {
         status: status as 'compliant' | 'partial' | 'non_compliant' | 'not_assessed' | 'not_applicable',
       });
-      // Merge API response with existing CSF metadata (API returns flat row without joins)
       setItems(prev => prev.map(item =>
         item.id === itemId
           ? { ...item, status: updatedItem.status, notes: updatedItem.notes, updated_at: updatedItem.updated_at }
           : item
       ));
     } catch (err) {
-      // Revert on failure
       setItems(prevItems);
       setToast({ message: `Failed to save: ${getErrorMessage(err)}`, type: 'error' });
     } finally {
@@ -197,19 +187,17 @@ export default function VendorPortalShadcn() {
     }
   }, [token, scrollToNextControl]);
 
-  // ── Notes auto-save on blur / debounce ──
+  // ── Notes auto-save ──
   const handleNotesChange = useCallback((itemId: string, notes: string) => {
-    // Update local state immediately
     setItems(prev => prev.map(item =>
       item.id === itemId ? { ...item, notes } : item
     ));
 
-    // Debounce API call
     if (notesTimers.current[itemId]) clearTimeout(notesTimers.current[itemId]);
     notesTimers.current[itemId] = setTimeout(async () => {
       if (!token) return;
       try {
-        const currentItem = items.find(i => i.id === itemId);
+        const currentItem = itemsRef.current.find(i => i.id === itemId);
         await vendorInvitationsApi.updateItem(token, itemId, {
           status: (currentItem?.status || 'not_assessed') as any,
           notes,
@@ -218,22 +206,23 @@ export default function VendorPortalShadcn() {
         setToast({ message: `Failed to save notes: ${getErrorMessage(err)}`, type: 'error' });
       }
     }, 800);
-  }, [token, items]);
+  }, [token]);
 
-  const handleSubmit = async () => {
+  // ── Submit ──
+  const handleSubmit = useCallback(async () => {
     if (!token) return;
-    if (!confirm('Degerlendirmeyi gondermek istediginizden emin misiniz? Gonderim sonrasi degisiklik yapamazsiniz.')) return;
     try {
       setSubmitting(true);
       await vendorInvitationsApi.complete(token, respondentName.trim() || undefined);
-      setCompleted(true);
+      setPhase('completed');
     } catch (err) {
       setToast({ message: getErrorMessage(err), type: 'error' });
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [token, respondentName]);
 
+  // ── Toggle expand ──
   const toggleExpand = useCallback((itemId: string) => {
     setExpandedItems(prev => {
       const next = new Set(prev);
@@ -242,39 +231,31 @@ export default function VendorPortalShadcn() {
     });
   }, []);
 
-  const filteredItems = useMemo(() => {
-    let filtered = items.filter((item) => item.function?.id === selectedFunction);
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((item) => {
-        if (statusFilter === 'unanswered') return item.status === 'not_assessed';
-        return item.status === statusFilter;
-      });
-    }
-    return filtered;
-  }, [items, selectedFunction, statusFilter]);
-  const totalItems = items.length;
-  const assessedItems = items.filter((i) => i.status !== 'not_assessed').length;
-  const progressPct = totalItems > 0 ? Math.round((assessedItems / totalItems) * 100) : 0;
+  // ── Welcome start handler ──
+  const handleStart = useCallback(() => {
+    setPhase('assessment');
+  }, []);
 
-  // ── Computed: per-function counts for compact tabs ──
-  // (Must be before early returns — React hooks must always run in same order)
-  const funcCounts = useMemo(() => {
-    const map: Record<string, { total: number; assessed: number }> = {};
-    for (const func of functions) {
-      const funcItems = items.filter(i => i.function?.id === func.id);
-      map[func.id] = { total: funcItems.length, assessed: funcItems.filter(i => i.status !== 'not_assessed').length };
-    }
-    return map;
-  }, [items, functions]);
+  // ── Review navigation ──
+  const handleGoToReview = useCallback(() => {
+    setPhase('review');
+  }, []);
 
-  // Short function name: "Govern" from "Govern (GV)", with Turkish if available
-  const shortFuncName = (func: CsfFunction) => {
-    const en = func.name.replace(/\s*\(.*\)$/, '');
-    return func.name_tr || en;
-  };
+  const handleGoBackFromReview = useCallback(() => {
+    setPhase('assessment');
+  }, []);
 
-  // ── Loading state ──
-  if (loading) {
+  const handleGoToFunction = useCallback((functionId: string) => {
+    setSelectedFunction(functionId);
+    setPhase('assessment');
+  }, []);
+
+  // ══════════════════════════════════════════════════════════
+  // RENDER
+  // ══════════════════════════════════════════════════════════
+
+  // ── Loading ──
+  if (phase === 'loading') {
     return (
       <>
         <style>{ANIM_CSS}</style>
@@ -284,15 +265,15 @@ export default function VendorPortalShadcn() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: T.textSecondary }}>
             <Loader2 size={20} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Davetiye dogrulanıyor...</span>
+            <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Davetiye dogrulaniyor...</span>
           </div>
         </div>
       </>
     );
   }
 
-  // ── Error state ──
-  if (error) {
+  // ── Error ──
+  if (phase === 'error') {
     return (
       <div style={{
         display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center',
@@ -322,325 +303,82 @@ export default function VendorPortalShadcn() {
     );
   }
 
+  // ── Completed ──
+  if (phase === 'completed') {
+    return (
+      <VpComplete
+        assessmentName={assessment?.name || ''}
+        completedAt={validationData?.invitation?.completed_at || undefined}
+      />
+    );
+  }
+
   if (!validationData || !assessment) return null;
 
-  // ── Completed state ──
-  if (completed) {
+  // ── Welcome ──
+  if (phase === 'welcome') {
     return (
-      <div style={{
-        display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center',
-        background: T.bg, padding: 24,
-      }}>
-        <div style={{ ...card, maxWidth: 440, padding: 40, textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: 16,
-              background: T.successLight, border: `1px solid ${T.successBorder}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <CheckCircle size={32} style={{ color: T.success }} />
-            </div>
-          </div>
-          <h1 style={{ fontFamily: T.fontDisplay, fontSize: 24, fontWeight: 700, color: T.textPrimary, margin: '0 0 10px', letterSpacing: '0.01em' }}>
-            Degerlendirme Tamamlandi
-          </h1>
-          <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textSecondary, lineHeight: 1.7, marginBottom: 20 }}>
-            Siber guvenlik degerlendirmesini tamamladiginiz icin tesekkur ederiz. Yanitlariniz basariyla gonderildi.
-          </p>
-          <p style={{ fontFamily: T.fontMono, fontSize: 12, color: T.textMuted }}>
-            Tamamlanma tarihi: {formatDate(validationData.invitation?.completed_at || undefined)}
-          </p>
-        </div>
+      <VpWelcome
+        assessmentName={assessment.name}
+        vendorContactName={validationData.vendor_contact_name}
+        expiresAt={validationData.invitation?.token_expires_at}
+        totalControls={totalItems}
+        respondentName={respondentName}
+        onRespondentNameChange={setRespondentName}
+        onStart={handleStart}
+      />
+    );
+  }
+
+  // ── Review ──
+  if (phase === 'review') {
+    return (
+      <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', flexDirection: 'column' }}>
+        <style>{ANIM_CSS}</style>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+        <VpHeader
+          assessmentName={assessment.name}
+          progressPct={progressPct}
+          assessedCount={assessedItems}
+          totalCount={totalItems}
+        />
+        <VpReview
+          items={items}
+          functions={functions}
+          respondentName={respondentName}
+          submitting={submitting}
+          onSubmit={handleSubmit}
+          onGoBack={handleGoBackFromReview}
+          onGoToItem={handleGoToFunction}
+        />
       </div>
     );
   }
 
-  // ── Main render ──
+  // ── Assessment (main) ──
   return (
-    <div style={{ minHeight: '100vh', background: T.bg }}>
+    <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', flexDirection: 'column' }}>
       <style>{ANIM_CSS}</style>
-
-      {/* Toast */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-
-      {/* ─── Compact Header Bar ─── */}
-      <header style={{
-        borderBottom: `1px solid ${T.border}`,
-        background: T.card,
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 24px',
-          gap: 12,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-            <Lock size={15} style={{ color: T.accent, flexShrink: 0 }} />
-            <span style={{
-              fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.textPrimary,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {assessment.name}
-            </span>
-            <span style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
-              {validationData.vendor_contact_name ? `• ${validationData.vendor_contact_name}` : ''}
-              {validationData.invitation?.token_expires_at
-                ? ` • Son tarih: ${formatDate(validationData.invitation.token_expires_at)}`
-                : ''}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: 30, height: 30, borderRadius: 7,
-                border: `1px solid ${T.border}`, background: 'transparent',
-                color: T.textMuted, cursor: 'pointer', transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = T.accentLight; e.currentTarget.style.color = T.accent; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textMuted; }}
-            >
-              {isDark ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-            {/* Secure badge */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '4px 10px',
-              background: T.successLight, border: `1px solid ${T.successBorder}`,
-              borderRadius: 999,
-            }}>
-              <Lock size={10} style={{ color: T.success }} />
-              <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.success }}>
-                Guvenli
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* ─── Sticky: Function Tabs + Progress + Filters ─── */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 10,
-        background: T.card,
-        borderBottom: `1px solid ${T.border}`,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-      }}>
-        <div style={{ padding: '0 24px' }}>
-          {/* Function tabs row */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 0,
-            overflowX: 'auto', paddingTop: 6,
-          }}>
-            {functions.map((func) => {
-              const isSelected = selectedFunction === func.id;
-              const counts = funcCounts[func.id] || { total: 0, assessed: 0 };
-              return (
-                <button
-                  key={func.id}
-                  onClick={() => setSelectedFunction(func.id)}
-                  style={{
-                    padding: '7px 12px', fontFamily: T.fontSans,
-                    fontSize: 11, fontWeight: isSelected ? 700 : 500,
-                    whiteSpace: 'nowrap', border: 'none', cursor: 'pointer',
-                    borderBottom: isSelected ? `2px solid ${T.accent}` : '2px solid transparent',
-                    color: isSelected ? T.accent : T.textMuted,
-                    background: 'transparent', transition: 'all 0.12s',
-                    marginBottom: -1,
-                  }}
-                >
-                  {shortFuncName(func)}
-                  <span style={{
-                    marginLeft: 4, fontFamily: T.fontMono, fontSize: 9,
-                    color: counts.assessed === counts.total && counts.total > 0 ? T.success : T.textFaint,
-                  }}>
-                    {counts.assessed}/{counts.total}
-                  </span>
-                </button>
-              );
-            })}
-            {/* Progress % right-aligned */}
-            <div style={{ marginLeft: 'auto', paddingLeft: 12, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <span style={{
-                fontFamily: T.fontMono, fontSize: 11, fontWeight: 700,
-                color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
-              }}>
-                {progressPct}%
-              </span>
-              <span style={{ fontFamily: T.fontMono, fontSize: 10, color: T.textMuted }}>
-                ({assessedItems}/{totalItems})
-              </span>
-            </div>
-          </div>
-
-          {/* Thin progress bar */}
-          <div style={{
-            width: '100%', height: 3, background: T.borderLight, borderRadius: 999,
-            overflow: 'hidden', margin: '4px 0',
-          }}>
-            <div style={{
-              height: '100%', borderRadius: 999,
-              background: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
-              width: `${progressPct}%`,
-              transition: 'width 0.4s ease',
-            }} />
-          </div>
-
-          {/* Filter chips */}
-          <div style={{ display: 'flex', gap: 4, paddingBottom: 7 }}>
-            {STATUS_FILTER_OPTIONS.map(({ value, label }) => {
-              const isActive = statusFilter === value;
-              return (
-                <button
-                  key={value}
-                  onClick={() => setStatusFilter(value)}
-                  style={{
-                    padding: '2px 8px', borderRadius: 4,
-                    fontFamily: T.fontSans, fontSize: 10, fontWeight: isActive ? 600 : 500,
-                    background: isActive ? T.accentLight : 'transparent',
-                    border: `1px solid ${isActive ? T.accentBorder : 'transparent'}`,
-                    color: isActive ? T.accent : T.textMuted,
-                    cursor: 'pointer', transition: 'all 0.12s',
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Respondent Name ─── */}
-      {!respondentSaved && (
-        <div style={{
-          margin: '12px 24px 0', padding: 16, borderRadius: 10,
-          background: T.card, border: `1px solid ${T.accentBorder}`,
-          display: 'flex', flexDirection: 'column', gap: 10,
-        }}>
-          <label style={{
-            fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.textPrimary,
-          }}>
-            Degerlendirmeyi dolduran kisinin bilgileri
-          </label>
-          <input
-            type="text"
-            value={respondentName}
-            onChange={e => setRespondentName(e.target.value)}
-            placeholder="Ad Soyad"
-            style={{
-              padding: '8px 12px', borderRadius: 8,
-              border: `1px solid ${T.border}`, background: T.bg,
-              fontFamily: T.fontSans, fontSize: 13, color: T.textPrimary,
-              outline: 'none', transition: 'border-color 0.15s',
-            }}
-            onFocus={e => { e.currentTarget.style.borderColor = T.accent; }}
-            onBlur={e => { e.currentTarget.style.borderColor = T.border; }}
-          />
-          <button
-            onClick={() => { if (respondentName.trim()) setRespondentSaved(true); }}
-            disabled={!respondentName.trim()}
-            style={{
-              alignSelf: 'flex-end',
-              padding: '6px 16px', borderRadius: 7,
-              background: respondentName.trim() ? T.accent : T.borderLight,
-              color: respondentName.trim() ? '#fff' : T.textMuted,
-              border: 'none', fontFamily: T.fontSans, fontSize: 12, fontWeight: 600,
-              cursor: respondentName.trim() ? 'pointer' : 'not-allowed',
-              transition: 'all 0.14s',
-            }}
-          >
-            Devam Et
-          </button>
-        </div>
-      )}
-
-      {/* ─── Controls List ─── */}
-      <main style={{ padding: '10px 24px 0' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {loadingItems ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 0' }}>
-              {[1, 2, 3].map((i) => (
-                <div key={i} style={{ borderRadius: 8, border: `1px solid ${T.border}`, padding: 14 }}>
-                  <div style={{ height: 10, width: 70, borderRadius: 3, background: T.borderLight, marginBottom: 10 }} />
-                  <div style={{ height: 12, width: '55%', borderRadius: 3, background: T.borderLight, marginBottom: 6 }} />
-                  <div style={{ height: 10, width: '80%', borderRadius: 3, background: T.borderLight }} />
-                </div>
-              ))}
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', padding: '32px 0' }}>
-              {statusFilter !== 'all'
-                ? `Bu fonksiyonda ${statusFilter === 'unanswered' ? 'cevaplanmamis' : statusFilter === 'compliant' ? 'uyumlu' : statusFilter === 'partial' ? 'kismi uyumlu' : 'uyumsuz'} kontrol bulunamadi`
-                : 'Bu fonksiyonda kontrol bulunamadi'}
-            </p>
-          ) : (
-            filteredItems.map((item) => (
-              <ControlItem
-                key={item.id}
-                item={item}
-                mode="interactive"
-                statusOptions="vendor"
-                showNotes={true}
-                showGuidance={false}
-                expanded={expandedItems.has(item.id)}
-                onToggleExpand={toggleExpand}
-                onStatusChange={handleStatusChange}
-                onNotesChange={handleNotesChange}
-                isSaving={savingItems.has(item.id)}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Submit Footer */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 0 32px', marginTop: 8,
-        }}>
-          <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, margin: 0 }}>
-            Ilerleme otomatik kaydedilir
-          </p>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7,
-              padding: '8px 20px', borderRadius: 8,
-              background: submitting ? T.borderLight : T.accent,
-              color: submitting ? T.textMuted : '#fff', border: 'none',
-              fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              boxShadow: submitting ? 'none' : '0 1px 3px rgba(79,70,229,0.3)',
-              transition: 'all 0.14s',
-            }}
-            onMouseEnter={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.opacity = '0.9'; }}
-            onMouseLeave={e => { if (!submitting) (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
-          >
-            {submitting ? (
-              <>
-                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                Gonderiliyor...
-              </>
-            ) : (
-              <>
-                <Send size={14} />
-                Degerlendirmeyi Gonder
-              </>
-            )}
-          </button>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer style={{ borderTop: `1px solid ${T.border}` }}>
-        <div style={{ padding: '14px 24px' }}>
-          <p style={{ textAlign: 'center', fontFamily: T.fontSans, fontSize: 10, color: T.textMuted, margin: 0 }}>
-            CSF Compass — NIST CSF 2.0
-          </p>
-        </div>
-      </footer>
+      <VpHeader
+        assessmentName={assessment.name}
+        progressPct={progressPct}
+        assessedCount={assessedItems}
+        totalCount={totalItems}
+      />
+      <VpAssessment
+        items={items}
+        functions={functions}
+        categories={categories}
+        selectedFunctionId={selectedFunction}
+        onSelectFunction={setSelectedFunction}
+        expandedItems={expandedItems}
+        savingItems={savingItems}
+        onToggleExpand={toggleExpand}
+        onStatusChange={handleStatusChange}
+        onNotesChange={handleNotesChange}
+        onReview={handleGoToReview}
+      />
     </div>
   );
 }
