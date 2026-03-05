@@ -149,5 +149,5 @@ export async function validateSessionToken(
 export function generateMagicLink(token: string, baseUrl: string): string {
   // Remove trailing slash from baseUrl if present
   const cleanBaseUrl = baseUrl.replace(/\/$/, '');
-  return `${cleanBaseUrl}/assess/${token}`;
+  return `${cleanBaseUrl}/vendor-portal/${token}`;
 }
