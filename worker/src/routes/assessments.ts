@@ -237,24 +237,48 @@ app.post('/', async (c) => {
 
     const assessmentId = newAssessment[0].id;
 
-    // Get all subcategories
-    const subcategories = await db.select({ id: csf_subcategories.id }).from(csf_subcategories);
+    // Determine subcategories and evidence requirement based on assessment type
+    let subcategories: { id: string }[];
+    let evidenceRequired = 0;
+
+    if (body.assessment_type === 'vendor' && body.vendor_id) {
+      // Fetch vendor's criticality level
+      const vendorResult = await db
+        .select({ criticality_level: vendors.criticality_level })
+        .from(vendors)
+        .where(eq(vendors.id, body.vendor_id))
+        .limit(1);
+
+      const critLevel = vendorResult.length > 0 ? vendorResult[0].criticality_level : 'medium';
+      evidenceRequired = ['high', 'critical'].includes(critLevel || '') ? 1 : 0;
+
+      // Fetch subcategories filtered by tier
+      const filteredSubs = await c.env.DB.prepare(
+        `SELECT id FROM csf_subcategories WHERE CASE min_tier WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 WHEN 'critical' THEN 4 END <= CASE ? WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 WHEN 'critical' THEN 4 END ORDER BY sort_order`
+      ).bind(critLevel || 'medium').all();
+
+      subcategories = (filteredSubs.results || []) as { id: string }[];
+    } else {
+      // Organization assessment: all subcategories, no evidence required
+      subcategories = await db.select({ id: csf_subcategories.id }).from(csf_subcategories);
+      evidenceRequired = 0;
+    }
 
     // Create assessment items using raw SQL to avoid Drizzle expanding all columns
-    // Insert in batches to stay under SQLite's 999 variable limit
-    const batchSize = 25; // 4 columns × 25 rows = 100 variables (very safe)
+    // Insert in batches to stay under D1's 100 bound parameter limit
+    const batchSize = 19; // 5 columns × 19 rows = 95 variables (safe under 100)
 
     for (let i = 0; i < subcategories.length; i += batchSize) {
       const batch = subcategories.slice(i, i + batchSize);
-      const values = batch.map(() => '(?, ?, ?, ?)').join(', ');
-      const params: string[] = [];
+      const values = batch.map(() => '(?, ?, ?, ?, ?)').join(', ');
+      const params: (string | number)[] = [];
 
       batch.forEach((sub) => {
-        params.push(crypto.randomUUID(), assessmentId, sub.id, 'not_assessed');
+        params.push(crypto.randomUUID(), assessmentId, sub.id, 'not_assessed', evidenceRequired);
       });
 
       await c.env.DB.prepare(
-        `INSERT INTO assessment_items (id, assessment_id, subcategory_id, status) VALUES ${values}`
+        `INSERT INTO assessment_items (id, assessment_id, subcategory_id, status, evidence_required) VALUES ${values}`
       ).bind(...params).run();
     }
 

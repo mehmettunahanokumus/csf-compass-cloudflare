@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Building2, Package, ShieldCheck, Check, Search, X,
+  AlertTriangle, Info,
 } from 'lucide-react';
 import { assessmentsApi } from '../api/assessments';
 import { vendorsApi } from '../api/vendors';
-import type { Vendor } from '../types';
+import type { Vendor, CriticalityTier } from '../types';
+import { TierBadge } from '../components/TierBadge';
 import { getErrorMessage, formatDate } from '../api/client';
 import { T, card, inputStyle } from '../tokens';
 
@@ -70,6 +72,10 @@ const STEP1_OPTIONS = [
     desc: "Assess your own organization's cybersecurity posture",
   },
 ];
+
+const TIER_QUESTION_COUNTS: Record<string, number> = {
+  low: 30, medium: 60, high: 95, critical: 120,
+};
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function NewAssessmentNew() {
@@ -412,7 +418,7 @@ export default function NewAssessmentNew() {
                         }}>
                           {entity.name}
                         </span>
-                        {riskLevel && <RiskBadge level={riskLevel} />}
+                        {riskLevel && <TierBadge tier={riskLevel as CriticalityTier} size="sm" />}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         {entity.industry && (
@@ -566,7 +572,12 @@ export default function NewAssessmentNew() {
                       ? [{ label: formData.entityType === 'group_company' ? 'Company' : 'Vendor', value: selectedEntity.name }]
                       : []),
                     { label: 'Framework',     value: 'NIST CSF 2.0' },
-                    { label: 'Subcategories', value: '120 (across 6 functions)' },
+                    { label: 'Subcategories', value: (() => {
+                      if (formData.entityType === 'self') return '120 (across 6 functions)';
+                      const tier = selectedEntity?.criticality_level || 'medium';
+                      const count = TIER_QUESTION_COUNTS[tier] || 60;
+                      return `~${count} (${tier} tier, across 6 functions)`;
+                    })() },
                   ].map(row => (
                     <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary }}>{row.label}</span>
@@ -575,6 +586,43 @@ export default function NewAssessmentNew() {
                   ))}
                 </div>
               </div>
+
+              {/* Tiering status banner */}
+              {formData.entityType !== 'self' && selectedEntity && (
+                !selectedEntity.tiering_completed_at ? (
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '12px 16px', borderRadius: 10,
+                    background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+                  }}>
+                    <Info size={16} style={{ color: '#F59E0B', flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <p style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#F59E0B', margin: '0 0 2px' }}>
+                        Criticality assessment not completed
+                      </p>
+                      <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, margin: 0 }}>
+                        Default "Medium" tier will be applied (~60 questions). Complete the criticality assessment on the vendor detail page for accurate tiering.
+                      </p>
+                    </div>
+                  </div>
+                ) : ['high', 'critical'].includes(selectedEntity.criticality_level || '') ? (
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '12px 16px', borderRadius: 10,
+                    background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                  }}>
+                    <AlertTriangle size={16} style={{ color: '#EF4444', flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <p style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#EF4444', margin: '0 0 2px' }}>
+                        Evidence upload required
+                      </p>
+                      <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted, margin: 0 }}>
+                        This vendor is rated <strong style={{ textTransform: 'capitalize' }}>{selectedEntity.criticality_level}</strong>. Evidence documentation will be required for each assessment item.
+                      </p>
+                    </div>
+                  </div>
+                ) : null
+              )}
 
               {/* Error message */}
               {errorMsg && (

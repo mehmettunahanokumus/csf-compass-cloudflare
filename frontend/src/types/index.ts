@@ -42,6 +42,9 @@ export interface Vendor {
   next_assessment_due?: number;
   notes?: string;
   group_id?: string;
+  tiering_score?: number;
+  tiering_completed_at?: number;
+  tiering_answers?: string; // JSON string
   created_by?: string;
   created_at: number;
   updated_at: number;
@@ -115,6 +118,7 @@ export interface AssessmentItem {
   assessment_id: string;
   subcategory_id: string;
   status: 'compliant' | 'partial' | 'non_compliant' | 'not_assessed' | 'not_applicable';
+  evidence_required?: number;
   notes?: string;
   evidence_summary?: string;
   ai_suggested_status?: string;
@@ -315,6 +319,32 @@ export interface CompanyGroup {
   vendor_count?: number;
   created_at: string;
   updated_at: string;
+}
+
+export type CriticalityTier = 'low' | 'medium' | 'high' | 'critical';
+
+export interface TieringQuestion {
+  id: string;
+  question: string;
+  weight: number;
+  options: Array<{ label: string; value: number }>;
+}
+
+export interface TieringResult {
+  score: number;
+  tier: CriticalityTier;
+}
+
+export interface TieringResponse {
+  vendor: {
+    id: string;
+    name: string;
+    criticality_level: string;
+    tiering_score: number;
+    tiering_completed_at: number | null;
+    tiering_answers: Record<string, number> | null;
+  };
+  questions: TieringQuestion[];
 }
 
 export interface GroupSummary {

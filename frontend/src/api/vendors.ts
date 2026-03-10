@@ -3,7 +3,7 @@
  */
 
 import { apiClient, DEMO_ORG_ID, DEMO_USER_ID } from './client';
-import type { Vendor, VendorStats } from '../types';
+import type { Vendor, VendorStats, TieringResponse } from '../types';
 
 export interface CreateVendorData {
   name: string;
@@ -91,6 +91,22 @@ export const vendorsApi = {
    */
   getStats: async (id: string): Promise<VendorStats> => {
     const response = await apiClient.get<VendorStats>(`/api/vendors/${id}/stats`);
+    return response.data;
+  },
+
+  /**
+   * Get vendor tiering info and questions
+   */
+  getTiering: async (vendorId: string): Promise<TieringResponse> => {
+    const response = await apiClient.get<TieringResponse>(`/api/vendors/${vendorId}/tiering`);
+    return response.data;
+  },
+
+  /**
+   * Submit vendor tiering answers
+   */
+  submitTiering: async (vendorId: string, answers: Record<string, number>): Promise<Vendor> => {
+    const response = await apiClient.post<Vendor>(`/api/vendors/${vendorId}/tiering`, { answers });
     return response.data;
   },
 };

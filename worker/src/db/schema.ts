@@ -83,6 +83,11 @@ export const vendors = sqliteTable('vendors', {
   last_assessment_date: integer('last_assessment_date', { mode: 'timestamp_ms' }),
   next_assessment_due: integer('next_assessment_due', { mode: 'timestamp_ms' }),
 
+  // Tiering
+  tiering_score: integer('tiering_score').default(0),
+  tiering_completed_at: integer('tiering_completed_at', { mode: 'timestamp_ms' }),
+  tiering_answers: text('tiering_answers'), // JSON blob of 6 answers
+
   // Group membership
   group_id: text('group_id'),
 
@@ -189,6 +194,7 @@ export const csf_subcategories = sqliteTable('csf_subcategories', {
   name_tr: text('name_tr'),
   description_tr: text('description_tr'),
   priority: text('priority').default('medium'), // high, medium, low
+  min_tier: text('min_tier').default('low'), // low, medium, high, critical
   sort_order: integer('sort_order').notNull(),
 });
 
@@ -204,6 +210,7 @@ export const assessment_items = sqliteTable('assessment_items', {
   assessment_id: text('assessment_id').notNull().references(() => assessments.id, { onDelete: 'cascade' }),
   subcategory_id: text('subcategory_id').notNull().references(() => csf_subcategories.id),
   status: text('status').default('not_assessed'), // compliant, partial, non_compliant, not_assessed, not_applicable
+  evidence_required: integer('evidence_required').default(0),
   notes: text('notes'),
   evidence_summary: text('evidence_summary'),
 

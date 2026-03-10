@@ -28,7 +28,8 @@ export async function cloneAssessmentForVendor(
   db: DrizzleD1Database,
   d1Binding: D1Database,
   originalAssessmentId: string,
-  organizationId: string
+  organizationId: string,
+  criticalityLevel?: string
 ): Promise<string> {
   // 1. Get original assessment
   const originalAssessment = await db
@@ -60,28 +61,40 @@ export async function cloneAssessmentForVendor(
   const clonedAssessmentId = clonedAssessment[0].id;
 
   // 3. Clone all assessment_items with status reset to 'not_assessed'
-  // Get all subcategories (same as original assessment)
-  const subcategories = await db.select({ id: csf_subcategories.id }).from(csf_subcategories);
+  // Get subcategories filtered by tier if criticalityLevel provided, otherwise all
+  let subcategories: { id: string }[];
 
-  // Insert in batches to avoid SQLite's 999 variable limit
-  const batchSize = 25; // 4 columns × 25 rows = 100 variables (safe)
+  if (criticalityLevel) {
+    const filteredSubs = await d1Binding.prepare(
+      `SELECT id FROM csf_subcategories WHERE CASE min_tier WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 WHEN 'critical' THEN 4 END <= CASE ? WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 WHEN 'critical' THEN 4 END ORDER BY sort_order`
+    ).bind(criticalityLevel).all();
+    subcategories = (filteredSubs.results || []) as { id: string }[];
+  } else {
+    subcategories = await db.select({ id: csf_subcategories.id }).from(csf_subcategories);
+  }
+
+  const evidenceRequired = ['high', 'critical'].includes(criticalityLevel || '') ? 1 : 0;
+
+  // Insert in batches to avoid D1's 100 bound parameter limit
+  const batchSize = 19; // 5 columns × 19 rows = 95 variables (safe under 100)
 
   for (let i = 0; i < subcategories.length; i += batchSize) {
     const batch = subcategories.slice(i, i + batchSize);
-    const values = batch.map(() => '(?, ?, ?, ?)').join(', ');
-    const params: string[] = [];
+    const values = batch.map(() => '(?, ?, ?, ?, ?)').join(', ');
+    const params: (string | number)[] = [];
 
     batch.forEach((sub) => {
       params.push(
         crypto.randomUUID(),
         clonedAssessmentId,
         sub.id,
-        'not_assessed' // Reset status - vendor provides fresh assessment
+        'not_assessed', // Reset status - vendor provides fresh assessment
+        evidenceRequired
       );
     });
 
     await d1Binding.prepare(
-      `INSERT INTO assessment_items (id, assessment_id, subcategory_id, status) VALUES ${values}`
+      `INSERT INTO assessment_items (id, assessment_id, subcategory_id, status, evidence_required) VALUES ${values}`
     ).bind(...params).run();
   }
 

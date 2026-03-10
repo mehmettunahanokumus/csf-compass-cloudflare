@@ -15,6 +15,7 @@ import { eq, and, count, desc, isNull } from 'drizzle-orm';
 import type { Env } from '../types/env';
 import { createDbClient } from '../db/client';
 import { vendors, assessments } from '../db/schema';
+import { TIERING_QUESTIONS, calculateTier } from '../lib/tiering';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -258,6 +259,106 @@ app.get('/:id/stats', async (c) => {
   } catch (error) {
     console.error('Error fetching vendor stats:', error);
     return c.json({ error: 'Failed to fetch vendor stats' }, 500);
+  }
+});
+
+/**
+ * GET /api/vendors/:id/tiering
+ * Get vendor's tiering info and the tiering questions list
+ */
+app.get('/:id/tiering', async (c) => {
+  try {
+    const db = createDbClient(c.env.DB);
+    const id = c.req.param('id');
+
+    const vendor = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.id, id))
+      .limit(1);
+
+    if (vendor.length === 0) {
+      return c.json({ error: 'Vendor not found' }, 404);
+    }
+
+    const v = vendor[0];
+    return c.json({
+      vendor: {
+        id: v.id,
+        name: v.name,
+        criticality_level: v.criticality_level,
+        tiering_score: v.tiering_score,
+        tiering_completed_at: v.tiering_completed_at,
+        tiering_answers: v.tiering_answers ? JSON.parse(v.tiering_answers as string) : null,
+      },
+      questions: TIERING_QUESTIONS,
+    });
+  } catch (error) {
+    console.error('Error fetching vendor tiering:', error);
+    return c.json({ error: 'Failed to fetch vendor tiering' }, 500);
+  }
+});
+
+/**
+ * POST /api/vendors/:id/tiering
+ * Submit tiering questionnaire answers and calculate tier
+ */
+app.post('/:id/tiering', async (c) => {
+  try {
+    const db = createDbClient(c.env.DB);
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    // Validate vendor exists
+    const existing = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.id, id))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return c.json({ error: 'Vendor not found' }, 404);
+    }
+
+    // Validate answers
+    const answers: Record<string, number> = body.answers;
+    if (!answers || typeof answers !== 'object') {
+      return c.json({ error: 'answers object is required' }, 400);
+    }
+
+    const questionIds = TIERING_QUESTIONS.map(q => q.id);
+    const answerKeys = Object.keys(answers);
+
+    if (answerKeys.length !== 6 || !answerKeys.every(k => questionIds.includes(k))) {
+      return c.json({ error: 'answers must contain exactly 6 keys matching tiering question IDs' }, 400);
+    }
+
+    for (const val of Object.values(answers)) {
+      if (typeof val !== 'number' || val < 1 || val > 4) {
+        return c.json({ error: 'Each answer value must be a number between 1 and 4' }, 400);
+      }
+    }
+
+    // Calculate tier
+    const { score, tier } = calculateTier(answers);
+
+    // Update vendor
+    const updated = await db
+      .update(vendors)
+      .set({
+        criticality_level: tier,
+        tiering_score: score,
+        tiering_completed_at: new Date(),
+        tiering_answers: JSON.stringify(answers),
+        updated_at: new Date(),
+      })
+      .where(eq(vendors.id, id))
+      .returning();
+
+    return c.json(updated[0]);
+  } catch (error) {
+    console.error('Error updating vendor tiering:', error);
+    return c.json({ error: 'Failed to update vendor tiering' }, 500);
   }
 });
 

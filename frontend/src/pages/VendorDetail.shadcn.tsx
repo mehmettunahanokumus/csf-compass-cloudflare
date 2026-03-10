@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, ClipboardList, Globe, Mail, User, Phone,
   Plus, X, GitCompare, ChevronRight, ChevronDown,
   MoreHorizontal, BarChart3, FileCheck, Building2,
-  ArrowLeft,
+  ArrowLeft, Shield,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -14,6 +14,9 @@ import { assessmentsApi } from '../api/assessments';
 import type { Vendor, Assessment, VendorStats } from '../types';
 import { getErrorMessage } from '../api/client';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import { VendorTieringWizard } from '../components/VendorTieringWizard';
+import { TierBadge } from '../components/TierBadge';
+import type { CriticalityTier } from '../types';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -136,6 +139,7 @@ export default function VendorDetail() {
     contact_name: '', contact_phone: '', notes: '',
     vendor_status: 'active', criticality_level: 'medium',
   });
+  const [showTiering, setShowTiering] = useState(false);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -361,6 +365,20 @@ export default function VendorDetail() {
           {/* Actions */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
             <button
+              onClick={() => setShowTiering(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px', background: T.surface2,
+                border: `1px solid ${T.border}`, borderRadius: 8,
+                fontFamily: T.fontSans, fontSize: 13, color: T.text2, cursor: 'pointer',
+                transition: 'color 0.12s, border-color 0.12s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = T.text1; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = T.text2; }}
+            >
+              <Shield size={13} /> Criticality Assessment
+            </button>
+            <button
               onClick={() => setShowEdit(true)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
@@ -571,6 +589,72 @@ export default function VendorDetail() {
               <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text3, margin: 0 }}>
                 No completed assessments yet
               </p>
+            )}
+          </div>
+
+          {/* Tiering Info Card */}
+          <div style={{ ...cardBase, padding: '22px 24px', gridColumn: '1 / -1' }}>
+            <h2 style={{ fontFamily: T.fontSans, fontSize: 14, fontWeight: 600, color: T.text1, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 3, height: 14, background: T.accent, borderRadius: 2, display: 'inline-block' }} />
+              Criticality Tiering
+            </h2>
+            {vendor.tiering_completed_at ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                <div>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, margin: '0 0 6px' }}>Tier</p>
+                  <TierBadge tier={(vendor.criticality_level || 'medium') as CriticalityTier} />
+                </div>
+                <div>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, margin: '0 0 6px' }}>Score</p>
+                  <span style={{ fontFamily: T.fontMono, fontSize: 20, fontWeight: 700, color: T.text1 }}>{vendor.tiering_score ?? 0}</span>
+                  <span style={{ fontFamily: T.fontMono, fontSize: 12, color: T.text3 }}>/100</span>
+                </div>
+                <div>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, margin: '0 0 6px' }}>Assessed</p>
+                  <span style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text2 }}>
+                    {new Date(vendor.tiering_completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowTiering(true)}
+                  style={{
+                    marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '7px 14px', borderRadius: 8, background: 'none',
+                    border: `1px solid ${T.border}`, cursor: 'pointer',
+                    fontFamily: T.fontSans, fontSize: 12, color: T.text2,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = T.text1; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = T.text2; }}
+                >
+                  <Edit2 size={12} /> Re-evaluate
+                </button>
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 18px', borderRadius: 10,
+                background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+              }}>
+                <div>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#F59E0B', margin: '0 0 2px' }}>
+                    Criticality assessment not completed
+                  </p>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text3, margin: 0 }}>
+                    Complete the 6-question assessment to determine the vendor's criticality tier
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowTiering(true)}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    background: '#F59E0B', color: '#fff', border: 'none',
+                    fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  Start Assessment
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -882,6 +966,20 @@ export default function VendorDetail() {
         title="Delete Vendor?"
         description="This will permanently delete this vendor and all associated assessments. This action cannot be undone."
         onConfirm={handleDelete}
+      />
+
+      {/* Tiering Wizard */}
+      <VendorTieringWizard
+        vendorId={vendor.id}
+        vendorName={vendor.name}
+        open={showTiering}
+        onClose={() => setShowTiering(false)}
+        onComplete={(updatedVendor) => {
+          setVendor({ ...vendor, ...updatedVendor });
+          setShowTiering(false);
+          showToast('Criticality assessment saved');
+          loadData();
+        }}
       />
     </div>
   );
