@@ -21,30 +21,6 @@ interface FormData {
   description: string;
 }
 
-// ── Risk Badge ─────────────────────────────────────────────────────────────
-function RiskBadge({ level }: { level?: string | null }) {
-  if (!level) return null;
-  const cfg: Record<string, { bg: string; color: string }> = {
-    critical: { bg: 'rgba(239,68,68,0.12)',  color: '#EF4444' },
-    high:     { bg: 'rgba(249,115,22,0.12)', color: '#F97316' },
-    medium:   { bg: 'rgba(234,179,8,0.12)',  color: '#EAB308' },
-    low:      { bg: 'rgba(34,197,94,0.12)',  color: '#22C55E' },
-  };
-  const c = cfg[level];
-  if (!c) return null;
-  return (
-    <span style={{
-      padding: '2px 8px', borderRadius: 20,
-      fontFamily: T.fontMono, fontSize: 10, fontWeight: 700,
-      textTransform: 'uppercase', letterSpacing: '0.08em',
-      background: c.bg, color: c.color,
-      flexShrink: 0,
-    }}>
-      {level}
-    </span>
-  );
-}
-
 // ── Step 1 card config ─────────────────────────────────────────────────────
 const STEP1_OPTIONS = [
   {
