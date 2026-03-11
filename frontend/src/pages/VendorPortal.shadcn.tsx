@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { XCircle, AlertCircle, Check, Loader2 } from 'lucide-react';
 import { vendorInvitationsApi } from '../api/vendor-invitations';
@@ -6,7 +6,9 @@ import { csfApi } from '../api/csf';
 import type {
   ValidateTokenResponse,
   Assessment,
+  AssessmentItem,
   CsfFunction,
+  CsfCategory,
   ConsolidatedQuestion,
   MaturityLevelInfo,
   ConsolidatedViewResponse,
@@ -21,6 +23,7 @@ import VpReview from '../components/vendor-portal/VpReview';
 
 // ── Phases ────────────────────────────────────────────────
 type Phase = 'loading' | 'error' | 'welcome' | 'assessment' | 'review' | 'completed';
+type PortalMode = 'consolidated' | 'legacy';
 
 // ── Toast component ───────────────────────────────────────
 function Toast({ message, type, onClose }: { message: string; type: 'error' | 'success'; onClose: () => void }) {
@@ -59,11 +62,18 @@ const ANIM_CSS = `
 export default function VendorPortalShadcn() {
   const { token } = useParams<{ token: string }>();
 
+  // Mode: consolidated (new) or legacy (fallback)
+  const [portalMode, setPortalMode] = useState<PortalMode>('legacy');
+
   // Data state
   const [validationData, setValidationData] = useState<ValidateTokenResponse | null>(null);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [functions, setFunctions] = useState<CsfFunction[]>([]);
+  const [categories, setCategories] = useState<CsfCategory[]>([]);
   const [selectedFunction, setSelectedFunction] = useState<string | null>(null);
+
+  // Legacy items state
+  const [items, setItems] = useState<AssessmentItem[]>([]);
 
   // Consolidated questions state
   const [consolidatedQuestions, setConsolidatedQuestions] = useState<ConsolidatedQuestion[]>([]);
@@ -76,17 +86,32 @@ export default function VendorPortalShadcn() {
 
   // UI state
   const [submitting, setSubmitting] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
   const [savingQuestions, setSavingQuestions] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [respondentName, setRespondentName] = useState('');
 
+  // Notes debounce refs (legacy mode)
+  const notesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
   // ── Progress ──
+  const totalItems = items.length;
+  const assessedItems = useMemo(() => items.filter(i => i.status !== 'not_assessed').length, [items]);
+  const progressPctLegacy = totalItems > 0 ? Math.round((assessedItems / totalItems) * 100) : 0;
+
   const totalQuestions = consolidatedQuestions.length;
   const answeredQuestions = useMemo(
-    () => consolidatedQuestions.filter(q => q.current_maturity !== null && q.current_maturity !== undefined).length,
+    () => consolidatedQuestions.filter(q => q.current_maturity != null).length,
     [consolidatedQuestions]
   );
-  const progressPct = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
+  const progressPctConsolidated = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
+
+  const progressPct = portalMode === 'consolidated' ? progressPctConsolidated : progressPctLegacy;
+  const progressAssessed = portalMode === 'consolidated' ? answeredQuestions : assessedItems;
+  const progressTotal = portalMode === 'consolidated' ? totalQuestions : totalItems;
 
   // ── Token validation ──
   useEffect(() => {
@@ -123,17 +148,34 @@ export default function VendorPortalShadcn() {
 
   const loadAssessmentData = async (tokenValue: string) => {
     try {
-      const [functionsData, consolidatedData] = await Promise.all([
-        csfApi.getFunctions(),
-        vendorInvitationsApi.getConsolidatedView(tokenValue),
-      ]);
+      // Always load functions
+      const functionsData = await csfApi.getFunctions();
       setFunctions(functionsData);
       if (functionsData.length > 0) setSelectedFunction(functionsData[0].id);
 
-      setConsolidatedQuestions(consolidatedData.questions);
-      setCategoriesMap(consolidatedData.categories);
-      setMaturityLevels(consolidatedData.maturity_levels);
+      // Try consolidated endpoint first
+      try {
+        const consolidatedData = await vendorInvitationsApi.getConsolidatedView(tokenValue);
+        if (consolidatedData.questions && consolidatedData.questions.length > 0) {
+          setConsolidatedQuestions(consolidatedData.questions);
+          setCategoriesMap(consolidatedData.categories);
+          setMaturityLevels(consolidatedData.maturity_levels);
+          setPortalMode('consolidated');
+          return; // Success — use consolidated mode
+        }
+      } catch {
+        // Consolidated endpoint not available (migration not run), fall back to legacy
+        console.info('Consolidated questions not available, using legacy items mode');
+      }
 
+      // Fallback: load categories + items (legacy mode)
+      const [categoriesData, itemsData] = await Promise.all([
+        csfApi.getCategories(),
+        vendorInvitationsApi.getItems(tokenValue),
+      ]);
+      setCategories(categoriesData);
+      setItems(itemsData);
+      setPortalMode('legacy');
     } catch (err) {
       console.error('Failed to load assessment data:', err);
       setError(getErrorMessage(err));
@@ -141,11 +183,80 @@ export default function VendorPortalShadcn() {
     }
   };
 
-  // ── Maturity change handler ──
+  // ── Auto-scroll helper (legacy) ──
+  const scrollToNextControl = useCallback((itemId: string) => {
+    requestAnimationFrame(() => {
+      const allControls = document.querySelectorAll('[id^="control-"]');
+      const arr = Array.from(allControls);
+      const currentEl = document.getElementById(`control-${itemId}`);
+      const currentIdx = currentEl ? arr.indexOf(currentEl) : -1;
+      if (currentIdx >= 0 && currentIdx < arr.length - 1) {
+        const nextEl = arr[currentIdx + 1] as HTMLElement;
+        const rect = nextEl.getBoundingClientRect();
+        if (rect.top > window.innerHeight - 120) {
+          nextEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    });
+  }, []);
+
+  // ── Status change with optimistic UI (legacy) ──
+  const handleStatusChange = useCallback(async (itemId: string, status: string) => {
+    if (!token) return;
+    const prevItems = itemsRef.current;
+
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, status: status as AssessmentItem['status'] } : item
+    ));
+    setSavingItems(prev => new Set(prev).add(itemId));
+    scrollToNextControl(itemId);
+
+    try {
+      const updatedItem = await vendorInvitationsApi.updateItem(token, itemId, {
+        status: status as 'compliant' | 'partial' | 'non_compliant' | 'not_assessed' | 'not_applicable',
+      });
+      setItems(prev => prev.map(item =>
+        item.id === itemId
+          ? { ...item, status: updatedItem.status, notes: updatedItem.notes, updated_at: updatedItem.updated_at }
+          : item
+      ));
+    } catch (err) {
+      setItems(prevItems);
+      setToast({ message: `Failed to save: ${getErrorMessage(err)}`, type: 'error' });
+    } finally {
+      setSavingItems(prev => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
+    }
+  }, [token, scrollToNextControl]);
+
+  // ── Notes auto-save (legacy) ──
+  const handleNotesChange = useCallback((itemId: string, notes: string) => {
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, notes } : item
+    ));
+
+    if (notesTimers.current[itemId]) clearTimeout(notesTimers.current[itemId]);
+    notesTimers.current[itemId] = setTimeout(async () => {
+      if (!token) return;
+      try {
+        const currentItem = itemsRef.current.find(i => i.id === itemId);
+        await vendorInvitationsApi.updateItem(token, itemId, {
+          status: (currentItem?.status || 'not_assessed') as any,
+          notes,
+        });
+      } catch (err) {
+        setToast({ message: `Failed to save notes: ${getErrorMessage(err)}`, type: 'error' });
+      }
+    }, 800);
+  }, [token]);
+
+  // ── Maturity change handler (consolidated) ──
   const handleMaturityChange = useCallback(async (questionId: string, level: number, notes?: string) => {
     if (!token) return;
 
-    // Optimistic update
     setConsolidatedQuestions(prev => prev.map(q =>
       q.id === questionId ? { ...q, current_maturity: level, current_notes: notes || null } : q
     ));
@@ -158,7 +269,6 @@ export default function VendorPortalShadcn() {
         notes,
       });
     } catch (err) {
-      // Revert on error
       setConsolidatedQuestions(prev => prev.map(q =>
         q.id === questionId ? { ...q, current_maturity: null, current_notes: null } : q
       ));
@@ -185,6 +295,15 @@ export default function VendorPortalShadcn() {
       setSubmitting(false);
     }
   }, [token, respondentName]);
+
+  // ── Toggle expand (legacy) ──
+  const toggleExpand = useCallback((itemId: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      return next;
+    });
+  }, []);
 
   // ── Welcome start handler ──
   const handleStart = useCallback(() => {
@@ -277,7 +396,7 @@ export default function VendorPortalShadcn() {
         assessmentName={assessment.name}
         vendorContactName={validationData.vendor_contact_name}
         expiresAt={validationData.invitation?.token_expires_at}
-        totalControls={totalQuestions}
+        totalControls={progressTotal}
         respondentName={respondentName}
         onRespondentNameChange={setRespondentName}
         onStart={handleStart}
@@ -294,20 +413,34 @@ export default function VendorPortalShadcn() {
         <VpHeader
           assessmentName={assessment.name}
           progressPct={progressPct}
-          assessedCount={answeredQuestions}
-          totalCount={totalQuestions}
+          assessedCount={progressAssessed}
+          totalCount={progressTotal}
         />
-        <VpReview
-          consolidatedQuestions={consolidatedQuestions}
-          categoriesMap={categoriesMap}
-          maturityLevels={maturityLevels}
-          functions={functions}
-          respondentName={respondentName}
-          submitting={submitting}
-          onSubmit={handleSubmit}
-          onGoBack={handleGoBackFromReview}
-          onGoToFunction={handleGoToFunction}
-        />
+        {portalMode === 'consolidated' ? (
+          <VpReview
+            mode="consolidated"
+            consolidatedQuestions={consolidatedQuestions}
+            categoriesMap={categoriesMap}
+            maturityLevels={maturityLevels}
+            functions={functions}
+            respondentName={respondentName}
+            submitting={submitting}
+            onSubmit={handleSubmit}
+            onGoBack={handleGoBackFromReview}
+            onGoToItem={handleGoToFunction}
+          />
+        ) : (
+          <VpReview
+            mode="legacy"
+            items={items}
+            functions={functions}
+            respondentName={respondentName}
+            submitting={submitting}
+            onSubmit={handleSubmit}
+            onGoBack={handleGoBackFromReview}
+            onGoToItem={handleGoToFunction}
+          />
+        )}
       </div>
     );
   }
@@ -320,20 +453,38 @@ export default function VendorPortalShadcn() {
       <VpHeader
         assessmentName={assessment.name}
         progressPct={progressPct}
-        assessedCount={answeredQuestions}
-        totalCount={totalQuestions}
+        assessedCount={progressAssessed}
+        totalCount={progressTotal}
       />
-      <VpAssessment
-        consolidatedQuestions={consolidatedQuestions}
-        categoriesMap={categoriesMap}
-        maturityLevels={maturityLevels}
-        functions={functions}
-        selectedFunctionId={selectedFunction}
-        onSelectFunction={setSelectedFunction}
-        savingQuestions={savingQuestions}
-        onMaturityChange={handleMaturityChange}
-        onReview={handleGoToReview}
-      />
+      {portalMode === 'consolidated' ? (
+        <VpAssessment
+          mode="consolidated"
+          consolidatedQuestions={consolidatedQuestions}
+          categoriesMap={categoriesMap}
+          maturityLevels={maturityLevels}
+          savingQuestions={savingQuestions}
+          onMaturityChange={handleMaturityChange}
+          functions={functions}
+          selectedFunctionId={selectedFunction}
+          onSelectFunction={setSelectedFunction}
+          onReview={handleGoToReview}
+        />
+      ) : (
+        <VpAssessment
+          mode="legacy"
+          items={items}
+          categories={categories}
+          expandedItems={expandedItems}
+          savingItems={savingItems}
+          onToggleExpand={toggleExpand}
+          onStatusChange={handleStatusChange}
+          onNotesChange={handleNotesChange}
+          functions={functions}
+          selectedFunctionId={selectedFunction}
+          onSelectFunction={setSelectedFunction}
+          onReview={handleGoToReview}
+        />
+      )}
     </div>
   );
 }
