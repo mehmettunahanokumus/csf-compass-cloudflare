@@ -1,102 +1,105 @@
 import { useMemo, useCallback } from 'react';
 import { ClipboardCheck } from 'lucide-react';
-import type { AssessmentItem, CsfFunction, CsfCategory } from '../../types';
+import type { ConsolidatedQuestion, MaturityLevelInfo, CsfFunction } from '../../types';
 import { T } from '../../tokens';
 import { useMediaQuery, breakpoints } from '../../hooks/useMediaQuery';
 import VpFunctionNav from './VpFunctionNav';
-import VpCategorySection from './VpCategorySection';
-import ControlItem from '../assessment/ControlItem';
+import VpConsolidatedQuestion from './VpConsolidatedQuestion';
 
 interface VpAssessmentProps {
-  items: AssessmentItem[];
+  consolidatedQuestions: ConsolidatedQuestion[];
+  categoriesMap: Record<string, {
+    id: string;
+    name: string;
+    name_tr?: string;
+    function_id: string;
+    function_name: string;
+    function_name_tr?: string;
+  }>;
+  maturityLevels: MaturityLevelInfo[];
   functions: CsfFunction[];
-  categories: CsfCategory[];
   selectedFunctionId: string | null;
   onSelectFunction: (id: string) => void;
-  expandedItems: Set<string>;
-  savingItems: Set<string>;
-  onToggleExpand: (itemId: string) => void;
-  onStatusChange: (itemId: string, status: string) => void;
-  onNotesChange: (itemId: string, notes: string) => void;
+  savingQuestions: Set<string>;
+  onMaturityChange: (questionId: string, level: number, notes?: string) => void;
   onReview: () => void;
 }
 
 export default function VpAssessment({
-  items,
+  consolidatedQuestions,
+  categoriesMap,
+  maturityLevels,
   functions,
-  categories,
   selectedFunctionId,
   onSelectFunction,
-  expandedItems,
-  savingItems,
-  onToggleExpand,
-  onStatusChange,
-  onNotesChange,
+  savingQuestions,
+  onMaturityChange,
   onReview,
 }: VpAssessmentProps) {
   const isMobile = useMediaQuery(breakpoints.mobile);
 
-  // Items for the selected function
-  const functionItems = useMemo(() => {
-    return items.filter(i => i.function?.id === selectedFunctionId);
-  }, [items, selectedFunctionId]);
+  // Questions for the selected function
+  const functionQuestions = useMemo(() => {
+    return consolidatedQuestions.filter(q => {
+      const cat = categoriesMap[q.category_id];
+      return cat?.function_id === selectedFunctionId;
+    });
+  }, [consolidatedQuestions, categoriesMap, selectedFunctionId]);
 
-  // Group items by category
-  const categoryGroups = useMemo(() => {
-    const groups: { category: CsfCategory; items: AssessmentItem[] }[] = [];
-    const seen = new Set<string>();
+  // Progress stats based on consolidated questions
+  const totalQuestions = consolidatedQuestions.length;
+  const answeredQuestions = consolidatedQuestions.filter(
+    q => q.current_maturity !== null && q.current_maturity !== undefined
+  ).length;
+  const progressPct = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
 
-    for (const item of functionItems) {
-      const catId = item.category?.id;
-      if (!catId || seen.has(catId)) continue;
-      seen.add(catId);
-
-      const cat = categories.find(c => c.id === catId) || {
-        id: catId,
-        function_id: item.function?.id || '',
-        name: item.category?.name || catId,
-        name_tr: item.category?.name_tr,
-        sort_order: 0,
-      };
-
-      const catItems = functionItems.filter(i => i.category?.id === catId);
-      groups.push({ category: cat, items: catItems });
+  // Build function-level stats for the nav (using consolidated questions)
+  const functionStats = useMemo(() => {
+    const stats: Record<string, { assessed: number; total: number }> = {};
+    for (const fn of functions) {
+      stats[fn.id] = { assessed: 0, total: 0 };
     }
+    for (const q of consolidatedQuestions) {
+      const cat = categoriesMap[q.category_id];
+      const fid = cat?.function_id;
+      if (fid && stats[fid]) {
+        stats[fid].total++;
+        if (q.current_maturity !== null && q.current_maturity !== undefined) {
+          stats[fid].assessed++;
+        }
+      }
+    }
+    return stats;
+  }, [consolidatedQuestions, categoriesMap, functions]);
 
-    return groups;
-  }, [functionItems, categories]);
-
-  // Progress stats
-  const totalItems = items.length;
-  const assessedItems = items.filter(i => i.status !== 'not_assessed').length;
-  const progressPct = totalItems > 0 ? Math.round((assessedItems / totalItems) * 100) : 0;
-
-  // Navigate to next unanswered item
+  // Navigate to next unanswered question
   const handleNextUnanswered = useCallback(() => {
     // Find first unanswered in current function
-    const unanswered = functionItems.find(i => i.status === 'not_assessed');
+    const unanswered = functionQuestions.find(q => q.current_maturity === null || q.current_maturity === undefined);
     if (unanswered) {
-      const el = document.getElementById(`control-${unanswered.id}`);
+      const el = document.getElementById(`cq-${unanswered.id}`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
     }
     // If none in current function, find next function with unanswered
-    for (const func of functions) {
-      if (func.id === selectedFunctionId) continue;
-      const funcUnanswered = items.find(i => i.function?.id === func.id && i.status === 'not_assessed');
-      if (funcUnanswered) {
-        onSelectFunction(func.id);
-        // Scroll after React re-renders
+    for (const fn of functions) {
+      if (fn.id === selectedFunctionId) continue;
+      const fnQuestion = consolidatedQuestions.find(q => {
+        const cat = categoriesMap[q.category_id];
+        return cat?.function_id === fn.id && (q.current_maturity === null || q.current_maturity === undefined);
+      });
+      if (fnQuestion) {
+        onSelectFunction(fn.id);
         setTimeout(() => {
-          const el = document.getElementById(`control-${funcUnanswered.id}`);
+          const el = document.getElementById(`cq-${fnQuestion.id}`);
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
         return;
       }
     }
-  }, [functionItems, functions, items, selectedFunctionId, onSelectFunction]);
+  }, [functionQuestions, functions, consolidatedQuestions, categoriesMap, selectedFunctionId, onSelectFunction]);
 
   return (
     <div style={{
@@ -107,24 +110,14 @@ export default function VpAssessment({
       overflow: 'hidden',
     }}>
       {/* Sidebar / mobile tabs */}
-      {isMobile ? (
-        <VpFunctionNav
-          functions={functions}
-          items={items}
-          selectedFunctionId={selectedFunctionId}
-          onSelectFunction={onSelectFunction}
-          onNextUnanswered={handleNextUnanswered}
-          isMobile
-        />
-      ) : (
-        <VpFunctionNav
-          functions={functions}
-          items={items}
-          selectedFunctionId={selectedFunctionId}
-          onSelectFunction={onSelectFunction}
-          onNextUnanswered={handleNextUnanswered}
-        />
-      )}
+      <VpFunctionNav
+        functions={functions}
+        functionStats={functionStats}
+        selectedFunctionId={selectedFunctionId}
+        onSelectFunction={onSelectFunction}
+        onNextUnanswered={handleNextUnanswered}
+        isMobile={isMobile}
+      />
 
       {/* Content area */}
       <div style={{
@@ -133,47 +126,26 @@ export default function VpAssessment({
         display: 'flex',
         flexDirection: 'column',
       }}>
-        {/* Category sections */}
+        {/* Consolidated questions */}
         <div style={{ padding: isMobile ? '12px 16px' : '16px 24px', flex: 1 }}>
-          {categoryGroups.length === 0 ? (
+          {functionQuestions.length === 0 ? (
             <p style={{
               fontFamily: T.fontSans, fontSize: 13, color: T.textMuted,
               textAlign: 'center', padding: '40px 0',
             }}>
-              Bu fonksiyonda kontrol bulunamadi
+              Bu fonksiyonda soru bulunamadi
             </p>
           ) : (
-            categoryGroups.map(({ category, items: catItems }) => {
-              const assessedInCat = catItems.filter(i => i.status !== 'not_assessed').length;
-              return (
-                <VpCategorySection
-                  key={category.id}
-                  categoryId={category.id}
-                  categoryName={category.name}
-                  categoryNameTr={category.name_tr}
-                  functionColor={T.accent}
-                  items={catItems}
-                  assessedCount={assessedInCat}
-                  totalCount={catItems.length}
-                  defaultExpanded
-                  renderItem={(item) => (
-                    <ControlItem
-                      key={item.id}
-                      item={item}
-                      mode="interactive"
-                      statusOptions="vendor"
-                      showNotes={true}
-                      showGuidance={false}
-                      expanded={expandedItems.has(item.id)}
-                      onToggleExpand={onToggleExpand}
-                      onStatusChange={onStatusChange}
-                      onNotesChange={onNotesChange}
-                      isSaving={savingItems.has(item.id)}
-                    />
-                  )}
-                />
-              );
-            })
+            functionQuestions.map(question => (
+              <VpConsolidatedQuestion
+                key={question.id}
+                question={question}
+                categoryInfo={categoriesMap[question.category_id]}
+                maturityLevels={maturityLevels}
+                isSaving={savingQuestions.has(question.id)}
+                onMaturityChange={onMaturityChange}
+              />
+            ))
           )}
         </div>
 
@@ -198,7 +170,7 @@ export default function VpAssessment({
               %{progressPct}
             </span>
             <span style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted }}>
-              {assessedItems}/{totalItems} degerlendirildi
+              {answeredQuestions}/{totalQuestions} kategori cevaplandi
             </span>
             <span style={{ fontFamily: T.fontSans, fontSize: 10, color: T.textFaint }}>
               Ilerleme otomatik kaydedilir

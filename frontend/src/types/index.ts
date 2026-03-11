@@ -321,6 +321,61 @@ export interface CompanyGroup {
   updated_at: string;
 }
 
+// Consolidated Questions
+export interface ConsolidatedQuestion {
+  id: string;
+  category_id: string;
+  question_text: string;
+  question_text_tr?: string;
+  guidance_text?: string;
+  guidance_text_tr?: string;
+  min_tier: string;
+  sort_order: number;
+  subcategory_ids: string[];
+  subcategory_count: number;
+  current_maturity?: number | null;
+  current_notes?: string | null;
+}
+
+export type MaturityLevel = 1 | 2 | 3 | 4 | 5;
+
+export interface MaturityLevelInfo {
+  level: number;
+  name: string;
+  name_tr: string;
+  description: string;
+  description_tr: string;
+  status: string;
+}
+
+export interface ConsolidatedViewResponse {
+  questions: ConsolidatedQuestion[];
+  categories: Record<string, {
+    id: string;
+    name: string;
+    name_tr?: string;
+    function_id: string;
+    function_name: string;
+    function_name_tr?: string;
+  }>;
+  maturity_levels: MaturityLevelInfo[];
+  vendor_tier: string;
+}
+
+export interface ConsolidatedAnswerResponse {
+  success: boolean;
+  consolidated_question_id: string;
+  maturity_level: number;
+  derived_status: string;
+  affected_items: number;
+  new_score: number;
+  progress: {
+    assessed: number;
+    total: number;
+    percentage: number;
+  };
+}
+
 export type CriticalityTier = 'low' | 'medium' | 'high' | 'critical';
 
 export interface TieringQuestion {

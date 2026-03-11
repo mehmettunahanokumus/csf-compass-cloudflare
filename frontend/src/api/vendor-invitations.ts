@@ -12,6 +12,8 @@ import type {
   VendorAssessmentInvitation,
   UpdateAssessmentItemData,
   AssessmentItem,
+  ConsolidatedViewResponse,
+  ConsolidatedAnswerResponse,
 } from '../types';
 
 // Create a separate axios instance with credentials for vendor portal endpoints
@@ -128,6 +130,30 @@ export const vendorInvitationsApi = {
   async revoke(invitationId: string): Promise<{ success: boolean; revoked_at: number }> {
     const response = await apiClient.post<{ success: boolean; revoked_at: number }>(
       `/api/vendor-invitations/${invitationId}/revoke`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get consolidated questions view for vendor portal
+   */
+  async getConsolidatedView(token: string): Promise<ConsolidatedViewResponse> {
+    const response = await vendorApiClient.get<ConsolidatedViewResponse>(
+      `/api/vendor-invitations/${token}/consolidated`
+    );
+    return response.data;
+  },
+
+  /**
+   * Submit a consolidated question answer (maturity level)
+   */
+  async submitConsolidatedAnswer(
+    token: string,
+    data: { consolidated_question_id: string; maturity_level: number; notes?: string }
+  ): Promise<ConsolidatedAnswerResponse> {
+    const response = await vendorApiClient.post<ConsolidatedAnswerResponse>(
+      `/api/vendor-invitations/${token}/consolidated-answer`,
+      data
     );
     return response.data;
   },

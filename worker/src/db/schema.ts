@@ -403,6 +403,36 @@ export const vendor_audit_log = sqliteTable('vendor_audit_log', {
 }));
 
 // ============================================================================
+// CONSOLIDATED QUESTIONS FOR VENDOR SELF-ASSESSMENT
+// ============================================================================
+
+/**
+ * Consolidated questions (25 total - one per CSF category)
+ * Vendors answer these instead of 106 individual subcategory questions
+ */
+export const consolidated_questions = sqliteTable('consolidated_questions', {
+  id: text('id').primaryKey(), // e.g., "CQ-GV.OC"
+  category_id: text('category_id').notNull(),
+  question_text: text('question_text').notNull(),
+  question_text_tr: text('question_text_tr'),
+  guidance_text: text('guidance_text'),
+  guidance_text_tr: text('guidance_text_tr'),
+  min_tier: text('min_tier').default('low'), // low, medium, high, critical
+  sort_order: integer('sort_order').notNull(),
+  created_at: integer('created_at', { mode: 'timestamp_ms' }).default(sql`(strftime('%s', 'now') * 1000)`),
+});
+
+/**
+ * Maps consolidated questions to subcategories (106 rows)
+ */
+export const consolidated_question_mappings = sqliteTable('consolidated_question_mappings', {
+  id: text('id').primaryKey(),
+  consolidated_question_id: text('consolidated_question_id').notNull(),
+  subcategory_id: text('subcategory_id').notNull(),
+  weight: real('weight').default(1.0),
+});
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
@@ -451,3 +481,6 @@ export type NewVendorAuditLog = typeof vendor_audit_log.$inferInsert;
 
 export type CompanyGroup = typeof company_groups.$inferSelect;
 export type NewCompanyGroup = typeof company_groups.$inferInsert;
+
+export type ConsolidatedQuestion = typeof consolidated_questions.$inferSelect;
+export type ConsolidatedQuestionMapping = typeof consolidated_question_mappings.$inferSelect;

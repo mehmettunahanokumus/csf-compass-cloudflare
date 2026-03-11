@@ -6,7 +6,8 @@ import { VpProgressRing } from './VpProgressRing';
 
 interface VpFunctionNavProps {
   functions: CsfFunction[];
-  items: AssessmentItem[];
+  items?: AssessmentItem[];
+  functionStats?: Record<string, { assessed: number; total: number }>;
   selectedFunctionId: string | null;
   onSelectFunction: (id: string) => void;
   onNextUnanswered: () => void;
@@ -28,6 +29,7 @@ function displayName(fn: CsfFunction): string {
 export default function VpFunctionNav({
   functions,
   items,
+  functionStats: externalStats,
   selectedFunctionId,
   onSelectFunction,
   onNextUnanswered,
@@ -35,22 +37,27 @@ export default function VpFunctionNav({
 }: VpFunctionNavProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
+  // Use external stats if provided, otherwise compute from items
   const stats = useMemo(() => {
+    if (externalStats) return externalStats;
+
     const map: Record<string, { assessed: number; total: number }> = {};
     for (const fn of functions) {
       map[fn.id] = { assessed: 0, total: 0 };
     }
-    for (const item of items) {
-      const fid = item.function?.id;
-      if (fid && map[fid]) {
-        map[fid].total++;
-        if (item.status !== 'not_assessed') {
-          map[fid].assessed++;
+    if (items) {
+      for (const item of items) {
+        const fid = item.function?.id;
+        if (fid && map[fid]) {
+          map[fid].total++;
+          if (item.status !== 'not_assessed') {
+            map[fid].assessed++;
+          }
         }
       }
     }
     return map;
-  }, [functions, items]);
+  }, [functions, items, externalStats]);
 
   const overallAssessed = useMemo(() => {
     let assessed = 0;

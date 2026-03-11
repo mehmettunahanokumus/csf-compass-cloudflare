@@ -7,20 +7,28 @@ import {
   ArrowLeft,
   Send,
   Loader2,
-  AlertOctagon,
   User,
 } from 'lucide-react';
-import type { AssessmentItem, CsfFunction } from '../../types';
+import type { ConsolidatedQuestion, MaturityLevelInfo, CsfFunction } from '../../types';
 import { T, card } from '../../tokens';
 
 interface VpReviewProps {
-  items: AssessmentItem[];
+  consolidatedQuestions: ConsolidatedQuestion[];
+  categoriesMap: Record<string, {
+    id: string;
+    name: string;
+    name_tr?: string;
+    function_id: string;
+    function_name: string;
+    function_name_tr?: string;
+  }>;
+  maturityLevels: MaturityLevelInfo[];
   functions: CsfFunction[];
   respondentName: string;
   submitting: boolean;
   onSubmit: () => void;
   onGoBack: () => void;
-  onGoToItem: (functionId: string) => void;
+  onGoToFunction: (functionId: string) => void;
 }
 
 // ── Stat pill ──────────────────────────────────────────────
@@ -88,45 +96,91 @@ function FunctionRow({ name, assessed, total, color }: {
   );
 }
 
+// Maturity level badge
+function MaturityBadge({ level, maturityLevels }: { level: number | null | undefined; maturityLevels: MaturityLevelInfo[] }) {
+  if (level === null || level === undefined) {
+    return (
+      <span style={{
+        fontFamily: T.fontMono, fontSize: 10, fontWeight: 600,
+        color: T.textMuted, background: T.bg,
+        border: `1px solid ${T.borderLight}`,
+        borderRadius: 5, padding: '2px 7px',
+      }}>
+        --
+      </span>
+    );
+  }
+  const ml = maturityLevels.find(m => m.level === level);
+  const color = level <= 1 ? T.danger : level === 2 ? T.warning : T.success;
+  return (
+    <span style={{
+      fontFamily: T.fontMono, fontSize: 10, fontWeight: 700,
+      color, background: `${color}15`,
+      border: `1px solid ${color}30`,
+      borderRadius: 5, padding: '2px 7px',
+    }}>
+      L{level} {ml?.name_tr || ml?.name}
+    </span>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────
 export default function VpReview({
-  items,
+  consolidatedQuestions,
+  categoriesMap,
+  maturityLevels,
   functions,
   respondentName,
   submitting,
   onSubmit,
   onGoBack,
-  onGoToItem,
+  onGoToFunction,
 }: VpReviewProps) {
-  const stats = useMemo(() => {
-    const total = items.length;
-    const compliant = items.filter(i => i.status === 'compliant').length;
-    const partial = items.filter(i => i.status === 'partial').length;
-    const nonCompliant = items.filter(i => i.status === 'non_compliant').length;
-    const notApplicable = items.filter(i => i.status === 'not_applicable').length;
-    const unanswered = items.filter(i => i.status === 'not_assessed').length;
-    return { total, compliant, partial, nonCompliant, notApplicable, unanswered };
-  }, [items]);
+  const totalQuestions = consolidatedQuestions.length;
+  const answeredQuestions = consolidatedQuestions.filter(
+    q => q.current_maturity !== null && q.current_maturity !== undefined
+  ).length;
+  const unansweredQuestions = totalQuestions - answeredQuestions;
+
+  // Count by maturity level
+  const maturityCounts = useMemo(() => {
+    const counts = { high: 0, medium: 0, low: 0, unanswered: 0 };
+    for (const q of consolidatedQuestions) {
+      if (q.current_maturity === null || q.current_maturity === undefined) {
+        counts.unanswered++;
+      } else if (q.current_maturity >= 3) {
+        counts.high++;
+      } else if (q.current_maturity === 2) {
+        counts.medium++;
+      } else {
+        counts.low++;
+      }
+    }
+    return counts;
+  }, [consolidatedQuestions]);
 
   const funcBreakdown = useMemo(() => {
     return functions.map(func => {
-      const funcItems = items.filter(i => i.function?.id === func.id);
-      const assessed = funcItems.filter(i => i.status !== 'not_assessed').length;
-      const total = funcItems.length;
+      const funcQuestions = consolidatedQuestions.filter(q => {
+        const cat = categoriesMap[q.category_id];
+        return cat?.function_id === func.id;
+      });
+      const assessed = funcQuestions.filter(
+        q => q.current_maturity !== null && q.current_maturity !== undefined
+      ).length;
+      const total = funcQuestions.length;
       const shortName = func.name_tr || func.name.replace(/\s*\(.*\)$/, '');
       return { id: func.id, name: shortName, assessed, total };
     });
-  }, [items, functions]);
+  }, [consolidatedQuestions, categoriesMap, functions]);
 
-  const unansweredItems = useMemo(() => {
-    return items.filter(i => i.status === 'not_assessed');
-  }, [items]);
+  const unansweredList = useMemo(() => {
+    return consolidatedQuestions.filter(
+      q => q.current_maturity === null || q.current_maturity === undefined
+    );
+  }, [consolidatedQuestions]);
 
-  const highPriorityUnanswered = useMemo(() => {
-    return unansweredItems.filter(i => i.subcategory?.priority === 'high');
-  }, [unansweredItems]);
-
-  const progressPct = stats.total > 0 ? Math.round(((stats.total - stats.unanswered) / stats.total) * 100) : 0;
+  const progressPct = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
 
   return (
     <div style={{
@@ -150,24 +204,24 @@ export default function VpReview({
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <StatCard
           icon={<CheckCircle size={14} style={{ color: T.success }} />}
-          label="Uyumlu"
-          count={stats.compliant}
+          label="Olgun (L3-L5)"
+          count={maturityCounts.high}
           color={T.success}
           bg={T.successLight}
           border={T.successBorder}
         />
         <StatCard
           icon={<AlertTriangle size={14} style={{ color: T.warning }} />}
-          label="Kismi"
-          count={stats.partial}
+          label="Gelismekte (L2)"
+          count={maturityCounts.medium}
           color={T.warning}
           bg={T.warningLight}
           border={T.warningBorder}
         />
         <StatCard
           icon={<XCircle size={14} style={{ color: T.danger }} />}
-          label="Uyumsuz"
-          count={stats.nonCompliant}
+          label="Baslangic (L1)"
+          count={maturityCounts.low}
           color={T.danger}
           bg={T.dangerLight}
           border={T.dangerBorder}
@@ -175,18 +229,52 @@ export default function VpReview({
         <StatCard
           icon={<HelpCircle size={14} style={{ color: T.textMuted }} />}
           label="Cevaplanmamis"
-          count={stats.unanswered}
+          count={maturityCounts.unanswered}
           color={T.textMuted}
           bg={T.bg}
           border={T.border}
         />
       </div>
 
+      {/* ── Answered questions detail ── */}
+      <div style={{ ...card, padding: '18px 20px' }}>
+        <h3 style={{
+          fontFamily: T.fontSans, fontSize: 11, fontWeight: 700,
+          textTransform: 'uppercase' as const, letterSpacing: '0.08em',
+          color: T.textMuted, margin: '0 0 12px',
+        }}>
+          Kategori Bazli Yanitlar
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {consolidatedQuestions.map(q => {
+            const cat = categoriesMap[q.category_id];
+            return (
+              <div key={q.id} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
+                borderBottom: `1px solid ${T.borderLight}`,
+              }}>
+                <span style={{
+                  fontFamily: T.fontMono, fontSize: 10, fontWeight: 700,
+                  color: T.accent, width: 48, flexShrink: 0,
+                }}>
+                  {q.category_id}
+                </span>
+                <span style={{
+                  fontFamily: T.fontSans, fontSize: 12, color: T.textPrimary,
+                  flex: 1, minWidth: 0,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {cat?.name_tr || cat?.name || q.category_id}
+                </span>
+                <MaturityBadge level={q.current_maturity} maturityLevels={maturityLevels} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Function breakdown ── */}
-      <div style={{
-        ...card,
-        padding: '18px 20px',
-      }}>
+      <div style={{ ...card, padding: '18px 20px' }}>
         <h3 style={{
           fontFamily: T.fontSans, fontSize: 11, fontWeight: 700,
           textTransform: 'uppercase' as const, letterSpacing: '0.08em',
@@ -226,7 +314,7 @@ export default function VpReview({
       </div>
 
       {/* ── Unanswered warnings ── */}
-      {stats.unanswered > 0 && (
+      {unansweredQuestions > 0 && (
         <div style={{
           padding: '14px 18px', borderRadius: 10,
           background: T.warningLight, border: `1px solid ${T.warningBorder}`,
@@ -235,29 +323,32 @@ export default function VpReview({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <AlertTriangle size={16} style={{ color: T.warning, flexShrink: 0 }} />
             <span style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.warning }}>
-              {stats.unanswered} cevaplanmamis kontrolunuz var
+              {unansweredQuestions} cevaplanmamis kategoriniz var
             </span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            {unansweredItems.slice(0, 5).map(item => (
-              <button
-                key={item.id}
-                onClick={() => item.function?.id && onGoToItem(item.function.id)}
-                style={{
-                  padding: '3px 8px', borderRadius: 5,
-                  background: T.card, border: `1px solid ${T.warningBorder}`,
-                  fontFamily: T.fontMono, fontSize: 10, fontWeight: 600, color: T.warning,
-                  cursor: 'pointer', transition: 'all 0.14s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = T.warning; e.currentTarget.style.color = '#fff'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = T.card; e.currentTarget.style.color = T.warning; }}
-              >
-                {item.subcategory?.id || item.id.slice(0, 8)}
-              </button>
-            ))}
-            {unansweredItems.length > 5 && (
+            {unansweredList.slice(0, 8).map(q => {
+              const cat = categoriesMap[q.category_id];
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => cat?.function_id && onGoToFunction(cat.function_id)}
+                  style={{
+                    padding: '3px 8px', borderRadius: 5,
+                    background: T.card, border: `1px solid ${T.warningBorder}`,
+                    fontFamily: T.fontMono, fontSize: 10, fontWeight: 600, color: T.warning,
+                    cursor: 'pointer', transition: 'all 0.14s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = T.warning; e.currentTarget.style.color = '#fff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = T.card; e.currentTarget.style.color = T.warning; }}
+                >
+                  {q.category_id}
+                </button>
+              );
+            })}
+            {unansweredList.length > 8 && (
               <span style={{ fontFamily: T.fontSans, fontSize: 11, color: T.warning, alignSelf: 'center' }}>
-                +{unansweredItems.length - 5} daha
+                +{unansweredList.length - 8} daha
               </span>
             )}
           </div>
@@ -274,25 +365,6 @@ export default function VpReview({
             <ArrowLeft size={12} />
             Geri don ve tamamla
           </button>
-        </div>
-      )}
-
-      {/* ── High priority unanswered alert ── */}
-      {highPriorityUnanswered.length > 0 && (
-        <div style={{
-          padding: '14px 18px', borderRadius: 10,
-          background: T.dangerLight, border: `1px solid ${T.dangerBorder}`,
-          display: 'flex', alignItems: 'flex-start', gap: 10,
-        }}>
-          <AlertOctagon size={18} style={{ color: T.danger, flexShrink: 0, marginTop: 1 }} />
-          <div>
-            <span style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.danger }}>
-              {highPriorityUnanswered.length} yuksek oncelikli kontrol cevaplanmamis
-            </span>
-            <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.danger, margin: '4px 0 0', opacity: 0.85, lineHeight: 1.5 }}>
-              Bu kontroller kurumsal guvenlik icin kritik oneme sahiptir. Gondermeden once yanıtlamaniz onerilir.
-            </p>
-          </div>
         </div>
       )}
 

@@ -22,7 +22,10 @@ import {
   csf_subcategories,
   csf_categories,
   csf_functions,
+  vendors,
 } from '../db/schema';
+import { maturityToStatus, statusToMaturity, TIER_ORDER, MATURITY_LEVELS } from '../lib/maturity-levels';
+import type { MaturityLevel } from '../lib/maturity-levels';
 import { cloneAssessmentForVendor } from '../lib/assessment-cloning';
 import {
   generateInvitationToken,
@@ -95,12 +98,21 @@ app.post('/', async (c) => {
       // Reuse existing vendor self-assessment
       vendorAssessmentId = existingInvitation.vendor_self_assessment_id as string;
     } else {
+      // Get vendor's criticality level for tier-filtered cloning
+      const vendorResult = await db
+        .select({ criticality_level: vendors.criticality_level })
+        .from(vendors)
+        .where(eq(vendors.id, assessment.vendor_id!))
+        .limit(1);
+      const critLevel = vendorResult[0]?.criticality_level || 'medium';
+
       // Clone assessment for vendor self-assessment (first time only)
       vendorAssessmentId = await cloneAssessmentForVendor(
         db,
         c.env.DB,
         body.organization_assessment_id,
-        assessment.organization_id
+        assessment.organization_id,
+        critLevel
       );
     }
 
@@ -681,6 +693,292 @@ app.post('/:invitationId/revoke', async (c) => {
   } catch (error) {
     console.error('Error revoking invitation:', error);
     return c.json({ error: 'Failed to revoke invitation' }, 500);
+  }
+});
+
+/**
+ * h) GET /api/vendor-invitations/:token/consolidated
+ * Get consolidated questions for vendor's tier with current maturity levels
+ * Public endpoint with token-based auth
+ */
+app.get('/:token/consolidated', async (c) => {
+  const token = c.req.param('token');
+
+  try {
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+    }
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) {
+      return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    }
+
+    if (invitationResult.revoked_at) {
+      return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+    }
+
+    const db = createDbClient(c.env.DB);
+    const vendorSelfAssessmentId = invitationResult.vendor_self_assessment_id as string;
+
+    // Get vendor's criticality level for tier filtering
+    const vendorResult = await c.env.DB.prepare(
+      'SELECT criticality_level FROM vendors WHERE id = ?'
+    ).bind(invitationResult.vendor_id).first();
+    const vendorTier = (vendorResult?.criticality_level as string) || 'medium';
+
+    // Get consolidated questions filtered by vendor's tier
+    const questionsResult = await c.env.DB.prepare(
+      `SELECT * FROM consolidated_questions
+       WHERE CASE min_tier WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 WHEN 'critical' THEN 4 END
+          <= CASE ? WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 WHEN 'critical' THEN 4 END
+       ORDER BY sort_order`
+    ).bind(vendorTier).all();
+
+    const questions = questionsResult.results || [];
+
+    if (questions.length === 0) {
+      return c.json({ questions: [], maturity_levels: MATURITY_LEVELS }, 200, SECURITY_HEADERS);
+    }
+
+    // Get all mappings
+    const questionIds = questions.map(q => q.id as string);
+    const allMappings: Record<string, string[]> = {};
+    const batchSize = 25;
+
+    for (let i = 0; i < questionIds.length; i += batchSize) {
+      const batch = questionIds.slice(i, i + batchSize);
+      const placeholders = batch.map(() => '?').join(',');
+      const mappingsResult = await c.env.DB.prepare(
+        `SELECT consolidated_question_id, subcategory_id
+         FROM consolidated_question_mappings
+         WHERE consolidated_question_id IN (${placeholders})`
+      ).bind(...batch).all();
+
+      for (const m of mappingsResult.results || []) {
+        const cqId = m.consolidated_question_id as string;
+        if (!allMappings[cqId]) allMappings[cqId] = [];
+        allMappings[cqId].push(m.subcategory_id as string);
+      }
+    }
+
+    // Get current assessment items to derive maturity levels
+    const itemsResult = await db
+      .select({
+        subcategory_id: assessment_items.subcategory_id,
+        status: assessment_items.status,
+        notes: assessment_items.notes,
+      })
+      .from(assessment_items)
+      .where(eq(assessment_items.assessment_id, vendorSelfAssessmentId));
+
+    const itemsBySubcategory: Record<string, { status: string; notes: string | null }> = {};
+    for (const item of itemsResult) {
+      itemsBySubcategory[item.subcategory_id] = { status: item.status || 'not_assessed', notes: item.notes };
+    }
+
+    // Build enriched questions with current maturity
+    const enrichedQuestions = questions.map(q => {
+      const subcategoryIds = allMappings[q.id as string] || [];
+
+      // Derive current maturity from mapped items
+      const mappedStatuses = subcategoryIds
+        .map(sid => itemsBySubcategory[sid]?.status)
+        .filter(s => s && s !== 'not_assessed');
+
+      let currentMaturity: number | null = null;
+      let currentNotes: string | null = null;
+
+      if (mappedStatuses.length > 0) {
+        // All items should have the same status (set by consolidated answer)
+        // Use the most common status
+        const statusCounts: Record<string, number> = {};
+        for (const s of mappedStatuses) {
+          statusCounts[s!] = (statusCounts[s!] || 0) + 1;
+        }
+        const dominantStatus = Object.entries(statusCounts).sort((a, b) => b[1] - a[1])[0][0];
+        currentMaturity = statusToMaturity(dominantStatus);
+
+        // Get notes from any mapped item that has notes
+        const itemWithNotes = subcategoryIds
+          .map(sid => itemsBySubcategory[sid])
+          .find(item => item?.notes);
+        currentNotes = itemWithNotes?.notes || null;
+      }
+
+      return {
+        ...q,
+        subcategory_ids: subcategoryIds,
+        subcategory_count: subcategoryIds.length,
+        current_maturity: currentMaturity,
+        current_notes: currentNotes,
+      };
+    });
+
+    // Get category info for display
+    const categoryIds = [...new Set(questions.map(q => q.category_id as string))];
+    const categoriesResult = await c.env.DB.prepare(
+      `SELECT c.id, c.name, c.name_tr, c.function_id, f.name as function_name, f.name_tr as function_name_tr
+       FROM csf_categories c
+       LEFT JOIN csf_functions f ON c.function_id = f.id
+       WHERE c.id IN (${categoryIds.map(() => '?').join(',')})`
+    ).bind(...categoryIds).all();
+
+    const categoriesMap: Record<string, unknown> = {};
+    for (const cat of categoriesResult.results || []) {
+      categoriesMap[cat.id as string] = cat;
+    }
+
+    // Update last_accessed_at
+    await c.env.DB.prepare(
+      'UPDATE vendor_assessment_invitations SET last_accessed_at = ?, updated_at = ? WHERE id = ?'
+    ).bind(Date.now(), Date.now(), invitationId).run();
+
+    return c.json({
+      questions: enrichedQuestions,
+      categories: categoriesMap,
+      maturity_levels: MATURITY_LEVELS,
+      vendor_tier: vendorTier,
+    }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error fetching consolidated view:', error);
+    return c.json({ error: 'Failed to fetch consolidated view' }, 500, SECURITY_HEADERS);
+  }
+});
+
+/**
+ * i) POST /api/vendor-invitations/:token/consolidated-answer
+ * Submit a consolidated question answer (maturity level)
+ * Expands to all mapped subcategory assessment_items
+ * Public endpoint with token-based auth
+ */
+app.post('/:token/consolidated-answer', async (c) => {
+  const token = c.req.param('token');
+
+  try {
+    // Rate limit
+    const rateLimitResponse = await checkRateLimit(c, 'status_update');
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+    }
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) {
+      return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    }
+
+    if (invitationResult.revoked_at) {
+      return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+    }
+
+    const body = await c.req.json();
+    const { consolidated_question_id, maturity_level, notes } = body;
+
+    if (!consolidated_question_id || !maturity_level || maturity_level < 1 || maturity_level > 5) {
+      return c.json({ error: 'consolidated_question_id and maturity_level (1-5) are required' }, 400, SECURITY_HEADERS);
+    }
+
+    const vendorSelfAssessmentId = invitationResult.vendor_self_assessment_id as string;
+
+    // Get mapped subcategory IDs for this consolidated question
+    const mappingsResult = await c.env.DB.prepare(
+      'SELECT subcategory_id FROM consolidated_question_mappings WHERE consolidated_question_id = ?'
+    ).bind(consolidated_question_id).all();
+
+    const subcategoryIds = (mappingsResult.results || []).map(m => m.subcategory_id as string);
+
+    if (subcategoryIds.length === 0) {
+      return c.json({ error: 'No mapped subcategories found' }, 404, SECURITY_HEADERS);
+    }
+
+    // Convert maturity level to status
+    const derivedStatus = maturityToStatus(maturity_level as MaturityLevel);
+
+    // Batch update all mapped assessment_items
+    const db = createDbClient(c.env.DB);
+    const now = Date.now();
+
+    // Update in batches (stay under D1's 100 param limit)
+    const updateBatchSize = 30; // 3 params per item (status, notes, updated_at) + subcategory_id = ~4 per row
+    for (let i = 0; i < subcategoryIds.length; i += updateBatchSize) {
+      const batch = subcategoryIds.slice(i, i + updateBatchSize);
+      const placeholders = batch.map(() => '?').join(',');
+
+      await c.env.DB.prepare(
+        `UPDATE assessment_items
+         SET status = ?, notes = ?, updated_at = ?
+         WHERE assessment_id = ? AND subcategory_id IN (${placeholders})`
+      ).bind(derivedStatus, notes || null, now, vendorSelfAssessmentId, ...batch).run();
+    }
+
+    // Recalculate assessment score
+    const newScore = await updateAssessmentScore(db, vendorSelfAssessmentId);
+
+    // Update last_accessed_at
+    await c.env.DB.prepare(
+      'UPDATE vendor_assessment_invitations SET last_accessed_at = ?, updated_at = ? WHERE id = ?'
+    ).bind(now, now, invitationId).run();
+
+    // Log audit event
+    await logAuditEvent(c, invitationId, 'status_updated', {
+      consolidated_question_id,
+      maturity_level,
+      derived_status: derivedStatus,
+      affected_items: subcategoryIds.length,
+    });
+
+    // Get updated progress stats
+    const allItems = await c.env.DB.prepare(
+      'SELECT status FROM assessment_items WHERE assessment_id = ?'
+    ).bind(vendorSelfAssessmentId).all();
+
+    const totalItems = allItems.results?.length || 0;
+    const assessedItems = (allItems.results || []).filter(
+      (i: Record<string, unknown>) => i.status !== 'not_assessed'
+    ).length;
+
+    return c.json({
+      success: true,
+      consolidated_question_id,
+      maturity_level,
+      derived_status: derivedStatus,
+      affected_items: subcategoryIds.length,
+      new_score: newScore,
+      progress: {
+        assessed: assessedItems,
+        total: totalItems,
+        percentage: totalItems > 0 ? Math.round((assessedItems / totalItems) * 100) : 0,
+      },
+    }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error submitting consolidated answer:', error);
+    return c.json({ error: 'Failed to submit answer' }, 500, SECURITY_HEADERS);
   }
 });
 
