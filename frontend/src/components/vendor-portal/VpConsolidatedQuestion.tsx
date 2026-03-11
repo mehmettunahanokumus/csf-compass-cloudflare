@@ -88,7 +88,7 @@ export default function VpConsolidatedQuestion({
               fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
               color: T.textMuted,
             }}>
-              {categoryInfo.function_name_tr || categoryInfo.function_name} &middot; {categoryInfo.name_tr || categoryInfo.name}
+              {categoryInfo.function_name} &middot; {categoryInfo.name}
             </span>
           )}
           <span style={{
@@ -96,7 +96,7 @@ export default function VpConsolidatedQuestion({
             color: T.textFaint,
             marginLeft: 'auto',
           }}>
-            {question.subcategory_count} alt kontrol
+            {question.subcategory_count} sub-controls
           </span>
           {isSaving && (
             <Loader2 size={12} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
@@ -108,7 +108,7 @@ export default function VpConsolidatedQuestion({
           fontFamily: T.fontSans, fontSize: 14, fontWeight: 500,
           color: T.textPrimary, lineHeight: 1.6, margin: 0,
         }}>
-          {question.question_text_tr || question.question_text}
+          {question.question_text}
         </p>
 
         {/* Guidance toggle */}
@@ -124,7 +124,7 @@ export default function VpConsolidatedQuestion({
             }}
           >
             <Info size={12} />
-            {showGuidance ? 'Rehberi gizle' : 'Rehberi goster'}
+            {showGuidance ? 'Hide guidance' : 'Show guidance'}
             <ChevronDown size={10} style={{
               transition: 'transform 0.2s',
               transform: showGuidance ? 'rotate(180deg)' : 'rotate(0)',
@@ -142,7 +142,7 @@ export default function VpConsolidatedQuestion({
               fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary,
               lineHeight: 1.7, margin: 0,
             }}>
-              {question.guidance_text_tr || question.guidance_text}
+              {question.guidance_text}
             </p>
           </div>
         )}
@@ -158,7 +158,7 @@ export default function VpConsolidatedQuestion({
           textTransform: 'uppercase' as const, letterSpacing: '0.08em',
           color: T.textMuted, marginBottom: 2,
         }}>
-          Olgunluk Seviyesi
+          Maturity Level
         </span>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -217,13 +217,13 @@ export default function VpConsolidatedQuestion({
                       fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
                       color: isSelected ? levelColor : T.textPrimary,
                     }}>
-                      {ml.name_tr}
+                      {ml.name}
                     </span>
                     <span style={{
                       fontFamily: T.fontSans, fontSize: 11,
                       color: T.textMuted,
                     }}>
-                      ({ml.name})
+                      ({ml.name_tr})
                     </span>
                   </div>
                   <p style={{
@@ -231,7 +231,7 @@ export default function VpConsolidatedQuestion({
                     color: T.textSecondary, margin: '2px 0 0',
                     lineHeight: 1.4,
                   }}>
-                    {ml.description_tr}
+                    {ml.description}
                   </p>
                 </div>
 
@@ -263,12 +263,12 @@ export default function VpConsolidatedQuestion({
             textTransform: 'uppercase' as const, letterSpacing: '0.08em',
             color: T.textMuted, display: 'block', marginBottom: 6,
           }}>
-            Notlar (istege bagli)
+            Notes (optional)
           </label>
           <textarea
             value={notes}
             onChange={(e) => handleNotesChange(e.target.value)}
-            placeholder="Bu alan hakkinda ek bilgi veya aciklama ekleyin..."
+            placeholder="Add additional information or comments about this area..."
             rows={2}
             style={{
               width: '100%', padding: '8px 12px', borderRadius: 8,

@@ -104,11 +104,11 @@ export function VpWelcome({
             gap: 10,
             marginBottom: 28,
           }}>
-            <InfoCard icon={<ListChecks size={17} />} label={`${totalControls} Kontrol`} />
-            <InfoCard icon={<Clock size={17} />} label="~25 dk" />
+            <InfoCard icon={<ListChecks size={17} />} label={`${totalControls} Controls`} />
+            <InfoCard icon={<Clock size={17} />} label="~25 min" />
             <InfoCard
               icon={<CalendarDays size={17} />}
-              label={expiresAt ? formatDate(expiresAt) : 'Son tarih belirtilmemis'}
+              label={expiresAt ? formatDate(expiresAt) : 'No deadline specified'}
             />
           </div>
 
@@ -122,7 +122,7 @@ export function VpWelcome({
               display: 'block',
               marginBottom: 7,
             }}>
-              Degerlendirmeyi dolduran kisi
+              Assessment respondent
             </label>
             <input
               type="text"
@@ -130,7 +130,7 @@ export function VpWelcome({
               onChange={e => onRespondentNameChange(e.target.value)}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              placeholder="Ad Soyad"
+              placeholder="Full Name"
               style={{
                 ...inputStyle(),
                 borderColor: focused ? T.accent : T.border,
@@ -148,9 +148,9 @@ export function VpWelcome({
             marginBottom: 28,
             flexWrap: 'wrap',
           }}>
-            <TrustBadge icon={<Lock size={12} />} label="Sifrelenmis baglanti" />
+            <TrustBadge icon={<Lock size={12} />} label="Encrypted connection" />
             <TrustBadge icon={<Shield size={12} />} label="NIST CSF 2.0" />
-            <TrustBadge icon={<Save size={12} />} label="Otomatik kayit" />
+            <TrustBadge icon={<Save size={12} />} label="Auto-save" />
           </div>
 
           {/* Start button */}
@@ -176,7 +176,7 @@ export function VpWelcome({
               transition: 'filter 0.15s, transform 0.15s',
             }}
           >
-            Degerlendirmeye Basla
+            Start Assessment
             <ArrowRight size={18} />
           </button>
 

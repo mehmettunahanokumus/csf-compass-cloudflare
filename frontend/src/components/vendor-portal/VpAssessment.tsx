@@ -116,7 +116,7 @@ export default function VpAssessment(props: VpAssessmentProps) {
           <div style={{ padding: isMobile ? '12px 16px' : '16px 24px', flex: 1 }}>
             {functionQuestions.length === 0 ? (
               <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', padding: '40px 0' }}>
-                Bu fonksiyonda soru bulunamadi
+                No questions found in this function
               </p>
             ) : (
               functionQuestions.map(question => (
@@ -133,7 +133,7 @@ export default function VpAssessment(props: VpAssessmentProps) {
           </div>
           <StickyFooter
             progressPct={progressPct}
-            assessedLabel={`${answeredQuestions}/${totalQuestions} kategori cevaplandi`}
+            assessedLabel={`${answeredQuestions}/${totalQuestions} categories answered`}
             onReview={onReview}
             isMobile={isMobile}
           />
@@ -204,7 +204,7 @@ export default function VpAssessment(props: VpAssessmentProps) {
         <div style={{ padding: isMobile ? '12px 16px' : '16px 24px', flex: 1 }}>
           {categoryGroups.length === 0 ? (
             <p style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textMuted, textAlign: 'center', padding: '40px 0' }}>
-              Bu fonksiyonda kontrol bulunamadi
+              No controls found in this function
             </p>
           ) : (
             categoryGroups.map(({ category, items: catItems }) => {
@@ -242,7 +242,7 @@ export default function VpAssessment(props: VpAssessmentProps) {
         </div>
         <StickyFooter
           progressPct={progressPct}
-          assessedLabel={`${assessedItems}/${totalItems} degerlendirildi`}
+          assessedLabel={`${assessedItems}/${totalItems} assessed`}
           onReview={onReview}
           isMobile={isMobile}
         />
@@ -273,7 +273,7 @@ function StickyFooter({ progressPct, assessedLabel, onReview, isMobile }: {
           {assessedLabel}
         </span>
         <span style={{ fontFamily: T.fontSans, fontSize: 10, color: T.textFaint }}>
-          Ilerleme otomatik kaydedilir
+          Progress is saved automatically
         </span>
       </div>
       <button
@@ -290,7 +290,7 @@ function StickyFooter({ progressPct, assessedLabel, onReview, isMobile }: {
         onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
       >
         <ClipboardCheck size={15} />
-        Incele ve Gonder
+        Review & Submit
       </button>
     </div>
   );

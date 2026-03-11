@@ -272,7 +272,7 @@ export default function VendorPortalShadcn() {
       setConsolidatedQuestions(prev => prev.map(q =>
         q.id === questionId ? { ...q, current_maturity: null, current_notes: null } : q
       ));
-      setToast({ message: `Kaydedilemedi: ${getErrorMessage(err)}`, type: 'error' });
+      setToast({ message: `Failed to save: ${getErrorMessage(err)}`, type: 'error' });
     } finally {
       setSavingQuestions(prev => {
         const next = new Set(prev);
@@ -339,7 +339,7 @@ export default function VendorPortalShadcn() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: T.textSecondary }}>
             <Loader2 size={20} style={{ color: T.accent, animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Davetiye dogrulaniyor...</span>
+            <span style={{ fontFamily: T.fontSans, fontSize: 14 }}>Validating invitation...</span>
           </div>
         </div>
       </>
@@ -363,14 +363,14 @@ export default function VendorPortalShadcn() {
               <XCircle size={20} style={{ color: T.danger }} />
             </div>
             <h1 style={{ fontFamily: T.fontDisplay, fontSize: 22, fontWeight: 700, color: T.textPrimary, margin: 0, letterSpacing: '0.01em' }}>
-              Gecersiz Davetiye
+              Invalid Invitation
             </h1>
           </div>
           <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textSecondary, lineHeight: 1.7, marginBottom: 20 }}>
             {error}
           </p>
           <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textMuted }}>
-            Yardim icin bu davetiyeyi gonderen kurulusla iletisime gecin.
+            Please contact the organization that sent this invitation for assistance.
           </p>
         </div>
       </div>

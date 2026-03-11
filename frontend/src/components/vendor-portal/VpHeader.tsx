@@ -118,7 +118,7 @@ export function VpHeader({ assessmentName, progressPct }: VpHeaderProps) {
             onClick={toggleTheme}
             onMouseEnter={() => setHoverToggle(true)}
             onMouseLeave={() => setHoverToggle(false)}
-            aria-label={isDark ? 'Acik temaya gec' : 'Koyu temaya gec'}
+            aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
             style={{
               width: 30,
               height: 30,
@@ -159,7 +159,7 @@ export function VpHeader({ assessmentName, progressPct }: VpHeaderProps) {
                 lineHeight: 1,
               }}
             >
-              Guvenli
+              Secure
             </span>
           </div>
         </div>

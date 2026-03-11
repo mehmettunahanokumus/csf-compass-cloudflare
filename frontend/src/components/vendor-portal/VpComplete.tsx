@@ -70,7 +70,7 @@ export function VpComplete({ completedAt, assessmentName }: VpCompleteProps) {
             margin: '0 0 14px',
             textAlign: 'center',
           }}>
-            Degerlendirme Tamamlandi
+            Assessment Completed
           </h1>
 
           {/* Message */}
@@ -83,8 +83,8 @@ export function VpComplete({ completedAt, assessmentName }: VpCompleteProps) {
             margin: '0 0 24px',
             maxWidth: 380,
           }}>
-            Siber guvenlik degerlendirmesini tamamladiginiz icin tesekkur ederiz.
-            Yanitlariniz basariyla gonderildi.
+            Thank you for completing the cybersecurity assessment.
+            Your responses have been submitted successfully.
           </p>
 
           {/* Assessment name badge */}
@@ -108,7 +108,7 @@ export function VpComplete({ completedAt, assessmentName }: VpCompleteProps) {
             color: T.textMuted,
             marginBottom: 48,
           }}>
-            Tamamlanma tarihi: {formattedDate}
+            Completed on: {formattedDate}
           </span>
 
           {/* Footer */}

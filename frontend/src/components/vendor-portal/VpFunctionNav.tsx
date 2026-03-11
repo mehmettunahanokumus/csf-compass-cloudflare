@@ -22,7 +22,6 @@ function extractCode(name: string): string {
 
 /** Strip code portion to get display name */
 function displayName(fn: CsfFunction): string {
-  if (fn.name_tr) return fn.name_tr;
   return fn.name.replace(/\s*\([A-Z]{2}\)\s*/, '').trim();
 }
 
@@ -295,7 +294,7 @@ export default function VpFunctionNav({
             (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
           }}
         >
-          Sonraki cevaplanmamis
+          Next unanswered
           <ChevronRight size={14} />
         </button>
       </div>
