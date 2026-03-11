@@ -126,7 +126,7 @@ export default function AssessmentDetailNew() {
   const handleCopyLink = async () => {
     if (!invitation) return;
 
-    const baseUrl = window.location.origin;
+    const baseUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
     const vendorLink = `${baseUrl}/vendor-portal/${invitation.access_token}`;
 
     try {
@@ -1207,7 +1207,7 @@ export default function AssessmentDetailNew() {
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
                       type="text"
-                      value={`${window.location.origin}/vendor-portal/${invitation.access_token}`}
+                      value={`${import.meta.env.VITE_SITE_URL || window.location.origin}/vendor-portal/${invitation.access_token}`}
                       readOnly
                       onClick={(e) => e.currentTarget.select()}
                       style={{

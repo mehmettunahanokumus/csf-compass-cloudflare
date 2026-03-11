@@ -201,7 +201,7 @@ export default function AssessmentDetail() {
   const handleCopyLink = async () => {
     if (!invitation) return;
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/vendor-portal/${invitation.access_token}`);
+      await navigator.clipboard.writeText(`${import.meta.env.VITE_SITE_URL || window.location.origin}/vendor-portal/${invitation.access_token}`);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     } catch { alert('Failed to copy link to clipboard'); }
@@ -857,7 +857,7 @@ export default function AssessmentDetail() {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input
                       type="text"
-                      value={`${window.location.origin}/vendor-portal/${invitation.access_token}`}
+                      value={`${import.meta.env.VITE_SITE_URL || window.location.origin}/vendor-portal/${invitation.access_token}`}
                       readOnly
                       onClick={e => e.currentTarget.select()}
                       style={{
