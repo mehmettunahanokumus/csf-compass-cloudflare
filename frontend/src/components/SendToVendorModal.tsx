@@ -1,13 +1,14 @@
 /**
  * Create Vendor Link Modal
- * Modal for generating reusable vendor assessment links — CIPHER design
+ * Modal for generating reusable vendor assessment links
  */
 
 import { useState } from 'react';
-import { X, Link2, Copy, Check, AlertCircle } from 'lucide-react';
+import { X, Link2, Copy, Check, AlertCircle, ChevronRight } from 'lucide-react';
 import { vendorInvitationsApi } from '../api/vendor-invitations';
 import type { SendInvitationResponse } from '../types';
 import { getErrorMessage } from '../api/client';
+import { T, card, inputStyle } from '../tokens';
 
 interface SendToVendorModalProps {
   isOpen: boolean;
@@ -107,87 +108,136 @@ export default function SendToVendorModal({
 
   if (!isOpen) return null;
 
-  const inputClass = "w-full bg-white/[0.04] border border-white/[0.07] rounded-lg px-3 py-2.5 font-sans text-sm text-[#F0F0F5] placeholder:text-[#55576A] outline-none transition-all focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20";
-  const labelClass = "block font-display text-[10px] tracking-[0.12em] uppercase text-[#8E8FA8] font-semibold mb-1.5";
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontFamily: T.fontSans,
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: T.textMuted,
+    marginBottom: 6,
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={handleClose}>
+    <div
+      onClick={handleClose}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 50, padding: 16,
+      }}
+    >
       <div
-        className="bg-[#0E1018] border border-white/[0.07] rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          ...card,
+          maxWidth: 560,
+          width: '100%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          padding: 0,
+        }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/[0.06]">
-          <h2 className="font-display text-lg font-bold text-[#F0F0F5]">
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 24px',
+          borderBottom: `1px solid ${T.border}`,
+        }}>
+          <h2 style={{
+            fontFamily: T.fontDisplay, fontSize: 18, fontWeight: 700,
+            color: T.textPrimary, margin: 0,
+          }}>
             {vendorLink ? 'Vendor Link Created' : 'Create Vendor Link'}
           </h2>
           <button
             onClick={handleClose}
-            className="text-[#55576A] hover:text-[#F0F0F5] transition-colors p-1 rounded-lg hover:bg-white/[0.04]"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, borderRadius: 8,
+              background: 'transparent', border: 'none',
+              color: T.textMuted, cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = T.bg; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
           >
-            <X className="w-5 h-5" />
+            <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          {/* Success State - Show Vendor Link */}
+        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
           {vendorLink ? (
-            <div className="space-y-6">
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 flex items-start gap-3">
-                <Check className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <h3 className="font-display text-sm font-semibold text-emerald-400 mb-1">
+            <>
+              {/* Success banner */}
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 12,
+                padding: '14px 16px', borderRadius: 10,
+                background: T.successLight, border: `1px solid ${T.successBorder}`,
+              }}>
+                <Check size={18} style={{ color: T.success, flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: T.success, marginBottom: 2 }}>
                     Link created successfully!
-                  </h3>
-                  <p className="font-sans text-sm text-[#8E8FA8]">
+                  </div>
+                  <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.5 }}>
                     Copy this link and send it to the vendor via email, Slack, or your preferred communication method.
                   </p>
                 </div>
               </div>
 
+              {/* Link input */}
               <div>
-                <label className={labelClass}>
+                <label style={labelStyle}>
                   Vendor Assessment Link (expires in {expiryDays} days)
                 </label>
-                <div className="flex items-center gap-2">
+                <div style={{ display: 'flex', gap: 8 }}>
                   <input
                     type="text"
                     value={vendorLink}
                     readOnly
-                    className={`${inputClass} font-mono text-xs`}
                     onClick={(e) => e.currentTarget.select()}
+                    style={{
+                      ...inputStyle(),
+                      flex: 1,
+                      fontFamily: T.fontMono,
+                      fontSize: 11,
+                    }}
                   />
                   <button
                     onClick={handleCopyLink}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-sans text-sm font-medium flex-shrink-0 transition-all ${
-                      copied
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-white/[0.04] text-[#8E8FA8] border border-white/[0.07] hover:text-[#F0F0F5] hover:border-white/[0.12]'
-                    }`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '8px 14px', borderRadius: 8, flexShrink: 0,
+                      background: copied ? T.successLight : T.card,
+                      border: `1px solid ${copied ? T.successBorder : T.border}`,
+                      fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+                      color: copied ? T.success : T.textSecondary,
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}
                   >
-                    {copied ? (
-                      <>
-                        <Check className="w-4 h-4" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        Copy
-                      </>
-                    )}
+                    {copied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
                   </button>
                 </div>
-                <p className="font-sans text-xs text-[#55576A] mt-2">
-                  You can also access this link anytime from the assessment detail page by clicking "Show Vendor Link"
+                <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textFaint, marginTop: 6 }}>
+                  You can also access this link anytime from the assessment detail page.
                 </p>
               </div>
 
-              <div className="relative bg-[#13151F] border border-white/[0.05] rounded-lg p-4 overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500 rounded-l-lg" />
-                <h4 className="font-display text-sm font-semibold text-[#F0F0F5] mb-2 pl-2">Next Steps</h4>
-                <ul className="space-y-1.5 pl-2">
+              {/* Next steps */}
+              <div style={{
+                padding: '14px 18px', borderRadius: 10,
+                background: T.bg, border: `1px solid ${T.border}`,
+                borderLeft: `3px solid ${T.accent}`,
+              }}>
+                <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 8 }}>
+                  Next Steps
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {[
                     'Copy the link above using the "Copy" button',
                     'Send it to the vendor via email, Slack, Teams, or any method you prefer',
@@ -195,91 +245,120 @@ export default function SendToVendorModal({
                     'Once submitted, view the comparison to see differences in your assessments',
                     `The link will expire in ${expiryDays} days`,
                   ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 font-sans text-sm text-[#8E8FA8]">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400/60 mt-1.5 flex-shrink-0" />
-                      {item}
-                    </li>
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <ChevronRight size={12} style={{ color: T.accent, flexShrink: 0, marginTop: 2 }} />
+                      <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+                        {item}
+                      </span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between pt-5 border-t border-white/[0.06]">
+              {/* Footer actions */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                paddingTop: 16, borderTop: `1px solid ${T.border}`,
+              }}>
                 <button
                   onClick={handleRevoke}
-                  className="font-sans text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
+                  style={{
+                    padding: 0, background: 'none', border: 'none',
+                    fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+                    color: T.danger, cursor: 'pointer',
+                  }}
                 >
                   Revoke Link
                 </button>
                 <button
                   onClick={handleClose}
-                  className="px-5 py-2.5 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors"
+                  style={{
+                    padding: '10px 22px', borderRadius: 9,
+                    background: T.accent, color: '#fff', border: 'none',
+                    fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+                    cursor: 'pointer', transition: 'opacity 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
                 >
                   Done
                 </button>
               </div>
-            </div>
+            </>
           ) : (
             /* Form State */
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                  <p className="font-sans text-sm text-red-400">{error}</p>
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10,
+                  padding: '12px 14px', borderRadius: 10,
+                  background: T.dangerLight, border: `1px solid ${T.dangerBorder}`,
+                }}>
+                  <AlertCircle size={16} style={{ color: T.danger, flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontFamily: T.fontSans, fontSize: 13, color: T.danger }}>{error}</span>
                 </div>
               )}
 
-              <div className="relative bg-[#13151F] border border-white/[0.05] rounded-lg p-4 overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500 rounded-l-lg" />
-                <p className="font-sans text-sm text-[#8E8FA8] pl-2">
-                  <span className="text-[#F0F0F5] font-medium">Note:</span> This creates a reusable link that you'll manually send to the vendor.
-                  No email is sent automatically — you choose how to deliver it.
+              {/* Info note */}
+              <div style={{
+                padding: '12px 16px', borderRadius: 10,
+                background: T.bg, border: `1px solid ${T.border}`,
+                borderLeft: `3px solid ${T.accent}`,
+              }}>
+                <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.6 }}>
+                  <span style={{ fontWeight: 600, color: T.textPrimary }}>Note:</span> This creates a reusable link that you'll manually send to the vendor.
+                  No email is sent automatically.
                 </p>
               </div>
 
+              {/* Assessment name */}
               <div>
-                <label className={labelClass}>Assessment</label>
+                <label style={labelStyle}>Assessment</label>
                 <input
                   type="text"
                   value={assessmentName}
                   readOnly
-                  className={`${inputClass} bg-white/[0.02]`}
+                  style={{ ...inputStyle(), background: T.bg }}
                 />
               </div>
 
+              {/* Vendor email */}
               <div>
-                <label className={labelClass}>
-                  Vendor Email <span className="text-red-400">*</span>
+                <label style={labelStyle}>
+                  Vendor Email <span style={{ color: T.danger }}>*</span>
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="vendor@example.com"
-                  className={inputClass}
+                  style={inputStyle()}
                   required
                 />
-                <p className="font-sans text-xs text-[#55576A] mt-1">
+                <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textFaint, marginTop: 4 }}>
                   For your records only — no email will be sent
                 </p>
               </div>
 
+              {/* Contact name */}
               <div>
-                <label className={labelClass}>Vendor Contact Name (Optional)</label>
+                <label style={labelStyle}>Vendor Contact Name (Optional)</label>
                 <input
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   placeholder="John Doe"
-                  className={inputClass}
+                  style={inputStyle()}
                 />
               </div>
 
+              {/* Expiration */}
               <div>
-                <label className={labelClass}>Link Expiration</label>
+                <label style={labelStyle}>Link Expiration</label>
                 <select
                   value={expiryDays}
                   onChange={(e) => setExpiryDays(Number(e.target.value))}
-                  className={inputClass}
+                  style={inputStyle()}
                 >
                   <option value={7}>7 days</option>
                   <option value={14}>14 days</option>
@@ -289,21 +368,40 @@ export default function SendToVendorModal({
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-5 border-t border-white/[0.06]">
+              {/* Submit buttons */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10,
+                paddingTop: 16, borderTop: `1px solid ${T.border}`,
+              }}>
                 <button
                   type="button"
                   onClick={handleClose}
                   disabled={creating}
-                  className="px-4 py-2.5 font-sans text-sm font-medium text-[#8E8FA8] border border-white/[0.07] rounded-lg hover:text-[#F0F0F5] hover:border-white/[0.12] transition-all disabled:opacity-50"
+                  style={{
+                    padding: '10px 18px', borderRadius: 9,
+                    background: T.card, border: `1px solid ${T.border}`,
+                    fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+                    color: T.textSecondary, cursor: 'pointer',
+                    opacity: creating ? 0.5 : 1,
+                    transition: 'all 0.15s',
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-[#08090E] font-display text-sm font-semibold rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    padding: '10px 22px', borderRadius: 9,
+                    background: T.accent, color: '#fff', border: 'none',
+                    fontFamily: T.fontSans, fontSize: 13, fontWeight: 700,
+                    cursor: creating ? 'not-allowed' : 'pointer',
+                    opacity: creating ? 0.5 : 1,
+                    transition: 'all 0.15s',
+                  }}
                 >
-                  <Link2 className="w-4 h-4" />
+                  <Link2 size={14} />
                   {creating ? 'Creating Link...' : 'Create Link'}
                 </button>
               </div>
