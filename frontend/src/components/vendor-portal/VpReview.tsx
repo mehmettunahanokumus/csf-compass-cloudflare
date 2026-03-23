@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import type { AssessmentItem, CsfFunction, ConsolidatedQuestion, MaturityLevelInfo } from '../../types';
 import { T, card } from '../../tokens';
+import VpExportPanel from './VpExportPanel';
+import VpAiPanel from './VpAiPanel';
 
 // ── Legacy props ──
 interface LegacyReviewProps {
@@ -41,6 +43,7 @@ type VpReviewProps = (LegacyReviewProps | ConsolidatedReviewProps) & {
   onSubmit: () => void;
   onGoBack: () => void;
   onGoToItem: (functionId: string) => void;
+  token?: string;
 };
 
 // ── Stat pill ──────────────────────────────────────────────
@@ -114,7 +117,7 @@ function MaturityBadge({ level, maturityLevels }: { level: number | null | undef
 
 // ── Main component ─────────────────────────────────────────
 export default function VpReview(props: VpReviewProps) {
-  const { functions, respondentName, submitting, onSubmit, onGoBack, onGoToItem } = props;
+  const { functions, respondentName, submitting, onSubmit, onGoBack, onGoToItem, token } = props;
 
   // ════════════════════════════════════════════
   // CONSOLIDATED MODE
@@ -193,6 +196,14 @@ export default function VpReview(props: VpReviewProps) {
             moreCount={unansweredList.length > 8 ? unansweredList.length - 8 : 0}
             onGoBack={onGoBack}
           />
+        )}
+
+        {/* Export & AI */}
+        {token && (
+          <>
+            <VpExportPanel token={token} />
+            <VpAiPanel token={token} mode="review" />
+          </>
         )}
 
         <RespondentCard respondentName={respondentName} />
@@ -280,6 +291,14 @@ export default function VpReview(props: VpReviewProps) {
         </div>
       )}
 
+      {/* Export & AI */}
+      {token && (
+        <>
+          <VpExportPanel token={token} />
+          <VpAiPanel token={token} mode="review" />
+        </>
+      )}
+
       <RespondentCard respondentName={respondentName} />
       <ActionButtons submitting={submitting} onGoBack={onGoBack} onSubmit={onSubmit} />
       <FinePrint />
@@ -326,7 +345,7 @@ function FunctionBreakdownCard({ funcBreakdown, progressPct }: {
       </div>
       <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.textSecondary }}>Overall Progress</span>
-        <span style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success }}>%{progressPct}</span>
+        <span style={{ fontFamily: T.fontDisplay, fontSize: 20, fontWeight: 700, color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success }}>{progressPct}%</span>
       </div>
     </div>
   );

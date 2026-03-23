@@ -14,6 +14,12 @@ import type {
   AssessmentItem,
   ConsolidatedViewResponse,
   ConsolidatedAnswerResponse,
+  EvidenceFile,
+  VendorPortalStats,
+  VendorPortalExportData,
+  AIAnalysisResult,
+  AIRecommendation,
+  AIExecutiveSummary,
 } from '../types';
 
 // Create a separate axios instance with credentials for vendor portal endpoints
@@ -153,6 +159,117 @@ export const vendorInvitationsApi = {
   ): Promise<ConsolidatedAnswerResponse> {
     const response = await vendorApiClient.post<ConsolidatedAnswerResponse>(
       `/api/vendor-invitations/${token}/consolidated-answer`,
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Upload evidence file from vendor portal
+   */
+  async uploadEvidence(token: string, file: File, assessmentItemId?: string): Promise<EvidenceFile> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (assessmentItemId) formData.append('assessment_item_id', assessmentItemId);
+    const response = await vendorApiClient.post<EvidenceFile>(
+      `/api/vendor-invitations/${token}/evidence/upload`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get evidence files for a specific assessment item (vendor portal)
+   */
+  async getEvidenceForItem(token: string, itemId: string): Promise<EvidenceFile[]> {
+    const response = await vendorApiClient.get<{ files: EvidenceFile[] }>(
+      `/api/vendor-invitations/${token}/evidence/item/${itemId}`
+    );
+    return response.data.files;
+  },
+
+  /**
+   * Delete evidence file from vendor portal
+   */
+  async deleteEvidence(token: string, evidenceId: string): Promise<void> {
+    await vendorApiClient.delete(`/api/vendor-invitations/${token}/evidence/${evidenceId}`);
+  },
+
+  // ========================================================================
+  // Phase 3: Export
+  // ========================================================================
+
+  /**
+   * Get assessment statistics for the vendor portal
+   */
+  async getStats(token: string): Promise<VendorPortalStats> {
+    const response = await vendorApiClient.get<VendorPortalStats>(
+      `/api/vendor-invitations/${token}/stats`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get full export data (items + stats) for client-side PDF/Excel/CSV generation
+   */
+  async getExportData(token: string): Promise<VendorPortalExportData> {
+    const response = await vendorApiClient.get<VendorPortalExportData>(
+      `/api/vendor-invitations/${token}/export-data`
+    );
+    return response.data;
+  },
+
+  // ========================================================================
+  // Phase 4: AI Analysis
+  // ========================================================================
+
+  /**
+   * AI analysis for a specific assessment item
+   */
+  async analyzeItem(
+    token: string,
+    data: {
+      assessment_item_id?: string;
+      subcategory_code: string;
+      subcategory_description?: string;
+      evidence_notes?: string;
+      file_names?: string[];
+      current_status: string;
+    }
+  ): Promise<{ success: boolean; result: AIAnalysisResult }> {
+    const response = await vendorApiClient.post<{ success: boolean; result: AIAnalysisResult }>(
+      `/api/vendor-invitations/${token}/ai/analyze`,
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * AI gap analysis for the full vendor assessment
+   */
+  async requestGapAnalysis(token: string): Promise<{ success: boolean; recommendations: AIRecommendation[] }> {
+    const response = await vendorApiClient.post<{ success: boolean; recommendations: AIRecommendation[] }>(
+      `/api/vendor-invitations/${token}/ai/gap-analysis`
+    );
+    return response.data;
+  },
+
+  /**
+   * AI executive summary for the vendor assessment
+   */
+  async requestExecutiveSummary(
+    token: string,
+    data: {
+      organization_name?: string;
+      overall_score: number;
+      function_scores: Array<{ code: string; name: string; score: number; compliant: number; partial: number; non_compliant: number; total: number }>;
+      distribution: { compliant: number; partial: number; non_compliant: number; not_assessed: number; not_applicable: number };
+      top_gaps: Array<{ subcategoryCode: string; description: string; functionCode: string }>;
+    }
+  ): Promise<{ success: boolean; summary: AIExecutiveSummary }> {
+    const response = await vendorApiClient.post<{ success: boolean; summary: AIExecutiveSummary }>(
+      `/api/vendor-invitations/${token}/ai/executive-summary`,
       data
     );
     return response.data;

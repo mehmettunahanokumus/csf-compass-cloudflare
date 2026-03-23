@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Trash2, Upload, Brain, GitCompare, Link2, Copy,
+  Trash2, Upload, Brain, Link2, Copy, Info, Clock, Send,
   FileText, Calendar, Building2, BarChart3, ClipboardList, CheckSquare,
   ArrowLeft, MoreHorizontal, MessageSquare, Sun, Moon,
 } from 'lucide-react';
@@ -315,8 +315,8 @@ export default function AssessmentDetail() {
 
   const TABS: { key: 'overview' | 'items' | 'vendor'; label: string }[] = [
     { key: 'overview', label: 'Overview' },
-    { key: 'items',    label: 'Items' },
-    { key: 'vendor',   label: 'Vendor Response' },
+    { key: 'items',    label: isVendor ? 'Vendor Responses' : 'Items' },
+    { key: 'vendor',   label: 'Vendor Portal' },
   ];
 
   const btnBase: React.CSSProperties = {
@@ -486,16 +486,6 @@ export default function AssessmentDetail() {
                     <Link2 size={13} /> Show Vendor Link
                   </button>
                 )}
-                {isVendor && invitation?.invitation_status === 'completed' && (
-                  <button
-                    onClick={() => { setShowMenu(false); navigate(`/assessments/${id}/comparison`); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', fontFamily: T.fontSans, fontSize: 13, color: T.text2, cursor: 'pointer', textAlign: 'left' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = T.accentLight}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'none'}
-                  >
-                    <GitCompare size={13} /> View Comparison
-                  </button>
-                )}
                 {(isVendor) && <div style={{ height: 1, background: T.border, margin: '4px 0' }} />}
                 <button
                   onClick={() => { setShowMenu(false); setDeleteOpen(true); }}
@@ -596,6 +586,120 @@ export default function AssessmentDetail() {
               ))}
             </div>
           </div>
+
+          {/* Vendor completion status (vendor assessments only) */}
+          {isVendor && (
+            <div style={{ ...cardBase, padding: '20px 24px' }}>
+              <div style={{ fontFamily: T.fontSans, fontSize: 11, fontWeight: 700, color: T.text3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+                Vendor Assessment Status
+              </div>
+              {!invitation ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0', gap: 12 }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: T.warningLight, border: `1px solid ${T.warningBorder}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Send size={18} style={{ color: T.warning }} />
+                  </div>
+                  <div style={{ fontFamily: T.fontSans, fontSize: 14, fontWeight: 700, color: T.text1 }}>
+                    No Invitation Sent Yet
+                  </div>
+                  <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, textAlign: 'center', maxWidth: 340 }}>
+                    Send an assessment link to {assessment.vendor?.name || 'the vendor'} so they can complete their self-assessment.
+                  </div>
+                  <button
+                    onClick={() => setShowInviteDialog(true)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '9px 20px', borderRadius: 8, marginTop: 4,
+                      background: T.accent, border: 'none',
+                      fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: '#FFF', cursor: 'pointer',
+                    }}
+                  >
+                    <Link2 size={14} /> Send Assessment Link
+                  </button>
+                </div>
+              ) : invitation.invitation_status === 'completed' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '12px 16px', borderRadius: 10,
+                    background: T.successLight, border: `1px solid ${T.successBorder}`,
+                  }}>
+                    <CheckSquare size={16} style={{ color: T.success, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: T.success }}>
+                        Vendor Assessment Completed
+                      </div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, marginTop: 2 }}>
+                        {invitation.vendor_contact_name && (
+                          <span>Completed by <strong style={{ color: T.text1 }}>{invitation.vendor_contact_name}</strong> on </span>
+                        )}
+                        {invitation.completed_at ? formatDate(invitation.completed_at) : 'Unknown date'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 4 }}>Respondent</div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.text1 }}>{invitation.vendor_contact_name || invitation.vendor_contact_email}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 4 }}>Completed</div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.text1 }}>{invitation.completed_at ? formatDate(invitation.completed_at) : '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 4 }}>Link Sent</div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.text1 }}>{formatDate(invitation.sent_at)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 4 }}>Status</div>
+                      <InvitationBadge status={invitation.invitation_status} />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '12px 16px', borderRadius: 10,
+                    background: T.warningLight, border: `1px solid ${T.warningBorder}`,
+                  }}>
+                    <Clock size={16} style={{ color: T.warning, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 700, color: T.warning }}>
+                        Awaiting Vendor Response
+                      </div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, marginTop: 2 }}>
+                        Assessment link sent to {invitation.vendor_contact_email} on {formatDate(invitation.sent_at)}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 4 }}>Status</div>
+                      <InvitationBadge status={invitation.invitation_status} />
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 4 }}>Expires</div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.text1 }}>{formatDate(invitation.token_expires_at)}</div>
+                    </div>
+                    {invitation.accessed_at && (
+                      <div>
+                        <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 4 }}>First Accessed</div>
+                        <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.text1 }}>{formatDate(invitation.accessed_at)}</div>
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.text3, marginBottom: 4 }}>Contact</div>
+                      <div style={{ fontFamily: T.fontSans, fontSize: 13, fontWeight: 600, color: T.text1 }}>{invitation.vendor_contact_name || invitation.vendor_contact_email}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Assessment tools */}
           <div>
@@ -721,9 +825,55 @@ export default function AssessmentDetail() {
             })}
           </div>
 
+          {/* Read-only info banner for vendor assessments */}
+          {isVendor && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '12px 16px', borderRadius: 10,
+              background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+              borderLeft: `4px solid ${T.accent}`,
+            }}>
+              <Info size={16} style={{ color: T.accent, flexShrink: 0 }} />
+              <div style={{ fontFamily: T.fontSans, fontSize: 13, color: T.text1 }}>
+                These are the vendor's self-assessment responses. They are read-only.
+              </div>
+            </div>
+          )}
+
           {/* Item cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {items.map(item => (
+            {items.map(item => isVendor ? (
+              <ControlItem
+                key={item.id}
+                item={item}
+                mode="readonly"
+                statusOptions="full"
+                showNotes={false}
+                showGuidance={false}
+                expanded={expandedItems.has(item.id)}
+                onToggleExpand={toggleExpandItem}
+                renderExtra={(it) => it.ai_suggested_status ? (
+                  <div style={{
+                    padding: '8px 12px', borderRadius: 8,
+                    background: T.accentLight, border: `1px solid ${T.accentBorder}`,
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                  }}>
+                    <Brain size={13} style={{ color: T.accent, flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <span style={{ fontFamily: T.fontSans, fontSize: 12, fontWeight: 600, color: T.accent }}>
+                        AI Suggestion: <strong>{it.ai_suggested_status}</strong>
+                        &nbsp;({(it.ai_confidence_score! * 100).toFixed(0)}% confidence)
+                      </span>
+                      {it.ai_reasoning && (
+                        <div style={{ fontFamily: T.fontSans, fontSize: 12, color: T.text2, marginTop: 4 }}>
+                          {it.ai_reasoning}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              />
+            ) : (
               <ControlItem
                 key={item.id}
                 item={item}
@@ -743,7 +893,7 @@ export default function AssessmentDetail() {
                       fontFamily: T.fontSans, fontSize: 11, fontWeight: 600, color: T.text2, cursor: 'pointer',
                     }}>
                       <Upload size={12} />
-                      {uploadingFor === it.id ? 'Uploading…' : 'Upload'}
+                      {uploadingFor === it.id ? 'Uploading...' : 'Upload'}
                       <input
                         type="file" style={{ display: 'none' }}
                         onChange={e => e.target.files?.[0] && handleFileUpload(it.id, e.target.files[0])}
@@ -763,7 +913,7 @@ export default function AssessmentDetail() {
                       }}
                     >
                       <Brain size={12} />
-                      {analyzingItem === it.id ? 'Analyzing…' : 'AI'}
+                      {analyzingItem === it.id ? 'Analyzing...' : 'AI'}
                     </button>
                   </div>
                 )}
@@ -924,14 +1074,6 @@ export default function AssessmentDetail() {
                   >
                     <Link2 size={13} /> {showVendorLink ? 'Hide Link' : 'Show Link'}
                   </button>
-                  {invitation.invitation_status === 'completed' && (
-                    <button
-                      onClick={() => navigate(`/assessments/${id}/comparison`)}
-                      style={btnBase}
-                    >
-                      <GitCompare size={13} /> View Comparison
-                    </button>
-                  )}
                 </div>
               </div>
             </div>

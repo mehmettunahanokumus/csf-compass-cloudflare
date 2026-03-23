@@ -4,11 +4,21 @@ import { T } from '../../tokens';
 import { CsfLogo } from '../CsfLogo';
 import { useTheme } from '../../hooks/useTheme';
 
+interface StatusDistribution {
+  compliant: number;
+  partial: number;
+  nonCompliant: number;
+  notAssessed: number;
+  notApplicable?: number;
+}
+
 interface VpHeaderProps {
   assessmentName: string;
   progressPct: number;
   assessedCount: number;
   totalCount: number;
+  overallScore?: number;
+  statusDistribution?: StatusDistribution;
 }
 
 function getProgressColor(pct: number): string {
@@ -17,7 +27,7 @@ function getProgressColor(pct: number): string {
   return T.success;
 }
 
-export function VpHeader({ assessmentName, progressPct }: VpHeaderProps) {
+export function VpHeader({ assessmentName, progressPct, overallScore, statusDistribution }: VpHeaderProps) {
   const { theme, setTheme } = useTheme();
   const [hoverToggle, setHoverToggle] = useState(false);
 
@@ -137,6 +147,44 @@ export function VpHeader({ assessmentName, progressPct }: VpHeaderProps) {
             {isDark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
 
+          {/* Score badge */}
+          {overallScore !== undefined && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '3px 9px',
+                borderRadius: 99,
+                background: `${getProgressColor(overallScore)}12`,
+                border: `1px solid ${getProgressColor(overallScore)}40`,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: T.fontMono,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: getProgressColor(overallScore),
+                  lineHeight: 1,
+                }}
+              >
+                {overallScore}%
+              </span>
+              <span
+                style={{
+                  fontFamily: T.fontSans,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: getProgressColor(overallScore),
+                  lineHeight: 1,
+                }}
+              >
+                Score
+              </span>
+            </div>
+          )}
+
           {/* Secure badge */}
           <div
             style={{
@@ -183,6 +231,42 @@ export function VpHeader({ assessmentName, progressPct }: VpHeaderProps) {
           }}
         />
       </div>
+
+      {/* Status distribution bar */}
+      {statusDistribution && (() => {
+        const total = statusDistribution.compliant + statusDistribution.partial +
+          statusDistribution.nonCompliant + statusDistribution.notAssessed +
+          (statusDistribution.notApplicable || 0);
+        if (total === 0) return null;
+        const segments = [
+          { value: statusDistribution.compliant, color: T.success },
+          { value: statusDistribution.partial, color: T.warning },
+          { value: statusDistribution.nonCompliant, color: T.danger },
+          { value: statusDistribution.notAssessed, color: T.borderLight },
+          { value: statusDistribution.notApplicable || 0, color: T.textFaint },
+        ].filter(s => s.value > 0);
+        return (
+          <div
+            style={{
+              width: '100%',
+              height: 2,
+              display: 'flex',
+            }}
+          >
+            {segments.map((seg, i) => (
+              <div
+                key={i}
+                style={{
+                  height: '100%',
+                  width: `${(seg.value / total) * 100}%`,
+                  background: seg.color,
+                  transition: 'width 0.4s ease',
+                }}
+              />
+            ))}
+          </div>
+        );
+      })()}
     </header>
   );
 }

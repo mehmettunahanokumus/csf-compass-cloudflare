@@ -466,3 +466,64 @@ export interface ImportPreview {
   companies: ImportPreviewCompany[];
   warnings: string[];
 }
+
+// Vendor Portal Export & AI types
+export interface VendorPortalStats {
+  overall_score: number;
+  distribution: { compliant: number; partial: number; non_compliant: number; not_assessed: number; not_applicable: number };
+  function_breakdown: Array<{
+    function_id: string;
+    function_name: string;
+    total: number;
+    compliant: number;
+    partial: number;
+    non_compliant: number;
+    not_assessed: number;
+    score: number;
+  }>;
+}
+
+export interface VendorPortalExportItem {
+  subcategory_id: string;
+  subcategory_name: string;
+  category_id: string;
+  category_name: string;
+  function_id: string;
+  function_name: string;
+  status: string;
+  notes: string | null;
+  evidence_count: number;
+}
+
+export interface VendorPortalExportData {
+  assessment_name: string;
+  vendor_name: string;
+  items: VendorPortalExportItem[];
+  stats: VendorPortalStats;
+}
+
+export interface AIAnalysisResult {
+  suggestedStatus: string;
+  confidenceScore: number;
+  reasoning: string;
+  gaps: string[];
+  recommendations: string[];
+}
+
+export interface AIRecommendation {
+  title: string;
+  description: string;
+  priority: 'quick_win' | 'medium_term' | 'long_term';
+  effort: 'low' | 'medium' | 'high';
+  impact: 'low' | 'medium' | 'high';
+  relatedSubcategories: string[];
+}
+
+export interface AIExecutiveSummary {
+  summary: string;
+  overallMaturityTier: number;
+  topStrengths: string[];
+  topGaps: string[];
+  priorityActions: string[];
+  riskAssessment: string;
+}

@@ -6,6 +6,8 @@ import VpFunctionNav from './VpFunctionNav';
 import VpCategorySection from './VpCategorySection';
 import ControlItem from '../assessment/ControlItem';
 import VpConsolidatedQuestion from './VpConsolidatedQuestion';
+import VpEvidencePanel from './VpEvidencePanel';
+import VpAiPanel from './VpAiPanel';
 
 // ── Legacy (items-based) props ──
 interface LegacyProps {
@@ -41,10 +43,12 @@ type VpAssessmentProps = (LegacyProps | ConsolidatedProps) & {
   selectedFunctionId: string | null;
   onSelectFunction: (id: string) => void;
   onReview: () => void;
+  token?: string;
+  assessmentId?: string;
 };
 
 export default function VpAssessment(props: VpAssessmentProps) {
-  const { functions, selectedFunctionId, onSelectFunction, onReview } = props;
+  const { functions, selectedFunctionId, onSelectFunction, onReview, token, assessmentId } = props;
   const isMobile = useMediaQuery(breakpoints.mobile);
 
   // ════════════════════════════════════════════════════
@@ -127,6 +131,8 @@ export default function VpAssessment(props: VpAssessmentProps) {
                   maturityLevels={maturityLevels}
                   isSaving={savingQuestions.has(question.id)}
                   onMaturityChange={onMaturityChange}
+                  token={token}
+                  assessmentId={assessmentId}
                 />
               ))
             )}
@@ -225,14 +231,28 @@ export default function VpAssessment(props: VpAssessmentProps) {
                       key={item.id}
                       item={item}
                       mode="interactive"
-                      statusOptions="vendor"
+                      statusOptions="full"
                       showNotes={true}
-                      showGuidance={false}
+                      showGuidance={true}
                       expanded={expandedItems.has(item.id)}
                       onToggleExpand={onToggleExpand}
                       onStatusChange={onStatusChange}
                       onNotesChange={onNotesChange}
                       isSaving={savingItems.has(item.id)}
+                      renderActions={token && assessmentId ? (itm) => (
+                        <VpEvidencePanel token={token} itemId={itm.id} assessmentId={assessmentId} />
+                      ) : undefined}
+                      renderExtra={token ? (itm) => (
+                        <VpAiPanel
+                          token={token}
+                          mode="item"
+                          itemId={itm.id}
+                          subcategoryCode={itm.subcategory?.id}
+                          subcategoryDescription={itm.subcategory?.description}
+                          currentStatus={itm.status}
+                          notes={itm.notes}
+                        />
+                      ) : undefined}
                     />
                   )}
                 />
@@ -267,7 +287,7 @@ function StickyFooter({ progressPct, assessedLabel, onReview, isMobile }: {
           fontFamily: T.fontMono, fontSize: 12, fontWeight: 700,
           color: progressPct < 30 ? T.danger : progressPct < 70 ? T.warning : T.success,
         }}>
-          %{progressPct}
+          {progressPct}%
         </span>
         <span style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted }}>
           {assessedLabel}

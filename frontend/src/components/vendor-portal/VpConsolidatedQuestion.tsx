@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { ChevronDown, Loader2, Info } from 'lucide-react';
 import type { ConsolidatedQuestion, MaturityLevelInfo } from '../../types';
 import { T, card } from '../../tokens';
+import VpEvidencePanel from './VpEvidencePanel';
+import VpAiPanel from './VpAiPanel';
 
 // Function colors matching the CSF framework
 const FUNCTION_COLORS: Record<string, string> = {
@@ -26,6 +28,8 @@ interface VpConsolidatedQuestionProps {
   maturityLevels: MaturityLevelInfo[];
   isSaving: boolean;
   onMaturityChange: (questionId: string, level: number, notes?: string) => void;
+  token?: string;
+  assessmentId?: string;
 }
 
 export default function VpConsolidatedQuestion({
@@ -34,6 +38,8 @@ export default function VpConsolidatedQuestion({
   maturityLevels,
   isSaving,
   onMaturityChange,
+  token,
+  assessmentId,
 }: VpConsolidatedQuestionProps) {
   const [showGuidance, setShowGuidance] = useState(false);
   const [notes, setNotes] = useState(question.current_notes || '');
@@ -112,7 +118,7 @@ export default function VpConsolidatedQuestion({
         </p>
 
         {/* Guidance toggle */}
-        {(question.guidance_text || question.guidance_text_tr) && (
+        {question.guidance_text && (
           <button
             onClick={() => setShowGuidance(!showGuidance)}
             style={{
@@ -137,6 +143,7 @@ export default function VpConsolidatedQuestion({
           <div style={{
             padding: '10px 14px', borderRadius: 8,
             background: T.bg, border: `1px solid ${T.borderLight}`,
+            display: 'flex', flexDirection: 'column', gap: 12,
           }}>
             <p style={{
               fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary,
@@ -144,6 +151,76 @@ export default function VpConsolidatedQuestion({
             }}>
               {question.guidance_text}
             </p>
+
+            {/* Compliance Criteria */}
+            <div>
+              <span style={{
+                fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+                textTransform: 'uppercase' as const, letterSpacing: '0.08em',
+                color: T.textMuted, display: 'block', marginBottom: 6,
+              }}>
+                Compliance Criteria
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {maturityLevels.map(ml => {
+                  const levelColor = ml.level <= 1 ? T.danger
+                    : ml.level === 2 ? T.warning
+                    : ml.level === 3 ? T.accent
+                    : T.success;
+                  return (
+                    <div key={ml.level} style={{
+                      display: 'flex', alignItems: 'baseline', gap: 8,
+                      padding: '4px 0',
+                    }}>
+                      <span style={{
+                        fontFamily: T.fontMono, fontSize: 10, fontWeight: 700,
+                        color: levelColor, minWidth: 14, textAlign: 'center',
+                      }}>
+                        {ml.level}
+                      </span>
+                      <span style={{
+                        fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
+                        color: levelColor, minWidth: 80,
+                      }}>
+                        {ml.name}
+                      </span>
+                      <span style={{
+                        fontFamily: T.fontSans, fontSize: 11, color: T.textSecondary,
+                        lineHeight: 1.4,
+                      }}>
+                        {ml.description}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sub-Controls Covered */}
+            {question.subcategory_ids && question.subcategory_ids.length > 0 && (
+              <div>
+                <span style={{
+                  fontFamily: T.fontSans, fontSize: 10, fontWeight: 700,
+                  textTransform: 'uppercase' as const, letterSpacing: '0.08em',
+                  color: T.textMuted, display: 'block', marginBottom: 6,
+                }}>
+                  Sub-Controls Covered ({question.subcategory_ids.length})
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {question.subcategory_ids.map(id => (
+                    <span key={id} style={{
+                      fontFamily: T.fontMono, fontSize: 10, fontWeight: 600,
+                      color: functionColor,
+                      background: `${functionColor}10`,
+                      border: `1px solid ${functionColor}25`,
+                      borderRadius: 4, padding: '2px 6px',
+                    }}>
+                      {id}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -219,12 +296,6 @@ export default function VpConsolidatedQuestion({
                     }}>
                       {ml.name}
                     </span>
-                    <span style={{
-                      fontFamily: T.fontSans, fontSize: 11,
-                      color: T.textMuted,
-                    }}>
-                      ({ml.name_tr})
-                    </span>
                   </div>
                   <p style={{
                     fontFamily: T.fontSans, fontSize: 11,
@@ -280,6 +351,22 @@ export default function VpConsolidatedQuestion({
             }}
             onFocus={e => { e.currentTarget.style.borderColor = T.accent; }}
             onBlur={e => { e.currentTarget.style.borderColor = T.borderLight; }}
+          />
+        </div>
+      )}
+
+      {/* Evidence & AI panels */}
+      {token && assessmentId && isAnswered && (
+        <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <VpEvidencePanel token={token} itemId={question.id} assessmentId={assessmentId} />
+          <VpAiPanel
+            token={token}
+            mode="item"
+            itemId={question.id}
+            subcategoryCode={question.category_id}
+            subcategoryDescription={question.question_text}
+            currentStatus={isAnswered ? 'assessed' : 'not_assessed'}
+            notes={notes}
           />
         </div>
       )}

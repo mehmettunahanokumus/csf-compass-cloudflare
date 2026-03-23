@@ -17,7 +17,10 @@ export type AuditAction =
   | 'status_updated'
   | 'assessment_submitted'
   | 'rate_limited'
-  | 'token_revoked';
+  | 'token_revoked'
+  | 'evidence_uploaded'
+  | 'evidence_deleted'
+  | 'ai_analysis_requested';
 
 /**
  * Log an audit event to the database

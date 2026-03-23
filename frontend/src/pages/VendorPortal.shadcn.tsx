@@ -428,6 +428,7 @@ export default function VendorPortalShadcn() {
             onSubmit={handleSubmit}
             onGoBack={handleGoBackFromReview}
             onGoToItem={handleGoToFunction}
+            token={token}
           />
         ) : (
           <VpReview
@@ -439,6 +440,7 @@ export default function VendorPortalShadcn() {
             onSubmit={handleSubmit}
             onGoBack={handleGoBackFromReview}
             onGoToItem={handleGoToFunction}
+            token={token}
           />
         )}
       </div>
@@ -468,6 +470,8 @@ export default function VendorPortalShadcn() {
           selectedFunctionId={selectedFunction}
           onSelectFunction={setSelectedFunction}
           onReview={handleGoToReview}
+          token={token}
+          assessmentId={assessment?.id}
         />
       ) : (
         <VpAssessment
@@ -483,6 +487,8 @@ export default function VendorPortalShadcn() {
           selectedFunctionId={selectedFunction}
           onSelectFunction={setSelectedFunction}
           onReview={handleGoToReview}
+          token={token}
+          assessmentId={assessment?.id}
         />
       )}
     </div>

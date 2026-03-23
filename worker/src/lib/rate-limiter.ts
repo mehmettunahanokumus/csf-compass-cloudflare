@@ -19,7 +19,9 @@ interface RateLimitConfig {
  */
 const RATE_LIMITS: Record<string, RateLimitConfig> = {
   'token_validation': { requests: 10, window: 60 },   // 10 requests per minute
-  'status_update': { requests: 30, window: 60 },      // 30 requests per minute
+  'status_update': { requests: 200, window: 60 },     // 200 requests per minute (vendors answering 120 controls)
+  'evidence_upload': { requests: 20, window: 60 },    // 20 uploads per minute
+  'ai_analysis': { requests: 5, window: 60 },         // 5 AI requests per minute
 };
 
 /**
@@ -30,7 +32,7 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
  */
 export async function rateLimiter(
   c: Context,
-  operation: 'token_validation' | 'status_update'
+  operation: 'token_validation' | 'status_update' | 'evidence_upload' | 'ai_analysis'
 ): Promise<{ allowed: boolean, retryAfter?: number }> {
   const ipAddress = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
   const config = RATE_LIMITS[operation];
@@ -39,19 +41,36 @@ export async function rateLimiter(
   const key = `rate:${operation}:${ipAddress}`;
 
   try {
-    // Get current count from KV
-    const currentCount = await c.env.RATE_LIMIT_KV.get(key);
-    const count = currentCount ? parseInt(currentCount, 10) : 0;
+    // Get current value: "count:windowStart"
+    const currentValue = await c.env.RATE_LIMIT_KV.get(key);
+    const now = Math.floor(Date.now() / 1000);
+    let count = 0;
+    let windowStart = now;
 
-    if (count >= config.requests) {
-      return { allowed: false, retryAfter: config.window };
+    if (currentValue) {
+      const parts = currentValue.split(':');
+      const storedCount = parseInt(parts[0], 10);
+      const storedStart = parseInt(parts[1], 10) || now;
+
+      // Check if we're still in the same window
+      if (now - storedStart < config.window) {
+        count = storedCount;
+        windowStart = storedStart;
+      }
+      // Otherwise, window expired — reset counter
     }
 
-    // Increment counter with TTL (auto-expires after window)
+    if (count >= config.requests) {
+      const retryAfter = config.window - (now - windowStart);
+      return { allowed: false, retryAfter: Math.max(retryAfter, 1) };
+    }
+
+    // Store "count:windowStart" with TTL for auto-cleanup
+    const remainingTtl = config.window - (now - windowStart);
     await c.env.RATE_LIMIT_KV.put(
       key,
-      (count + 1).toString(),
-      { expirationTtl: config.window }  // Auto-cleanup
+      `${count + 1}:${windowStart}`,
+      { expirationTtl: Math.max(remainingTtl, 1) }
     );
 
     return { allowed: true };
@@ -71,7 +90,7 @@ export async function rateLimiter(
  */
 export async function checkRateLimit(
   c: Context,
-  operation: 'token_validation' | 'status_update'
+  operation: 'token_validation' | 'status_update' | 'evidence_upload' | 'ai_analysis'
 ): Promise<Response | null> {
   const result = await rateLimiter(c, operation);
 

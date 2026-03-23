@@ -26,7 +26,6 @@ import {
 } from '../db/schema';
 import { maturityToStatus, statusToMaturity, TIER_ORDER, MATURITY_LEVELS } from '../lib/maturity-levels';
 import type { MaturityLevel } from '../lib/maturity-levels';
-import { cloneAssessmentForVendor } from '../lib/assessment-cloning';
 import {
   generateInvitationToken,
   validateInvitationToken,
@@ -37,6 +36,9 @@ import {
 import { checkRateLimit } from '../lib/rate-limiter';
 import { logAuditEvent } from '../lib/audit-logger';
 import { updateAssessmentScore } from '../lib/scoring';
+import { analyzeEvidence, generateRecommendations, generateExecutiveSummary } from '../lib/ai';
+import { generateR2Key, uploadFile, deleteFile, validateFile, generateDownloadToken } from '../lib/storage';
+import { evidence_files } from '../db/schema';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -84,37 +86,8 @@ app.post('/', async (c) => {
       return c.json({ error: 'Assessment must have a vendor_id' }, 400);
     }
 
-    // Check for existing active invitation for this org assessment
-    // Reuse vendor_self_assessment if one exists (avoid duplicate cloning)
-    const existingInvitation = await c.env.DB.prepare(
-      `SELECT * FROM vendor_assessment_invitations
-       WHERE organization_assessment_id = ? AND revoked_at IS NULL
-       ORDER BY created_at DESC LIMIT 1`
-    ).bind(body.organization_assessment_id).first();
-
-    let vendorAssessmentId: string;
-
-    if (existingInvitation && existingInvitation.vendor_self_assessment_id) {
-      // Reuse existing vendor self-assessment
-      vendorAssessmentId = existingInvitation.vendor_self_assessment_id as string;
-    } else {
-      // Get vendor's criticality level for tier-filtered cloning
-      const vendorResult = await db
-        .select({ criticality_level: vendors.criticality_level })
-        .from(vendors)
-        .where(eq(vendors.id, assessment.vendor_id!))
-        .limit(1);
-      const critLevel = vendorResult[0]?.criticality_level || 'medium';
-
-      // Clone assessment for vendor self-assessment (first time only)
-      vendorAssessmentId = await cloneAssessmentForVendor(
-        db,
-        c.env.DB,
-        body.organization_assessment_id,
-        assessment.organization_id,
-        critLevel
-      );
-    }
+    // Vendor fills the original assessment directly — no clone needed
+    const vendorAssessmentId = body.organization_assessment_id;
 
     // Generate JWT access token
     const tokenExpiryDays = body.token_expiry_days || 7; // Default 7 days
@@ -567,7 +540,18 @@ app.get('/:organizationAssessmentId/comparison', async (c) => {
       });
     }
 
-    // Get vendor self-assessment
+    // For new invitations where vendor fills the original assessment directly,
+    // no comparison is possible since both IDs point to the same assessment.
+    if (invitationResult.organization_assessment_id === invitationResult.vendor_self_assessment_id) {
+      return c.json({
+        comparison_available: false,
+        message: 'Vendor responses are recorded directly in this assessment. No comparison needed.',
+        organization_assessment: orgAssessment[0],
+        invitation: invitationResult,
+      });
+    }
+
+    // Fallback: comparison for old invitations where a cloned assessment exists
     const vendorAssessment = await db
       .select()
       .from(assessments)
@@ -801,20 +785,27 @@ app.get('/:token/consolidated', async (c) => {
       let currentNotes: string | null = null;
 
       if (mappedStatuses.length > 0) {
-        // All items should have the same status (set by consolidated answer)
-        // Use the most common status
-        const statusCounts: Record<string, number> = {};
-        for (const s of mappedStatuses) {
-          statusCounts[s!] = (statusCounts[s!] || 0) + 1;
-        }
-        const dominantStatus = Object.entries(statusCounts).sort((a, b) => b[1] - a[1])[0][0];
-        currentMaturity = statusToMaturity(dominantStatus);
-
         // Get notes from any mapped item that has notes
         const itemWithNotes = subcategoryIds
           .map(sid => itemsBySubcategory[sid])
           .find(item => item?.notes);
-        currentNotes = itemWithNotes?.notes || null;
+        const rawNotes = itemWithNotes?.notes || null;
+
+        // Parse [ML:X] prefix from notes for round-trip maturity level fidelity
+        const mlMatch = rawNotes?.match(/^\[ML:([1-5])\]\s?(.*)/s);
+        if (mlMatch) {
+          currentMaturity = parseInt(mlMatch[1], 10);
+          currentNotes = mlMatch[2] || null;
+        } else {
+          // Fallback: derive maturity from status (for items saved before [ML:X] encoding)
+          const statusCounts: Record<string, number> = {};
+          for (const s of mappedStatuses) {
+            statusCounts[s!] = (statusCounts[s!] || 0) + 1;
+          }
+          const dominantStatus = Object.entries(statusCounts).sort((a, b) => b[1] - a[1])[0][0];
+          currentMaturity = statusToMaturity(dominantStatus);
+          currentNotes = rawNotes;
+        }
       }
 
       return {
@@ -930,11 +921,14 @@ app.post('/:token/consolidated-answer', async (c) => {
       const batch = subcategoryIds.slice(i, i + updateBatchSize);
       const placeholders = batch.map(() => '?').join(',');
 
+      // Encode maturity level in notes with [ML:X] prefix for round-trip fidelity
+      const encodedNotes = `[ML:${maturity_level}]${notes ? ' ' + notes : ''}`;
+
       await c.env.DB.prepare(
         `UPDATE assessment_items
          SET status = ?, notes = ?, updated_at = ?
          WHERE assessment_id = ? AND subcategory_id IN (${placeholders})`
-      ).bind(derivedStatus, notes || null, now, vendorSelfAssessmentId, ...batch).run();
+      ).bind(derivedStatus, encodedNotes, now, vendorSelfAssessmentId, ...batch).run();
     }
 
     // Recalculate assessment score
@@ -979,6 +973,677 @@ app.post('/:token/consolidated-answer', async (c) => {
   } catch (error) {
     console.error('Error submitting consolidated answer:', error);
     return c.json({ error: 'Failed to submit answer' }, 500, SECURITY_HEADERS);
+  }
+});
+
+/**
+ * j) POST /api/vendor-invitations/:token/evidence/upload
+ * Upload evidence file from vendor portal
+ * Public endpoint with token-based auth and rate limiting
+ */
+app.post('/:token/evidence/upload', async (c) => {
+  const token = c.req.param('token');
+
+  try {
+    // 1. Rate limit
+    const rateLimitResponse = await checkRateLimit(c, 'evidence_upload');
+    if (rateLimitResponse) {
+      await logAuditEvent(c, token, 'rate_limited', { operation: 'evidence_upload' });
+      return rateLimitResponse;
+    }
+
+    // 2. Validate JWT token
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+    }
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+
+    // 3. Get invitation from database
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) {
+      return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    }
+
+    if (invitationResult.revoked_at) {
+      return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+    }
+
+    // 4. Parse multipart form data
+    const formData = await c.req.formData();
+    const file = formData.get('file') as File;
+    const assessmentItemId = formData.get('assessment_item_id') as string | null;
+
+    if (!file) {
+      return c.json({ error: 'File is required' }, 400, SECURITY_HEADERS);
+    }
+
+    // 5. Validate file type and size
+    const validation = validateFile(file.type, file.size);
+    if (!validation.valid) {
+      return c.json({ error: validation.error }, 400, SECURITY_HEADERS);
+    }
+
+    const assessmentId = invitationResult.vendor_self_assessment_id as string;
+    const orgId = invitationResult.organization_id as string;
+
+    // 6. If assessmentItemId provided, verify it belongs to this assessment
+    if (assessmentItemId) {
+      const itemCheck = await c.env.DB.prepare(
+        'SELECT id FROM assessment_items WHERE id = ? AND assessment_id = ?'
+      ).bind(assessmentItemId, assessmentId).first();
+
+      if (!itemCheck) {
+        return c.json({ error: 'Assessment item not found or does not belong to this assessment' }, 404, SECURITY_HEADERS);
+      }
+    }
+
+    // 7. Generate R2 key and upload file
+    const r2Key = generateR2Key(orgId, assessmentId, file.name);
+    const fileBuffer = await file.arrayBuffer();
+    await uploadFile(c.env.EVIDENCE_BUCKET, r2Key, fileBuffer, {
+      contentType: file.type,
+      fileName: file.name,
+      uploadedVia: 'vendor_portal',
+      invitationId: invitationId,
+    });
+
+    // 8. Insert into evidence_files using raw SQL (uploaded_by = NULL for vendor uploads)
+    const evidenceId = crypto.randomUUID();
+    const now = Date.now();
+
+    await c.env.DB.prepare(
+      `INSERT INTO evidence_files (id, assessment_id, assessment_item_id, file_name, file_size, file_type, r2_key, uploaded_by, uploaded_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`
+    ).bind(
+      evidenceId,
+      assessmentId,
+      assessmentItemId || null,
+      file.name,
+      file.size,
+      file.type,
+      r2Key,
+      now,
+      now
+    ).run();
+
+    // 9. Log audit event
+    await logAuditEvent(c, invitationId, 'evidence_uploaded', {
+      evidence_id: evidenceId,
+      file_name: file.name,
+      file_size: file.size,
+      assessment_item_id: assessmentItemId,
+    });
+
+    // 10. Generate download token
+    const downloadToken = await generateDownloadToken(r2Key);
+
+    return c.json({
+      id: evidenceId,
+      assessment_id: assessmentId,
+      assessment_item_id: assessmentItemId || null,
+      file_name: file.name,
+      file_size: file.size,
+      file_type: file.type,
+      r2_key: r2Key,
+      uploaded_by: null,
+      uploaded_at: now,
+      created_at: now,
+      download_url: `/api/evidence/download/${downloadToken}`,
+    }, 201, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error uploading vendor evidence:', error);
+    return c.json({ error: 'Failed to upload evidence file' }, 500, SECURITY_HEADERS);
+  }
+});
+
+/**
+ * k) GET /api/vendor-invitations/:token/evidence/item/:itemId
+ * List evidence files for a specific assessment item (vendor portal)
+ * Public endpoint with token-based auth
+ */
+app.get('/:token/evidence/item/:itemId', async (c) => {
+  const token = c.req.param('token');
+  const itemId = c.req.param('itemId');
+
+  try {
+    // 1. Validate JWT token
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+    }
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+
+    // 2. Get invitation
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) {
+      return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    }
+
+    if (invitationResult.revoked_at) {
+      return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+    }
+
+    const assessmentId = invitationResult.vendor_self_assessment_id as string;
+
+    // 3. Verify itemId belongs to the invitation's assessment
+    const itemCheck = await c.env.DB.prepare(
+      'SELECT id FROM assessment_items WHERE id = ? AND assessment_id = ?'
+    ).bind(itemId, assessmentId).first();
+
+    if (!itemCheck) {
+      return c.json({ error: 'Assessment item not found or does not belong to this assessment' }, 404, SECURITY_HEADERS);
+    }
+
+    // 4. Query evidence files for this item and assessment
+    const filesResult = await c.env.DB.prepare(
+      'SELECT * FROM evidence_files WHERE assessment_item_id = ? AND assessment_id = ? ORDER BY created_at DESC'
+    ).bind(itemId, assessmentId).all();
+
+    const files = filesResult.results || [];
+
+    // 5. Generate download tokens for each file
+    const filesWithUrls = await Promise.all(
+      files.map(async (file) => {
+        const downloadToken = await generateDownloadToken(file.r2_key as string);
+        return {
+          ...file,
+          download_url: `/api/evidence/download/${downloadToken}`,
+        };
+      })
+    );
+
+    return c.json({ files: filesWithUrls }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error fetching vendor evidence:', error);
+    return c.json({ error: 'Failed to fetch evidence files' }, 500, SECURITY_HEADERS);
+  }
+});
+
+/**
+ * l) DELETE /api/vendor-invitations/:token/evidence/:evidenceId
+ * Delete evidence file from vendor portal
+ * Public endpoint with token-based auth
+ */
+app.delete('/:token/evidence/:evidenceId', async (c) => {
+  const token = c.req.param('token');
+  const evidenceId = c.req.param('evidenceId');
+
+  try {
+    // 1. Validate JWT token
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+    }
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+
+    // 2. Get invitation
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) {
+      return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    }
+
+    if (invitationResult.revoked_at) {
+      return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+    }
+
+    const assessmentId = invitationResult.vendor_self_assessment_id as string;
+
+    // 3. Get evidence file record and verify it belongs to invitation's assessment
+    const evidenceRecord = await c.env.DB.prepare(
+      'SELECT * FROM evidence_files WHERE id = ? AND assessment_id = ?'
+    ).bind(evidenceId, assessmentId).first();
+
+    if (!evidenceRecord) {
+      return c.json({ error: 'Evidence file not found or does not belong to this assessment' }, 404, SECURITY_HEADERS);
+    }
+
+    // 4. Delete from R2
+    await deleteFile(c.env.EVIDENCE_BUCKET, evidenceRecord.r2_key as string);
+
+    // 5. Delete from database
+    await c.env.DB.prepare(
+      'DELETE FROM evidence_files WHERE id = ?'
+    ).bind(evidenceId).run();
+
+    // 6. Log audit event
+    await logAuditEvent(c, invitationId, 'evidence_deleted', {
+      evidence_id: evidenceId,
+      file_name: evidenceRecord.file_name,
+    });
+
+    return c.json({ success: true, message: 'Evidence file deleted successfully' }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error deleting vendor evidence:', error);
+    return c.json({ error: 'Failed to delete evidence file' }, 500, SECURITY_HEADERS);
+  }
+});
+
+// ============================================================================
+// PHASE 3: EXPORT ENDPOINTS
+// ============================================================================
+
+/**
+ * m) GET /api/vendor-invitations/:token/stats
+ * Get assessment statistics for export/display
+ * Public endpoint with token-based auth
+ */
+app.get('/:token/stats', async (c) => {
+  const token = c.req.param('token');
+
+  try {
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    if (invitationResult.revoked_at) return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+
+    const assessmentId = invitationResult.vendor_self_assessment_id as string;
+
+    // Get assessment
+    const assessment = await c.env.DB.prepare(
+      'SELECT * FROM assessments WHERE id = ?'
+    ).bind(assessmentId).first();
+
+    // Get all items with CSF hierarchy
+    const db = createDbClient(c.env.DB);
+    const items = await db
+      .select({
+        status: assessment_items.status,
+        function_id: csf_functions.id,
+        function_name: csf_functions.name,
+      })
+      .from(assessment_items)
+      .leftJoin(csf_subcategories, eq(assessment_items.subcategory_id, csf_subcategories.id))
+      .leftJoin(csf_categories, eq(csf_subcategories.category_id, csf_categories.id))
+      .leftJoin(csf_functions, eq(csf_categories.function_id, csf_functions.id))
+      .where(eq(assessment_items.assessment_id, assessmentId));
+
+    // Calculate distribution
+    const distribution = { compliant: 0, partial: 0, non_compliant: 0, not_assessed: 0, not_applicable: 0 };
+    for (const item of items) {
+      const s = (item.status || 'not_assessed') as keyof typeof distribution;
+      if (s in distribution) distribution[s]++;
+    }
+
+    // Calculate overall score
+    const total = items.length;
+    const overall_score = total > 0
+      ? Math.round(((distribution.compliant * 1 + distribution.partial * 0.5) / total) * 100 * 10) / 10
+      : 0;
+
+    // Per-function breakdown
+    const functionMap: Record<string, { function_id: string; function_name: string; total: number; compliant: number; partial: number; non_compliant: number; not_assessed: number }> = {};
+    for (const item of items) {
+      const fid = item.function_id || 'unknown';
+      if (!functionMap[fid]) {
+        functionMap[fid] = { function_id: fid, function_name: item.function_name || 'Unknown', total: 0, compliant: 0, partial: 0, non_compliant: 0, not_assessed: 0 };
+      }
+      functionMap[fid].total++;
+      const s = item.status || 'not_assessed';
+      if (s === 'compliant') functionMap[fid].compliant++;
+      else if (s === 'partial') functionMap[fid].partial++;
+      else if (s === 'non_compliant') functionMap[fid].non_compliant++;
+      else functionMap[fid].not_assessed++;
+    }
+
+    const function_breakdown = Object.values(functionMap).map(f => ({
+      ...f,
+      score: f.total > 0 ? Math.round(((f.compliant * 1 + f.partial * 0.5) / f.total) * 100 * 10) / 10 : 0,
+    }));
+
+    return c.json({
+      overall_score,
+      distribution,
+      function_breakdown,
+    }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    return c.json({ error: 'Failed to fetch stats' }, 500, SECURITY_HEADERS);
+  }
+});
+
+/**
+ * n) GET /api/vendor-invitations/:token/export-data
+ * Get full assessment data for client-side export (PDF/Excel/CSV)
+ * Public endpoint with token-based auth
+ */
+app.get('/:token/export-data', async (c) => {
+  const token = c.req.param('token');
+
+  try {
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    if (invitationResult.revoked_at) return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+
+    const assessmentId = invitationResult.vendor_self_assessment_id as string;
+
+    // Get assessment info
+    const assessment = await c.env.DB.prepare(
+      'SELECT * FROM assessments WHERE id = ?'
+    ).bind(assessmentId).first();
+
+    // Get vendor name
+    const vendor = await c.env.DB.prepare(
+      'SELECT name FROM vendors WHERE id = ?'
+    ).bind(invitationResult.vendor_id).first();
+
+    // Get items with full CSF hierarchy
+    const db = createDbClient(c.env.DB);
+    const rawItems = await db
+      .select({
+        subcategory_id: csf_subcategories.id,
+        subcategory_name: csf_subcategories.name,
+        category_id: csf_categories.id,
+        category_name: csf_categories.name,
+        function_id: csf_functions.id,
+        function_name: csf_functions.name,
+        status: assessment_items.status,
+        notes: assessment_items.notes,
+        item_id: assessment_items.id,
+      })
+      .from(assessment_items)
+      .leftJoin(csf_subcategories, eq(assessment_items.subcategory_id, csf_subcategories.id))
+      .leftJoin(csf_categories, eq(csf_subcategories.category_id, csf_categories.id))
+      .leftJoin(csf_functions, eq(csf_categories.function_id, csf_functions.id))
+      .where(eq(assessment_items.assessment_id, assessmentId));
+
+    // Get evidence counts per item (batch query)
+    const evidenceCounts: Record<string, number> = {};
+    const evidenceResult = await c.env.DB.prepare(
+      'SELECT assessment_item_id, COUNT(*) as cnt FROM evidence_files WHERE assessment_id = ? GROUP BY assessment_item_id'
+    ).bind(assessmentId).all();
+    for (const row of evidenceResult.results || []) {
+      evidenceCounts[row.assessment_item_id as string] = row.cnt as number;
+    }
+
+    const items = rawItems.map(item => ({
+      subcategory_id: item.subcategory_id || '',
+      subcategory_name: item.subcategory_name || '',
+      category_id: item.category_id || '',
+      category_name: item.category_name || '',
+      function_id: item.function_id || '',
+      function_name: item.function_name || '',
+      status: item.status || 'not_assessed',
+      notes: item.notes || null,
+      evidence_count: evidenceCounts[item.item_id] || 0,
+    }));
+
+    // Calculate stats inline
+    const distribution = { compliant: 0, partial: 0, non_compliant: 0, not_assessed: 0, not_applicable: 0 };
+    for (const item of items) {
+      const s = item.status as keyof typeof distribution;
+      if (s in distribution) distribution[s]++;
+    }
+    const total = items.length;
+    const overall_score = total > 0
+      ? Math.round(((distribution.compliant * 1 + distribution.partial * 0.5) / total) * 100 * 10) / 10
+      : 0;
+
+    // Per-function breakdown
+    const functionMap: Record<string, { function_id: string; function_name: string; total: number; compliant: number; partial: number; non_compliant: number; not_assessed: number }> = {};
+    for (const item of items) {
+      const fid = item.function_id || 'unknown';
+      if (!functionMap[fid]) {
+        functionMap[fid] = { function_id: fid, function_name: item.function_name || 'Unknown', total: 0, compliant: 0, partial: 0, non_compliant: 0, not_assessed: 0 };
+      }
+      functionMap[fid].total++;
+      const s = item.status;
+      if (s === 'compliant') functionMap[fid].compliant++;
+      else if (s === 'partial') functionMap[fid].partial++;
+      else if (s === 'non_compliant') functionMap[fid].non_compliant++;
+      else functionMap[fid].not_assessed++;
+    }
+
+    const function_breakdown = Object.values(functionMap).map(f => ({
+      ...f,
+      score: f.total > 0 ? Math.round(((f.compliant * 1 + f.partial * 0.5) / f.total) * 100 * 10) / 10 : 0,
+    }));
+
+    return c.json({
+      assessment_name: (assessment?.name as string) || 'Assessment',
+      vendor_name: (vendor?.name as string) || 'Vendor',
+      items,
+      stats: {
+        overall_score,
+        distribution,
+        function_breakdown,
+      },
+    }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error fetching export data:', error);
+    return c.json({ error: 'Failed to fetch export data' }, 500, SECURITY_HEADERS);
+  }
+});
+
+// ============================================================================
+// PHASE 4: AI ANALYSIS ENDPOINTS
+// ============================================================================
+
+/**
+ * o) POST /api/vendor-invitations/:token/ai/analyze
+ * AI analysis for a specific assessment item
+ * Public endpoint with token-based auth + rate limiting
+ */
+app.post('/:token/ai/analyze', async (c) => {
+  const token = c.req.param('token');
+
+  try {
+    // Rate limit
+    const rateLimitResponse = await checkRateLimit(c, 'ai_analysis');
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    if (invitationResult.revoked_at) return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+
+    const body = await c.req.json();
+    if (!body.subcategory_code) {
+      return c.json({ error: 'subcategory_code is required' }, 400, SECURITY_HEADERS);
+    }
+
+    const result = await analyzeEvidence(c.env.ANTHROPIC_API_KEY, {
+      subcategoryCode: body.subcategory_code,
+      subcategoryDescription: body.subcategory_description || '',
+      evidenceNotes: body.evidence_notes || '',
+      fileNames: body.file_names || [],
+      currentStatus: body.current_status || 'not_assessed',
+    });
+
+    // Log audit event
+    await logAuditEvent(c, invitationId, 'ai_analysis_requested', {
+      operation: 'evidence_analysis',
+      subcategory_code: body.subcategory_code,
+    });
+
+    return c.json({ success: true, result }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error in vendor AI analysis:', error);
+    return c.json({ error: 'Failed to analyze with AI' }, 500, SECURITY_HEADERS);
+  }
+});
+
+/**
+ * p) POST /api/vendor-invitations/:token/ai/gap-analysis
+ * AI gap analysis for the full vendor assessment
+ * Public endpoint with token-based auth + rate limiting
+ */
+app.post('/:token/ai/gap-analysis', async (c) => {
+  const token = c.req.param('token');
+
+  try {
+    const rateLimitResponse = await checkRateLimit(c, 'ai_analysis');
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    if (invitationResult.revoked_at) return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+
+    const assessmentId = invitationResult.vendor_self_assessment_id as string;
+
+    // Get assessment items with subcategory info
+    const db = createDbClient(c.env.DB);
+    const items = await db
+      .select({
+        subcategoryCode: csf_subcategories.id,
+        subcategoryDescription: csf_subcategories.description,
+        functionCode: csf_subcategories.category_id,
+        functionName: csf_subcategories.name,
+        status: assessment_items.status,
+        notes: assessment_items.notes,
+      })
+      .from(assessment_items)
+      .innerJoin(csf_subcategories, eq(assessment_items.subcategory_id, csf_subcategories.id))
+      .where(eq(assessment_items.assessment_id, assessmentId));
+
+    const recommendations = await generateRecommendations(c.env.ANTHROPIC_API_KEY, {
+      assessmentItems: items.map(item => ({
+        subcategoryCode: item.subcategoryCode,
+        subcategoryDescription: item.subcategoryDescription || '',
+        functionCode: item.functionCode.split('.')[0],
+        functionName: item.functionName,
+        status: item.status || 'not_assessed',
+        notes: item.notes || undefined,
+      })),
+    });
+
+    await logAuditEvent(c, invitationId, 'ai_analysis_requested', {
+      operation: 'gap_analysis',
+    });
+
+    return c.json({ success: true, recommendations }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error in vendor AI gap analysis:', error);
+    return c.json({ error: 'Failed to generate gap analysis' }, 500, SECURITY_HEADERS);
+  }
+});
+
+/**
+ * q) POST /api/vendor-invitations/:token/ai/executive-summary
+ * AI executive summary for the full vendor assessment
+ * Public endpoint with token-based auth + rate limiting
+ */
+app.post('/:token/ai/executive-summary', async (c) => {
+  const token = c.req.param('token');
+
+  try {
+    const rateLimitResponse = await checkRateLimit(c, 'ai_analysis');
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) return c.json({ error: 'Server configuration error' }, 500, SECURITY_HEADERS);
+
+    const tokenValidation = await validateInvitationToken(jwtSecret, token);
+    if (!tokenValidation.valid || !tokenValidation.payload) {
+      return c.json({ error: tokenValidation.error || 'Invalid token' }, 401, SECURITY_HEADERS);
+    }
+
+    const invitationId = tokenValidation.payload.invitationId;
+    const invitationResult = await c.env.DB.prepare(
+      'SELECT * FROM vendor_assessment_invitations WHERE id = ?'
+    ).bind(invitationId).first();
+
+    if (!invitationResult) return c.json({ error: 'Invitation not found' }, 404, SECURITY_HEADERS);
+    if (invitationResult.revoked_at) return c.json({ error: 'This invitation has been revoked' }, 403, SECURITY_HEADERS);
+
+    const body = await c.req.json();
+
+    const summary = await generateExecutiveSummary(c.env.ANTHROPIC_API_KEY, {
+      organizationName: body.organization_name || 'Vendor Organization',
+      industry: body.industry || 'Unknown',
+      overallScore: body.overall_score || 0,
+      functionScores: body.function_scores || [],
+      distribution: body.distribution || {
+        compliant: 0,
+        partial: 0,
+        non_compliant: 0,
+        not_assessed: 0,
+        not_applicable: 0,
+      },
+      topGaps: body.top_gaps || [],
+    });
+
+    await logAuditEvent(c, invitationId, 'ai_analysis_requested', {
+      operation: 'executive_summary',
+    });
+
+    return c.json({ success: true, summary }, 200, SECURITY_HEADERS);
+  } catch (error) {
+    console.error('Error in vendor AI executive summary:', error);
+    return c.json({ error: 'Failed to generate executive summary' }, 500, SECURITY_HEADERS);
   }
 });
 
