@@ -568,7 +568,7 @@ export default function ExcelImportModal({ groupId: _groupId, groupName, onClose
                 type="text"
                 value={singleCompanyName}
                 onChange={e => setSingleCompanyName(e.target.value)}
-                placeholder="e.g. XYZ Teknoloji A.Ş."
+                placeholder="e.g. XYZ Technology Inc."
                 style={inputStyle}
               />
               <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#475569', marginTop: 4 }}>

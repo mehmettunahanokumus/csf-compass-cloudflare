@@ -62,7 +62,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
         setAnswers(initial);
       })
       .catch((err) => {
-        setError(err?.response?.data?.error || 'Tiering bilgileri yüklenemedi.');
+        setError(err?.response?.data?.error || 'Failed to load tiering information.');
       })
       .finally(() => {
         setLoading(false);
@@ -100,7 +100,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
       const updatedVendor = await vendorsApi.submitTiering(vendorId, answers);
       onComplete(updatedVendor);
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Tiering kaydedilemedi.');
+      setError(err?.response?.data?.error || 'Failed to save tiering.');
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +141,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
             fontFamily: T.fontSans, fontSize: 18, fontWeight: 700,
             color: T.textPrimary, margin: 0,
           }}>
-            Vendor Kritiklik Değerlendirmesi
+            Vendor Criticality Assessment
           </h2>
           <p style={{
             fontFamily: T.fontSans, fontSize: 13, color: T.textMuted,
@@ -151,7 +151,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
             <span style={{ fontFamily: T.fontMono, fontWeight: 600 }}>
               {answeredCount}/{questions.length}
             </span>{' '}
-            cevaplandı
+            answered
           </p>
           {/* Progress bar */}
           <div style={{
@@ -178,7 +178,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
               padding: '48px 0',
             }}>
               <p style={{ fontFamily: T.fontSans, fontSize: 14, color: T.textMuted }}>
-                Yükleniyor...
+                Loading...
               </p>
             </div>
           )}
@@ -233,7 +233,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
                         padding: '2px 8px', borderRadius: 10,
                         flexShrink: 0, whiteSpace: 'nowrap',
                       }}>
-                        ağırlık: {q.weight}
+                        weight: {q.weight}
                       </span>
                     </div>
 
@@ -314,7 +314,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
                     fontFamily: T.fontSans, fontSize: 14, fontWeight: 700,
                     color: T.textPrimary, margin: '0 0 16px',
                   }}>
-                    Değerlendirme Sonucu
+                    Assessment Result
                   </h3>
 
                   {/* Tier + score row */}
@@ -349,15 +349,15 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary }}>
-                        Tahmini değerlendirme sorusu
+                        Estimated assessment questions
                       </span>
                       <span style={{ fontFamily: T.fontMono, fontSize: 13, fontWeight: 700, color: T.textPrimary }}>
-                        ~{TIER_QUESTION_COUNTS[tier]} soru
+                        ~{TIER_QUESTION_COUNTS[tier]} questions
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: T.fontSans, fontSize: 13, color: T.textSecondary }}>
-                        Kanıt yükleme
+                        Evidence upload
                       </span>
                       <span style={{
                         fontFamily: T.fontMono, fontSize: 12, fontWeight: 700,
@@ -365,7 +365,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
                         background: (tier === 'high' || tier === 'critical') ? T.dangerLight : T.successLight,
                         color: (tier === 'high' || tier === 'critical') ? T.danger : T.success,
                       }}>
-                        {(tier === 'high' || tier === 'critical') ? 'Zorunlu' : 'Opsiyonel'}
+                        {(tier === 'high' || tier === 'critical') ? 'Required' : 'Optional'}
                       </span>
                     </div>
                   </div>
@@ -380,13 +380,13 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
                         fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
                         color: T.warning, margin: '0 0 2px',
                       }}>
-                        Kanıt yükleme zorunlu
+                        Evidence upload required
                       </p>
                       <p style={{
                         fontFamily: T.fontSans, fontSize: 12,
                         color: T.textMuted, margin: 0,
                       }}>
-                        Yüksek ve kritik seviye vendörlar için değerlendirme sırasında kanıt yüklenmesi gereklidir.
+                        Evidence must be uploaded during assessment for high and critical tier vendors.
                       </p>
                     </div>
                   )}
@@ -414,7 +414,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
               opacity: submitting ? 0.5 : 1,
             }}
           >
-            İptal
+            Cancel
           </button>
           <button
             onClick={handleSubmit}
@@ -429,7 +429,7 @@ export const VendorTieringWizard: React.FC<VendorTieringWizardProps> = ({
               boxShadow: allAnswered && !submitting ? '0 1px 3px rgba(79,70,229,0.3)' : 'none',
             }}
           >
-            {submitting ? 'Kaydediliyor...' : 'Kaydet'}
+            {submitting ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>

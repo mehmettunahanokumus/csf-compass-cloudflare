@@ -1,18 +1,27 @@
 # CLAUDE.md - CSF Compass Project Context
 
-**Son Guncelleme:** 2026-03-05 | **Versiyon:** 1.0.0 (Production)
+**Last Updated:** 2026-03-11 | **Version:** 1.1.0 (Production)
 
-## Proje Ozeti
+## Critical Rules
 
-NIST CSF 2.0 tabanli vendor security assessment platformu. Supabase'den Cloudflare'e migrate edildi.
+1. **APPLICATION LANGUAGE IS ENGLISH.** All UI text, labels, buttons, error messages, placeholders, headings, tooltips, and any user-visible strings MUST be in English. Never write Turkish text in the codebase. The `_tr` fields in the database are optional translation data — never display them as primary text. When adding new features or components, always write all strings in English.
+2. **Percentage format is English-style:** `{value}%` (number first, then %), never `%{value}` (Turkish style).
+3. **Use `name`/`description` fields for display, not `name_tr`/`description_tr`.** The `_tr` fields exist for optional i18n data storage only.
+4. **Backend static data (e.g. tiering questions, maturity levels) must also be in English.** Only the `_tr` fields may contain Turkish translations.
+5. **Frontend uses T token design system (inline styles).** Do NOT use Tailwind CSS classes. All styling uses `T.*` tokens from `frontend/src/tokens.ts` with inline `style` props.
+6. **After modifying worker code, always redeploy:** `cd worker && npx wrangler deploy`. Stale deployments cause CORS errors and wrong URLs.
 
-**Temel Ozellikler:** Organizasyon self-assessment, vendor assessment, vendor self-assessment (magic link), grup sirketi yonetimi, assessment karsilastirma, Excel/PDF import, AI analiz, raporlama.
+## Project Summary
 
-## Mimari
+NIST CSF 2.0 based vendor security assessment platform. Migrated from Supabase to Cloudflare.
 
-| Katman | Teknoloji |
-|--------|-----------|
-| Frontend | React 19 + TypeScript + Vite 7 + Tailwind 4 |
+**Core Features:** Organization self-assessment, vendor assessment, vendor self-assessment (magic link), company group management, assessment comparison, Excel/PDF import, AI analysis, reporting.
+
+## Architecture
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19 + TypeScript + Vite 7 (inline styles with T tokens) |
 | Backend | Cloudflare Workers + Hono framework |
 | Database | Cloudflare D1 (SQLite) + Drizzle ORM |
 | Storage | Cloudflare R2 (evidence files) |
@@ -25,55 +34,55 @@ NIST CSF 2.0 tabanli vendor security assessment platformu. Supabase'den Cloudfla
 
 **Hardcoded Demo:** `organization_id: demo-org-123`, `user_id: demo-user-456`
 
-## Kritik Teknik Kararlar
+## Critical Technical Decisions
 
-- **D1 Bound Parameter Limiti: 100/query** (SQLite'in 999'undan farkli!). Raw SQL batch insert'lerde max 19 row (5 col x 19 = 95 < 100).
+- **D1 Bound Parameter Limit: 100/query** (different from SQLite's 999!). Raw SQL batch inserts max 19 rows (5 col x 19 = 95 < 100).
 - **UUID:** TEXT(36), **Timestamp:** INTEGER (Unix ms), **Boolean:** INTEGER(0/1), **JSON:** TEXT
 - **Vendor Portal Security:** JWT signed magic link (7-day expiry) -> one-time token consumption -> httpOnly session cookie (24h) -> KV rate limiting -> audit log
+- **FRONTEND_URL** in `worker/wrangler.toml` must always be `https://csf-compass.pages.dev` (production). Never use preview URLs.
 
-## Database Schema (6 migration, 15 tablo)
+## Database Schema (10 migrations, 17+ tables)
 
 **Core:** organizations, profiles, company_groups, vendors (group_id FK), assessments, assessment_items, assessment_wizard_progress
 **CSF Reference:** csf_functions(6), csf_categories(22), csf_subcategories(120)
+**Consolidated:** consolidated_questions(23), consolidated_question_mappings(120)
 **Evidence:** evidence_files (R2 metadata)
 **Vendor Portal:** vendor_assessment_invitations, vendor_audit_log
 **Other:** vendor_assessment_templates, action_plan_items
 
-**Migration 0005:** company_groups table + vendors.group_id
-**Migration 0006:** company_groups.risk_level + primary_contact
-
 ## API Endpoints (worker/src/routes/)
 
 **CSF:** GET functions, categories, subcategories, subcategories/:id
-**Vendors:** CRUD + GET /:id/stats | Query params: `organization_id`, `exclude_grouped=true`
+**Vendors:** CRUD + GET /:id/stats + GET/POST tiering | Query params: `organization_id`, `exclude_grouped=true`
 **Assessments:** CRUD + GET /:id/items, PATCH /:id/items/:itemId (auto-recalc score), POST /:id/calculate-score, GET /compare?ids=id1,id2
 **Evidence:** POST upload (multipart), GET download/:token (JWT), DELETE /:id, GET /item/:itemId, GET /assessment/:assessmentId
 **AI:** POST analyze, gap-analysis, executive-summary, chat (SSE streaming)
-**Vendor Invitations:** POST create, GET validate/:token, PATCH /:token/items/:itemId, POST /:token/complete, GET /:orgAssessmentId/comparison, GET /assessments/:id/invitation, POST /:invitationId/revoke
+**Vendor Invitations:** POST create, GET validate/:token, PATCH /:token/items/:itemId, POST /:token/complete, GET /:orgAssessmentId/comparison, GET /assessments/:id/invitation, POST /:invitationId/revoke, GET /:token/consolidated, POST /:token/consolidated-answer
+**Consolidated Questions:** GET /api/consolidated-questions?tier=X
 **Company Groups:** CRUD + GET /:id/summary (CSF function comparison)
 **Import:** POST preview (no DB write), POST confirm (creates group+vendor+assessment+items)
 
-## Frontend Yapisi
+## Frontend Structure
 
 **Build:** Vite 7 | **Deps:** axios, framer-motion, lucide-react, recharts, xlsx, jspdf, pdfjs-dist
 
-**Sayfa Dosyalari** (frontend/src/pages/): `.shadcn.tsx` en guncel versiyon, `.new.tsx` migration sureci.
+**Page Files** (frontend/src/pages/): `.shadcn.tsx` is the current version, `.new.tsx` is migration-era.
 
-| Sayfa | Aciklama |
-|-------|----------|
-| Dashboard | Stats, trend AreaChart, quick access kartlari |
-| Assessments | Filtreler (type/entity/status/sort), URL param persist |
-| NewAssessment | 3-step: Type(GroupCo/Vendor/Self) -> Entity secim -> Details |
-| AssessmentDetail | Header card + 4 stat + 3 tab (Overview/Items/Vendor) |
+| Page | Description |
+|------|------------|
+| Dashboard | Stats, trend AreaChart, quick access cards |
+| Assessments | Filters (type/entity/status/sort), URL param persistence |
+| NewAssessment | 3-step: Type(GroupCo/Vendor/Self) -> Entity select -> Details |
+| AssessmentDetail | Header card + 4 stats + 3 tabs (Overview/Items/Vendor) |
 | AssessmentWizard | 15-step guided, implementation guide per step |
 | AssessmentChecklist | "What's Required" + "Guidance" dual panels |
 | AssessmentReport | 4-section report, export PDF/Excel/CSV |
 | AssessmentHistoryComparison | Side-by-side + per-function BarChart |
 | Vendors | External vendors only (exclude_grouped) |
-| VendorDetail | 3 tab (Overview/Assessments/Trend), edit modal |
-| VendorPortal | Public magic-link portal, full-width, dark/light toggle |
+| VendorDetail | 3 tabs (Overview/Assessments/Trend), edit modal |
+| VendorPortal | Public magic-link portal, full-width, dark/light toggle, consolidated questions |
 | CompanyGroups | Internal subsidiaries, edit/delete per card |
-| CompanyGroupDetail | 3 tab (Overview/Assessments/Trend), subsidiary CRUD |
+| CompanyGroupDetail | 3 tabs (Overview/Assessments/Trend), subsidiary CRUD |
 | Analytics | Real API data, 5-option date range, 5 charts |
 | Exports (Reporting Center) | 4 report types x 3 formats (PDF/Excel/CSV) |
 | Organization | Branding: logo upload, company name, primary color (localStorage) |
@@ -83,6 +92,13 @@ NIST CSF 2.0 tabanli vendor security assessment platformu. Supabase'den Cloudfla
 - `CsfLogo` - SVG brand component (teal gradient + shield + "C")
 - `ExcelImportModal` - XLSX/CSV/PDF import with fuzzy column detection
 - `Sidebar` - Branding-aware (localStorage logo/name/color)
+- `VendorTieringWizard` - 6-question criticality assessment wizard
+- `VpConsolidatedQuestion` - Maturity-level question card for vendor portal
+- `SendToVendorModal` - Create vendor assessment link modal
+
+**Vendor Portal Modes:**
+- **Consolidated mode** (default): 23 category-level maturity questions, tier-filtered
+- **Legacy mode**: 120 individual subcategory items
 
 **API Services** (frontend/src/api/): assessments, vendors (.list() exclude_grouped, .listAll() all), csf, evidence, ai, vendor-invitations (separate axios, withCredentials), company-groups, import
 
@@ -93,13 +109,14 @@ Score = (Met x 1 + Partially_Met x 0.5) / Total_Items x 100
 ```
 Auto-recalculated on item update.
 
-## Bilinen Kritik Sorunlar
+## Known Critical Issues
 
-1. **D1 100 param limit** - Raw SQL, max 19 row/batch. Drizzle ORM batch insert kullanma!
-2. **exclude_grouped filtresi** - Vendors sayfasi `exclude_grouped=true` gonderiyor. Grup sirketleri sadece Group Companies'de gorunur.
-3. **Demo auth** - Hardcoded org/user. Production icin Cloudflare Access veya custom auth gerekli.
+1. **D1 100 param limit** - Raw SQL, max 19 row/batch. Do NOT use Drizzle ORM batch insert!
+2. **exclude_grouped filter** - Vendors page sends `exclude_grouped=true`. Group companies only appear in Group Companies section.
+3. **Demo auth** - Hardcoded org/user. Production needs Cloudflare Access or custom auth.
+4. **Worker redeployment** - After any worker code change, must redeploy. Stale deployments cause CORS/URL issues.
 
-## Gelistirme Komutlari
+## Development Commands
 
 ```bash
 # Dev
@@ -121,44 +138,8 @@ npx wrangler secret put JWT_SECRET
 npx wrangler tail
 ```
 
-## Onemli Dosyalar
+## Important Files
 
-**Backend:** `worker/src/index.ts` (entry), `worker/src/db/schema.ts` (Drizzle schema), `worker/src/routes/*.ts`, `worker/src/lib/*.ts` (scoring, storage, ai, invitation-tokens, rate-limiter, audit-logger, assessment-cloning)
-**Frontend:** `frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/src/types/index.ts`, `frontend/src/api/*.ts`, `frontend/src/pages/*.tsx`
+**Backend:** `worker/src/index.ts` (entry), `worker/src/db/schema.ts` (Drizzle schema), `worker/src/routes/*.ts`, `worker/src/lib/*.ts` (scoring, storage, ai, invitation-tokens, rate-limiter, audit-logger, assessment-cloning, tiering, maturity-levels)
+**Frontend:** `frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/src/types/index.ts`, `frontend/src/api/*.ts`, `frontend/src/pages/*.tsx`, `frontend/src/tokens.ts` (design system)
 **Config:** `worker/wrangler.toml`, `worker/migrations/*.sql`
-
-## Phase Ozeti (Kronolojik)
-
-| # | Tarih | Ozet |
-|---|-------|------|
-| 1-4 | Feb 10-11 | Infra + DB(14 tablo, CSF seed, demo data) + Worker API(23 endpoint) + Frontend(31 sayfa) |
-| 5 | Feb 11 | Vendor self-assessment: JWT magic link, session, rate limit, audit log |
-| 6 | Feb 12 | UI theme: Teal->Navy Blue, dark mode, Inter+Playfair Display |
-| 7 | Feb 11 | Production deployment |
-| 8 | Feb 12 | Claude Code + Serena + Context7 integration |
-| 9 | Feb 18 | Company groups + historical comparison + Excel import + XYZ Holding demo (11 sirket) |
-| 10 | Feb 19 | Bug fixes, visual improvements, reporting center, checklist details, wizard generalization |
-| 11 | Feb 20 | Dark mode contrast audit (CSS token fixes) |
-| 12 | Feb 21 | Groups -> Group Companies rename |
-| 13 | Feb 21 | Wizard implementation guide + checklist enhanced details |
-| 14 | Feb 21 | Assessment report redesign (4-section, SheetJS export) |
-| 15 | Feb 19 | Historical comparison: recharts AreaChart + filters + per-function BarChart |
-| 16 | Feb 19 | Reporting Center: jsPDF + xlsx real file generation (4 report types) |
-| 17 | Feb 19 | VendorDetail profile editing bug fixes (6 bugs: notes mapping, missing fields, toast, optimistic UI) |
-| 18 | Feb 19 | CompanyGroupDetail subsidiary CRUD + backend group_id POST fix |
-| 19 | Feb 19 | Analytics: static demo -> real API data + date range filter + 5 reactive charts |
-| 20 | Feb 19 | Assessment type/company tags (Self=indigo, Vendor=purple, GroupCo=blue) |
-| 21 | Feb 19 | AssessmentChecklist: "What's Required" + "Guidance" dual panels |
-| 22 | Feb 19 | Multi-format export dropdown (PDF/Excel/CSV per report) |
-| 23 | Feb 19 | Contextual AI chatbot (pre-built QA, keyword matching, page-aware greetings) |
-| 24 | Feb 19 | Global chatbot + AI Assistant dual mode (SSE streaming, POST /api/ai/chat) |
-| 25 | Feb 20 | Group company edit/delete + corporate identity branding (localStorage) |
-| 26 | Feb 20 | Assessments page: type/entity/status/sort filters + URL param persistence |
-| 27 | Feb 20 | New Assessment 3-step flow (GroupCo/Vendor/Self -> entity select -> details) |
-| 28 | Feb 20 | Assessments entity filter bug fix (vendor JOIN missing in list endpoint) |
-| 29 | Feb 20 | XLSX + PDF import (pdfjs-dist, fuzzy column detection, single_mapping step) |
-| 30 | Feb 20 | Favicon (SVG+ICO) + CsfLogo React component |
-| 31 | Feb 20 | CompanyGroupDetail redesign: tabs, collapsible months, LineChart trend |
-| 32 | Feb 20 | VendorDetail redesign: tabs, letter avatar, edit modal, AreaChart trend |
-| 33 | Feb 20 | AssessmentDetail redesign: header card, stat cards, 3 tabs, overflow menu |
-| 34 | Feb 20 | Dashboard redesign: real data AreaChart, quick access cards, dynamic stats |

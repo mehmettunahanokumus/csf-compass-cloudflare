@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Building2, Package, ShieldCheck, Check, Search, X,
   AlertTriangle, Info,
@@ -56,7 +56,10 @@ const TIER_QUESTION_COUNTS: Record<string, number> = {
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function NewAssessmentNew() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<number>(1);
+  const [searchParams] = useSearchParams();
+  const vendorIdFromUrl = searchParams.get('vendor');
+
+  const [step, setStep] = useState<number>(vendorIdFromUrl ? 3 : 1);
   const [extVendors, setExtVendors]   = useState<Vendor[]>([]);  // external only
   const [allVendors, setAllVendors]   = useState<Vendor[]>([]);  // all (for subsidiaries)
   const [loading,          setLoading]         = useState(false);
@@ -66,7 +69,7 @@ export default function NewAssessmentNew() {
 
   const [formData, setFormData] = useState<FormData>({
     entityType: 'vendor',
-    vendorId:   '',
+    vendorId:   vendorIdFromUrl || '',
     name:       '',
     description: '',
   });

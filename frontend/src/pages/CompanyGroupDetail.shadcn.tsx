@@ -967,7 +967,7 @@ export default function CompanyGroupDetail() {
             )}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Company Name *</label>
-              <input value={subForm.name} onChange={e => setSubForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. XYZ Enerji A.Ş." style={inputStyle} />
+              <input value={subForm.name} onChange={e => setSubForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. XYZ Energy Inc." style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Risk Level</label>

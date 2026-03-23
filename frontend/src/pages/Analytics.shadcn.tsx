@@ -284,7 +284,14 @@ export default function Analytics() {
           axios.get(`${API_URL}/api/vendors`,     { params: { organization_id: ORG_ID, exclude_grouped: 'true' } }),
         ]);
         if (!cancelled) {
-          setAllAssessments(aRes.data);
+          // Normalize created_at to numeric ms — Drizzle timestamp_ms mode
+          // serializes Date objects as ISO strings via JSON, but we need numbers
+          // for date-range filtering comparisons.
+          const normalized = (aRes.data as Assessment[]).map(a => ({
+            ...a,
+            created_at: typeof a.created_at === 'string' ? new Date(a.created_at).getTime() : a.created_at,
+          }));
+          setAllAssessments(normalized);
           setAllVendors(vRes.data);
         }
       } catch {

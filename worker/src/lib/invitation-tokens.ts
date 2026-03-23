@@ -11,7 +11,7 @@ import jwt from '@tsndr/cloudflare-worker-jwt';
  * Generate signed JWT token for vendor invitation magic link
  * @param jwtSecret - Secret key for signing (from environment)
  * @param invitationId - UUID of the invitation record
- * @param vendorAssessmentId - UUID of the vendor's cloned assessment
+ * @param vendorAssessmentId - UUID of the assessment ID
  * @param orgAssessmentId - UUID of the organization's original assessment
  * @param expiresInDays - Token expiration in days (max 7 days)
  * @returns Signed JWT token string

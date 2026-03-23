@@ -93,6 +93,35 @@ export default function AssessmentComparison() {
     );
   }
 
+  // If vendor responses are recorded directly in the original assessment, no comparison is needed
+  if (
+    (data as any).comparison_available === false ||
+    (data.organization_assessment as any).id === (data as any).vendor_self_assessment_id
+  ) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 320, gap: 16 }}>
+        <AlertCircle size={36} style={{ color: T.accent }} />
+        <p style={{ fontFamily: T.fontSans, fontSize: 15, fontWeight: 600, color: T.textPrimary, margin: 0, textAlign: 'center' }}>
+          Vendor responses are recorded directly in this assessment. No comparison view is needed.
+        </p>
+        <Link
+          to={id ? `/assessments/${id}` : '/assessments'}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '10px 20px', borderRadius: 8,
+            background: T.accent, color: '#fff', textDecoration: 'none',
+            fontFamily: T.fontSans, fontSize: 13, fontWeight: 600,
+            transition: 'opacity 0.15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.9'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+        >
+          <ArrowLeft size={14} /> Back to Assessment
+        </Link>
+      </div>
+    );
+  }
+
   const functions = Array.from(
     new Map(data.comparison_items.filter((item) => item.function).map((item) => [item.function!.id, item.function!])).values()
   );

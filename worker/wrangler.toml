@@ -24,4 +24,4 @@ id = "d10ab5d0eff347c1946f8889e657bbd0"
 [vars]
 ENVIRONMENT = "production"
 ALLOWED_ORIGINS = "https://csf-compass.pages.dev,http://localhost:5173"
-FRONTEND_URL = "https://a5637370.csf-compass.pages.dev"
+FRONTEND_URL = "https://csf-compass.pages.dev"

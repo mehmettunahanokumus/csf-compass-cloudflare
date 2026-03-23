@@ -17,5 +17,5 @@ id = "d10ab5d0eff347c1946f8889e657bbd0"
 
 [vars]
 ENVIRONMENT = "production"
-ALLOWED_ORIGINS = "https://a5637370.csf-compass.pages.dev,https://1a820af8.csf-compass.pages.dev,https://96cf8704.csf-compass.pages.dev,https://607275df.csf-compass.pages.dev,https://b849f2eb.csf-compass.pages.dev,https://62fdd2ec.csf-compass.pages.dev,https://0ca10645.csf-compass.pages.dev,https://10a88821.csf-compass.pages.dev,https://55d23782.csf-compass.pages.dev,https://154e3d9f.csf-compass.pages.dev,https://3023e404.csf-compass.pages.dev,https://1e5fa394.csf-compass.pages.dev,https://csf-compass.pages.dev,http://localhost:5173"
-FRONTEND_URL = "https://a5637370.csf-compass.pages.dev"
+ALLOWED_ORIGINS = "https://csf-compass.pages.dev,http://localhost:5173"
+FRONTEND_URL = "https://csf-compass.pages.dev"

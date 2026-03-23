@@ -89,11 +89,6 @@ export default function ControlItem({
         </span>
         <span style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, flex: 1, lineHeight: 1.5 }}>
           {item.subcategory?.name || item.subcategory?.description?.substring(0, 90)}
-          {item.subcategory?.description_tr && (
-            <span style={{ display: 'block', fontSize: 11, color: T.textMuted, fontStyle: 'italic', marginTop: 2 }}>
-              {item.subcategory.description_tr}
-            </span>
-          )}
         </span>
         <span style={{ ...statusBadgeStyle(status), flexShrink: 0 }}>
           {statusLabel(status)}
@@ -150,15 +145,6 @@ export default function ControlItem({
           }}>
             {controlDescription}
           </p>
-          {item.subcategory?.description_tr && (
-            <p style={{
-              fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, fontStyle: 'italic',
-              margin: '4px 0 0', lineHeight: 1.6,
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
-            }}>
-              {item.subcategory.description_tr}
-            </p>
-          )}
         </div>
 
         {/* Status badge */}
@@ -188,20 +174,15 @@ export default function ControlItem({
         }}>
           <div>
             <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
-              Aciklama / Description
+              Description
             </span>
             <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: '4px 0 0', lineHeight: 1.6 }}>
               {controlDescription}
             </p>
-            {item.subcategory?.description_tr && (
-              <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, fontStyle: 'italic', margin: '4px 0 0', lineHeight: 1.6 }}>
-                {item.subcategory.description_tr}
-              </p>
-            )}
           </div>
           <div>
             <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
-              Ne Anlama Geliyor / What This Means
+              What This Means
             </span>
             <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: '4px 0 0', lineHeight: 1.6 }}>
               {guidance.capability}
@@ -210,7 +191,7 @@ export default function ControlItem({
           {item.subcategory?.priority && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontFamily: T.fontSans, fontSize: 10, fontWeight: 600, color: T.accent, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
-                Oncelik / Priority:
+                Priority:
               </span>
               <span style={{
                 fontFamily: T.fontSans, fontSize: 11, fontWeight: 600,
@@ -343,11 +324,6 @@ export default function ControlItem({
               <p style={{ fontFamily: T.fontSans, fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.65 }}>
                 {controlDescription}
               </p>
-              {item.subcategory?.description_tr && (
-                <p style={{ fontFamily: T.fontSans, fontSize: 11, color: T.textMuted, fontStyle: 'italic', margin: '6px 0 0', lineHeight: 1.65 }}>
-                  {item.subcategory.description_tr}
-                </p>
-              )}
             </div>
 
             {/* Evidence requirements */}

@@ -382,13 +382,25 @@ app.post('/chat', async (c) => {
       },
     });
 
-    return new Response(readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'X-Accel-Buffering': 'no',
-      },
-    });
+    // Build SSE response with CORS headers from Hono context
+    const origin = c.req.header('origin') || '';
+    const sseHeaders: Record<string, string> = {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no',
+    };
+
+    // Copy CORS headers that middleware set on context
+    const corsOrigin = c.res.headers.get('Access-Control-Allow-Origin');
+    if (corsOrigin) {
+      sseHeaders['Access-Control-Allow-Origin'] = corsOrigin;
+    } else if (origin) {
+      sseHeaders['Access-Control-Allow-Origin'] = origin;
+    }
+    sseHeaders['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
+    sseHeaders['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+
+    return new Response(readable, { headers: sseHeaders });
   } catch (error) {
     console.error('AI chat error:', error);
     return c.json({ error: 'Failed to process chat request' }, 500);
