@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Upload, Trash2, Download, FileText, Image, File, Loader2, AlertCircle, X } from 'lucide-react';
-import { T, card } from '../../tokens';
+import { T } from '../../tokens';
 import { vendorInvitationsApi } from '../../api/vendor-invitations';
 import type { EvidenceFile } from '../../types';
 import { API_BASE_URL } from '../../api/client';
@@ -34,7 +34,7 @@ function FileIcon({ type }: { type?: string }) {
   return <File size={size} color={color} />;
 }
 
-export default function VpEvidencePanel({ token, itemId, assessmentId }: VpEvidencePanelProps) {
+export default function VpEvidencePanel({ token, itemId, assessmentId: _assessmentId }: VpEvidencePanelProps) {
   const [files, setFiles] = useState<EvidenceFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
