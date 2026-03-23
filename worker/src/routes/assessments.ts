@@ -584,6 +584,25 @@ app.patch('/:id/items/:itemId', async (c) => {
       return c.json({ error: 'Assessment item not found' }, 404);
     }
 
+    // Block editing vendor self-assessment items from the org side
+    const parentAssessment = await db
+      .select({ assessment_type: assessments.assessment_type })
+      .from(assessments)
+      .where(eq(assessments.id, assessmentId))
+      .limit(1);
+
+    if (parentAssessment.length > 0 && parentAssessment[0].assessment_type === 'vendor') {
+      const linkedInvitation = await db
+        .select({ id: vendor_assessment_invitations.id })
+        .from(vendor_assessment_invitations)
+        .where(eq(vendor_assessment_invitations.vendor_self_assessment_id, assessmentId))
+        .limit(1);
+
+      if (linkedInvitation.length > 0) {
+        return c.json({ error: 'Cannot modify vendor self-assessment responses' }, 403);
+      }
+    }
+
     // Update item
     const updated = await db
       .update(assessment_items)

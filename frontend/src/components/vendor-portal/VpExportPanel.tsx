@@ -29,77 +29,148 @@ const VpExportPanel: React.FC<VpExportPanelProps> = ({ token }) => {
     try {
       const data = await fetchData();
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-
-      // Title
-      doc.setFontSize(18);
-      doc.text('NIST CSF 2.0 Assessment Report', 14, 20);
-
-      doc.setFontSize(11);
-      doc.setTextColor(100);
-      doc.text(`Assessment: ${data.assessment_name}`, 14, 30);
-      doc.text(`Vendor: ${data.vendor_name}`, 14, 37);
-      doc.text(`Date: ${new Date().toLocaleDateString('en-US')}`, 14, 44);
-
-      // Score summary
-      doc.setFontSize(14);
-      doc.setTextColor(0);
-      doc.text('Score Summary', 14, 58);
-
-      doc.setFontSize(11);
-      doc.text(`Overall Score: ${data.stats.overall_score}%`, 14, 66);
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const W = doc.internal.pageSize.getWidth();
+      const H = doc.internal.pageSize.getHeight();
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const score = data.stats.overall_score ?? 0;
       const dist = data.stats.distribution;
-      doc.text(`Compliant: ${dist.compliant} | Partial: ${dist.partial} | Non-Compliant: ${dist.non_compliant} | Not Assessed: ${dist.not_assessed} | N/A: ${dist.not_applicable}`, 14, 73);
+      const totalItems = dist.compliant + dist.partial + dist.non_compliant + dist.not_assessed + dist.not_applicable;
 
-      // Function breakdown
-      let y = 86;
-      doc.setFontSize(14);
-      doc.text('Score by Function', 14, y);
-      y += 8;
-      doc.setFontSize(10);
-
-      for (const fn of data.stats.function_breakdown) {
-        if (y > 270) {
-          doc.addPage();
-          y = 20;
-        }
-        doc.text(`${fn.function_name}: ${fn.score}% (${fn.compliant}/${fn.total} compliant)`, 14, y);
-        y += 7;
-      }
-
-      // Items table
-      y += 6;
-      if (y > 240) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.setFontSize(14);
-      doc.text('Assessment Items', 14, y);
-      y += 10;
-      doc.setFontSize(8);
-
-      // Table header
+      // ── Header bar ──────────────────────────────────────────────────────
+      doc.setFillColor(79, 70, 229);
+      doc.rect(0, 0, W, 32, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.text('Subcategory', 14, y);
-      doc.text('Function', 80, y);
-      doc.text('Status', 130, y);
-      doc.text('Evidence', 170, y);
+      doc.setFontSize(16);
+      doc.text('NIST CSF 2.0 Assessment Report', 15, 14);
       doc.setFont('helvetica', 'normal');
-      y += 6;
+      doc.setFontSize(9);
+      doc.text(`${data.assessment_name}  |  ${data.vendor_name}  |  ${today}`, 15, 24);
 
-      for (const item of data.items) {
-        if (y > 280) {
-          doc.addPage();
-          y = 20;
-        }
-        const subcatLabel = item.subcategory_id.length > 30
-          ? item.subcategory_id.substring(0, 27) + '...'
-          : item.subcategory_id;
-        doc.text(subcatLabel, 14, y);
-        doc.text(item.function_name.substring(0, 25), 80, y);
-        doc.text(item.status.replace('_', ' '), 130, y);
-        doc.text(String(item.evidence_count), 170, y);
-        y += 5;
+      // ── Executive Summary box ───────────────────────────────────────────
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(15, 38, W - 30, 46, 3, 3, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(15, 38, W - 30, 46, 3, 3, 'S');
+
+      // Large score
+      const sR = score >= 80 ? 22 : score >= 50 ? 217 : 239;
+      const sG = score >= 80 ? 163 : score >= 50 ? 119 : 68;
+      const sB = score >= 80 ? 74 : score >= 50 ? 6 : 68;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(36);
+      doc.setTextColor(sR, sG, sB);
+      doc.text(`${score.toFixed(1)}%`, 25, 62);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Overall Compliance Score', 25, 69);
+      doc.setFontSize(8);
+      doc.text(`${totalItems} items assessed`, 25, 76);
+
+      // Status distribution badges (right side of summary box)
+      const badges = [
+        { label: 'Compliant',     value: dist.compliant,      r: 22,  g: 163, b: 74  },
+        { label: 'Partial',       value: dist.partial,        r: 217, g: 119, b: 6   },
+        { label: 'Non-Compliant', value: dist.non_compliant,  r: 239, g: 68,  b: 68  },
+        { label: 'Not Assessed',  value: dist.not_assessed,   r: 100, g: 116, b: 139 },
+        { label: 'N/A',           value: dist.not_applicable, r: 148, g: 163, b: 184 },
+      ];
+      const badgeStartX = 95;
+      const badgeW = (W - 30 - badgeStartX + 15) / badges.length;
+      badges.forEach((b, i) => {
+        const bx = badgeStartX + i * badgeW;
+        doc.setFillColor(b.r, b.g, b.b);
+        doc.roundedRect(bx, 46, badgeW - 3, 18, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.text(String(b.value), bx + (badgeW - 3) / 2, 55, { align: 'center' });
+        doc.setFontSize(5.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(b.label, bx + (badgeW - 3) / 2, 61, { align: 'center' });
+      });
+
+      // ── CSF Function Breakdown table ────────────────────────────────────
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text('CSF Function Breakdown', 15, 96);
+
+      autoTable(doc, {
+        startY: 100,
+        head: [['Function', 'Score %', 'Compliant', 'Partial', 'Non-Compliant', 'Not Assessed']],
+        body: data.stats.function_breakdown.map(fn => [
+          fn.function_name,
+          `${fn.score.toFixed(1)}%`,
+          fn.compliant,
+          fn.partial,
+          fn.non_compliant,
+          fn.not_assessed,
+        ]),
+        styles: { fontSize: 9, font: 'helvetica', cellPadding: 4 },
+        headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          1: { halign: 'center', fontStyle: 'bold' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'center' },
+          5: { halign: 'center' },
+        },
+        didParseCell: (hookData: any) => {
+          // Color-code score column
+          if (hookData.section === 'body' && hookData.column.index === 1) {
+            const val = parseFloat(hookData.cell.raw as string);
+            if (val >= 80) hookData.cell.styles.textColor = [22, 163, 74];
+            else if (val >= 50) hookData.cell.styles.textColor = [217, 119, 6];
+            else hookData.cell.styles.textColor = [239, 68, 68];
+          }
+        },
+      });
+
+      // ── Key Findings section ────────────────────────────────────────────
+      const findings = data.items
+        .filter(i => i.status === 'non_compliant' || i.status === 'partial')
+        .slice(0, 20);
+
+      if (findings.length > 0) {
+        const afterFn = (doc as any).lastAutoTable?.finalY ?? 180;
+        if (afterFn > H - 60) doc.addPage();
+        const fY = afterFn > H - 60 ? 20 : afterFn + 14;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Areas Requiring Attention (${findings.length})`, 15, fY);
+
+        autoTable(doc, {
+          startY: fY + 4,
+          head: [['Control ID', 'Control Name', 'Status', 'Notes']],
+          body: findings.map(f => [
+            f.subcategory_id,
+            f.subcategory_name || '',
+            f.status === 'non_compliant' ? 'Non-Compliant' : 'Partial',
+            (f.notes ?? '').slice(0, 80) || '-',
+          ]),
+          styles: { fontSize: 8, font: 'helvetica', cellPadding: 3, overflow: 'linebreak' },
+          headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+          alternateRowStyles: { fillColor: [255, 250, 250] },
+          columnStyles: { 3: { cellWidth: 65 } },
+        });
+      }
+
+      // ── Footer on all pages ─────────────────────────────────────────────
+      const pageCount = doc.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Generated by CSF Compass  |  ${today}`, 15, H - 8);
+        doc.text(`Page ${p} of ${pageCount}`, W - 15, H - 8, { align: 'right' });
       }
 
       doc.save(`${data.assessment_name.replace(/\s+/g, '_')}_report.pdf`);

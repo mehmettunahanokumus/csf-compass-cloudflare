@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell,
 } from 'recharts';
 import { assessmentsApi } from '../api/assessments';
 import { vendorsApi } from '../api/vendors';
@@ -109,6 +110,35 @@ function TrendTooltip({ active, payload, label }: any) {
   );
 }
 
+function OrgVendorTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 8, padding: '8px 12px',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+    }}>
+      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.text3, marginBottom: 4 }}>{label}</div>
+      {payload.map((p: any) => (
+        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.color }} />
+          <span style={{ fontFamily: T.font, fontSize: 11, color: T.text2, fontWeight: 500 }}>{p.name}:</span>
+          <span style={{ fontFamily: T.mono, fontSize: 14, fontWeight: 700, color: p.color }}>
+            {p.value != null ? `${p.value}%` : 'N/A'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function criticalityColor(level?: string) {
+  if (level === 'critical') return T.danger;
+  if (level === 'high')     return T.warning;
+  if (level === 'medium')   return '#EAB308';
+  return T.success;
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -157,6 +187,82 @@ export default function Dashboard() {
         name:  a.name,
       })),
     [completed]
+  );
+
+  // ── Vendor-specific derived data ────────────────────────────────────────────
+  const assessedVendors = useMemo(
+    () => vendors.filter(v => (v.latest_assessment_score ?? 0) > 0),
+    [vendors],
+  );
+
+  const tierDistribution = useMemo(() => {
+    const tiers: Record<string, { count: number; color: string }> = {
+      critical: { count: 0, color: '#DC2626' },
+      high:     { count: 0, color: '#D97706' },
+      medium:   { count: 0, color: '#EAB308' },
+      low:      { count: 0, color: '#16A34A' },
+    };
+    for (const v of vendors) {
+      const t = v.criticality_level ?? 'low';
+      if (tiers[t]) tiers[t].count++;
+    }
+    return Object.entries(tiers).map(([tier, { count, color }]) => ({
+      tier: tier.charAt(0).toUpperCase() + tier.slice(1),
+      count,
+      color,
+    }));
+  }, [vendors]);
+
+  // Org vs Vendor score trend (by month)
+  const orgVendorTrend = useMemo(() => {
+    const orgCompleted = completed.filter(a => a.assessment_type === 'organization');
+    const vendorCompleted = completed.filter(a => a.assessment_type === 'vendor');
+    const monthMap: Record<string, { label: string; orgScores: number[]; vendorScores: number[] }> = {};
+    const add = (a: Assessment, isVendor: boolean) => {
+      const d = new Date(a.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthMap[key]) monthMap[key] = { label: d.toLocaleString('en-US', { month: 'short' }), orgScores: [], vendorScores: [] };
+      if (a.overall_score != null) {
+        if (isVendor) monthMap[key].vendorScores.push(a.overall_score);
+        else monthMap[key].orgScores.push(a.overall_score);
+      }
+    };
+    orgCompleted.forEach(a => add(a, false));
+    vendorCompleted.forEach(a => add(a, true));
+    const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null;
+    return Object.entries(monthMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-8)
+      .map(([, { label, orgScores, vendorScores }]) => ({
+        month: label, org: avg(orgScores), vendor: avg(vendorScores),
+      }));
+  }, [completed]);
+
+  // Vendor risk distribution by score range
+  const riskDistribution = useMemo(() => {
+    const ranges = [
+      { label: '0-25 (Critical)', min: 0,  max: 25,  color: '#DC2626', count: 0 },
+      { label: '25-50 (High)',    min: 25, max: 50,  color: '#D97706', count: 0 },
+      { label: '50-75 (Medium)',  min: 50, max: 75,  color: '#EAB308', count: 0 },
+      { label: '75-100 (Low)',    min: 75, max: 100, color: '#16A34A', count: 0 },
+    ];
+    for (const v of vendors) {
+      const s = v.latest_assessment_score;
+      if (s == null) continue;
+      for (const r of ranges) {
+        if (s >= r.min && (s < r.max || (r.max === 100 && s <= 100))) { r.count++; break; }
+      }
+    }
+    return ranges;
+  }, [vendors]);
+
+  // Top 5 at-risk vendors (lowest score)
+  const topAtRisk = useMemo(() =>
+    [...vendors]
+      .filter(v => v.latest_assessment_score != null)
+      .sort((a, b) => (a.latest_assessment_score ?? 0) - (b.latest_assessment_score ?? 0))
+      .slice(0, 5),
+    [vendors],
   );
 
   // ── Loading skeleton ────────────────────────────────────────────────────────
@@ -229,6 +335,15 @@ export default function Dashboard() {
       color: highRisk.length > 0 ? T.danger : T.success,
       sub: highRisk.length > 0 ? 'Score below 50% — review needed' : 'No high-risk vendors',
     },
+    {
+      icon: CheckCircle2,
+      value: `${assessedVendors.length}/${vendors.length}`,
+      label: 'Vendors Assessed',
+      color: vendors.length > 0 && assessedVendors.length === vendors.length ? T.success : '#0EA5E9',
+      sub: vendors.length > 0
+        ? `${Math.round((assessedVendors.length / vendors.length) * 100)}% coverage`
+        : 'No vendors added',
+    },
   ];
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -266,7 +381,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── KPI cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
         {kpis.map((k, i) => {
           const Icon = k.icon;
           return (
@@ -609,6 +724,241 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* ── Vendor Tier Distribution + Vendor Risk Distribution ── */}
+      {vendors.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+
+          {/* Vendor Tier Distribution */}
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.accent, flexShrink: 0 }} />
+              <span style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, color: T.text1 }}>
+                Vendor Tier Distribution
+              </span>
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={tierDistribution} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                <XAxis type="number" allowDecimals={false}
+                  tick={{ fill: 'var(--text-3)', fontSize: 10, fontFamily: T.font }}
+                  axisLine={false} tickLine={false}
+                />
+                <YAxis type="category" dataKey="tier" width={70}
+                  tick={{ fill: 'var(--text-3)', fontSize: 11, fontFamily: T.font, fontWeight: 600 }}
+                  axisLine={false} tickLine={false}
+                />
+                <Tooltip
+                  cursor={{ fill: 'rgba(99,102,241,0.04)' }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload;
+                    return (
+                      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: '8px 12px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)' }}>
+                        <div style={{ fontFamily: T.font, fontSize: 11, color: T.text2 }}>{d.tier}</div>
+                        <div style={{ fontFamily: T.mono, fontSize: 20, fontWeight: 700, color: d.color }}>{d.count}</div>
+                      </div>
+                    );
+                  }}
+                />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={18}>
+                  {tierDistribution.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Vendor Risk Distribution */}
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.danger, flexShrink: 0 }} />
+              <span style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, color: T.text1 }}>
+                Vendor Risk Distribution
+              </span>
+            </div>
+            {riskDistribution.some(r => r.count > 0) ? (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={riskDistribution} margin={{ left: -10, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="label"
+                    tick={{ fill: 'var(--text-3)', fontSize: 9, fontFamily: T.font }}
+                    axisLine={false} tickLine={false}
+                  />
+                  <YAxis allowDecimals={false}
+                    tick={{ fill: 'var(--text-3)', fontSize: 10, fontFamily: T.font }}
+                    axisLine={false} tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(99,102,241,0.04)' }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: '8px 12px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)' }}>
+                          <div style={{ fontFamily: T.font, fontSize: 11, color: T.text2 }}>{d.label}</div>
+                          <div style={{ fontFamily: T.mono, fontSize: 20, fontWeight: 700, color: d.color }}>{d.count} vendors</div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={36}>
+                    {riskDistribution.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{
+                height: 180, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                <BarChart3 size={20} style={{ color: T.text3 }} />
+                <div style={{ fontFamily: T.font, fontSize: 12, color: T.text3 }}>No assessed vendors yet</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Org vs Vendor Score Trend ── */}
+      {orgVendorTrend.length >= 2 && (
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <div style={{ width: 3, height: 14, borderRadius: 2, background: T.success, flexShrink: 0 }} />
+            <span style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, color: T.text1 }}>
+              Org vs Vendor Score Trend
+            </span>
+            <span style={{ marginLeft: 'auto', fontFamily: T.mono, fontSize: 11, color: T.text3 }}>
+              Monthly averages
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={orgVendorTrend} margin={{ left: -10, right: 8, top: 4 }}>
+              <defs>
+                <linearGradient id="dashOrgGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366F1" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#6366F1" stopOpacity={0.01} />
+                </linearGradient>
+                <linearGradient id="dashVendorGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#16A34A" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#16A34A" stopOpacity={0.01} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="month"
+                tick={{ fill: 'var(--text-3)', fontSize: 10, fontFamily: T.mono }}
+                axisLine={false} tickLine={false}
+              />
+              <YAxis domain={[0, 100]}
+                tick={{ fill: 'var(--text-3)', fontSize: 10, fontFamily: T.font }}
+                axisLine={false} tickLine={false}
+                tickFormatter={v => `${v}%`}
+              />
+              <Tooltip content={<OrgVendorTooltip />} cursor={{ stroke: T.accentBorder, strokeWidth: 1 }} />
+              <Area type="monotone" dataKey="org" name="Organization"
+                stroke="#6366F1" fill="url(#dashOrgGrad)" strokeWidth={2.5}
+                dot={{ fill: '#6366F1', r: 3, strokeWidth: 0 }}
+                activeDot={{ fill: '#6366F1', r: 5, strokeWidth: 0 }}
+                connectNulls
+              />
+              <Area type="monotone" dataKey="vendor" name="Avg Vendor"
+                stroke="#16A34A" fill="url(#dashVendorGrad)" strokeWidth={2}
+                dot={{ fill: '#16A34A', r: 3, strokeWidth: 0 }}
+                activeDot={{ fill: '#16A34A', r: 5, strokeWidth: 0 }}
+                connectNulls
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+          <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
+            {[{ color: '#6366F1', label: 'Organization' }, { color: '#16A34A', label: 'Avg Vendor' }].map(l => (
+              <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 16, height: 3, borderRadius: 2, background: l.color }} />
+                <span style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, color: T.text3 }}>{l.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Top At-Risk Vendors ── */}
+      {topAtRisk.length > 0 && (
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '14px 20px', borderBottom: `1px solid ${T.border}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.danger, flexShrink: 0 }} />
+              <span style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, color: T.text1 }}>
+                Top At-Risk Vendors
+              </span>
+            </div>
+            <Link to="/vendors" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontFamily: T.font, fontSize: 12, fontWeight: 600, color: T.accent, textDecoration: 'none',
+            }}>
+              View all <ArrowRight size={12} />
+            </Link>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: T.surface2 }}>
+                {['Vendor', 'Score', 'Criticality'].map(h => (
+                  <th key={h} style={{
+                    textAlign: 'left', padding: '9px 20px',
+                    fontFamily: T.font, fontSize: 10, fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    color: T.text2, borderBottom: `1px solid ${T.border}`,
+                  }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {topAtRisk.map((v, idx) => {
+                const s = v.latest_assessment_score ?? 0;
+                const crit = v.criticality_level ?? 'low';
+                return (
+                  <tr key={v.id} style={{
+                    borderBottom: idx < topAtRisk.length - 1 ? `1px solid ${T.border}` : 'none',
+                  }}>
+                    <td style={{ padding: '12px 20px' }}>
+                      <span style={{ fontFamily: T.font, fontSize: 13, fontWeight: 600, color: T.text1 }}>
+                        {v.name}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 20px' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center',
+                        padding: '3px 10px', borderRadius: 100,
+                        fontFamily: T.mono, fontSize: 12, fontWeight: 700,
+                        background: `${scoreColor(s)}12`, color: scoreColor(s),
+                      }}>
+                        {s.toFixed(0)}%
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 20px' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center',
+                        padding: '3px 10px', borderRadius: 100,
+                        fontFamily: T.font, fontSize: 11, fontWeight: 700,
+                        background: `${criticalityColor(crit)}12`, color: criticalityColor(crit),
+                        textTransform: 'capitalize',
+                      }}>
+                        {crit}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
     </div>
   );
