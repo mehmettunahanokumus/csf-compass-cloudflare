@@ -23,5 +23,6 @@ id = "d10ab5d0eff347c1946f8889e657bbd0"
 # Generate JWT_SECRET with: openssl rand -base64 32
 [vars]
 ENVIRONMENT = "production"
-ALLOWED_ORIGINS = "https://csf-compass.pages.dev,http://localhost:5173"
-FRONTEND_URL = "https://csf-compass.pages.dev"
+ALLOWED_ORIGINS = "https://csf-compass.pages.dev,https://assessment.tunahanokumus.com.tr,http://localhost:5173"
+FRONTEND_URL = "https://assessment.tunahanokumus.com.tr"
+FROM_EMAIL = "noreply@assessment.tunahanokumus.com.tr"

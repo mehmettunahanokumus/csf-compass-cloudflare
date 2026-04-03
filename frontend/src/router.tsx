@@ -4,17 +4,24 @@
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppLayout from './components/layout/AppShell.shadcn';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Auth pages (public)
+import Login from './pages/Login.shadcn';
+import Signup from './pages/Signup.shadcn';
+import ForgotPassword from './pages/ForgotPassword.shadcn';
+import ResetPassword from './pages/ResetPassword.shadcn';
+import AcceptInvite from './pages/AcceptInvite.shadcn';
+
+// App pages (protected)
 import Dashboard from './pages/Dashboard.shadcn';
 import Assessments from './pages/Assessments.shadcn';
 import AssessmentDetail from './pages/AssessmentDetail.shadcn';
 import AssessmentComparison from './pages/AssessmentComparison.shadcn';
 import AssessmentChecklist from './pages/AssessmentChecklist.shadcn';
-import AssessmentReport from './pages/AssessmentReport';
 import NewAssessment from './pages/NewAssessment.new';
 import Vendors from './pages/Vendors.shadcn';
 import VendorDetail from './pages/VendorDetail.shadcn';
-import VendorRanking from './pages/VendorRanking';
-import VendorTemplates from './pages/VendorTemplates';
 import VendorNew from './pages/VendorNew';
 import VendorEdit from './pages/VendorEdit';
 import VendorPortal from './pages/VendorPortal.shadcn';
@@ -28,109 +35,41 @@ import CompanyGroupDetail from './pages/CompanyGroupDetail.shadcn';
 import AssessmentHistoryComparison from './pages/AssessmentHistoryComparison.shadcn';
 
 export const router = createBrowserRouter([
-  // Public routes (outside AppLayout) — both paths serve VendorPortal directly
-  {
-    path: '/vendor-portal/:token',
-    element: <VendorPortal />,
-  },
-  {
-    path: '/assess/:token',
-    element: <VendorPortal />,
-  },
+  // Public auth routes
+  { path: '/login', element: <Login /> },
+  { path: '/signup', element: <Signup /> },
+  { path: '/forgot-password', element: <ForgotPassword /> },
+  { path: '/reset-password/:token', element: <ResetPassword /> },
+  { path: '/accept-invite/:token', element: <AcceptInvite /> },
+
+  // Public vendor portal routes
+  { path: '/vendor-portal/:token', element: <VendorPortal /> },
+  { path: '/assess/:token', element: <VendorPortal /> },
 
   // Protected routes (inside AppLayout)
   {
     path: '/',
-    element: <AppLayout />,
+    element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
     children: [
-      {
-        index: true,
-        element: <Navigate to="/dashboard" replace />,
-      },
-      {
-        path: 'dashboard',
-        element: <Dashboard />,
-      },
-      {
-        path: 'assessments',
-        element: <Assessments />,
-      },
-      {
-        path: 'assessments/new',
-        element: <NewAssessment />,
-      },
-      {
-        path: 'assessments/:id',
-        element: <AssessmentDetail />,
-      },
-      {
-        path: 'assessments/:id/comparison',
-        element: <AssessmentComparison />,
-      },
-      {
-        path: 'assessments/:id/wizard',
-        element: <AssessmentWizard />,
-      },
-      {
-        path: 'assessments/:id/checklist',
-        element: <AssessmentChecklist />,
-      },
-      {
-        path: 'assessments/:id/report',
-        element: <AssessmentReport />,
-      },
-      {
-        path: 'vendors',
-        element: <Vendors />,
-      },
-      {
-        path: 'vendors/ranking',
-        element: <VendorRanking />,
-      },
-      {
-        path: 'vendors/templates',
-        element: <VendorTemplates />,
-      },
-      {
-        path: 'vendors/new',
-        element: <VendorNew />,
-      },
-      {
-        path: 'vendors/:id/edit',
-        element: <VendorEdit />,
-      },
-      {
-        path: 'vendors/:id',
-        element: <VendorDetail />,
-      },
-      {
-        path: 'vendors/:vendorId/compare',
-        element: <AssessmentHistoryComparison />,
-      },
-      {
-        path: 'company-groups',
-        element: <CompanyGroups />,
-      },
-      {
-        path: 'company-groups/:id',
-        element: <CompanyGroupDetail />,
-      },
-      {
-        path: 'analytics',
-        element: <Analytics />,
-      },
-      {
-        path: 'exports',
-        element: <Exports />,
-      },
-      {
-        path: 'organization',
-        element: <Organization />,
-      },
-      {
-        path: 'profile',
-        element: <Profile />,
-      },
+      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { path: 'dashboard', element: <Dashboard /> },
+      { path: 'assessments', element: <Assessments /> },
+      { path: 'assessments/new', element: <NewAssessment /> },
+      { path: 'assessments/:id', element: <AssessmentDetail /> },
+      { path: 'assessments/:id/comparison', element: <AssessmentComparison /> },
+      { path: 'assessments/:id/wizard', element: <AssessmentWizard /> },
+      { path: 'assessments/:id/checklist', element: <AssessmentChecklist /> },
+      { path: 'vendors', element: <Vendors /> },
+      { path: 'vendors/new', element: <VendorNew /> },
+      { path: 'vendors/:id/edit', element: <VendorEdit /> },
+      { path: 'vendors/:id', element: <VendorDetail /> },
+      { path: 'vendors/:vendorId/compare', element: <AssessmentHistoryComparison /> },
+      { path: 'company-groups', element: <CompanyGroups /> },
+      { path: 'company-groups/:id', element: <CompanyGroupDetail /> },
+      { path: 'analytics', element: <Analytics /> },
+      { path: 'exports', element: <Exports /> },
+      { path: 'organization', element: <Organization /> },
+      { path: 'profile', element: <Profile /> },
     ],
   },
 ]);

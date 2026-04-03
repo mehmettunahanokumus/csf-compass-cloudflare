@@ -36,7 +36,7 @@ export async function logAuditEvent(
   metadata?: Record<string, any>
 ): Promise<void> {
   try {
-    const ipAddress = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
+    const ipAddress = c.req.header('cf-connecting-ip') || 'unknown';
     const userAgent = c.req.header('user-agent') || 'unknown';
 
     await c.env.DB.prepare(

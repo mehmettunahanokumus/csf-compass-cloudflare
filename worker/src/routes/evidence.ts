@@ -10,7 +10,7 @@
 
 import { Hono } from 'hono';
 import { eq } from 'drizzle-orm';
-import type { Env } from '../types/env';
+import type { Env, AuthVariables } from '../types/env';
 import { createDbClient } from '../db/client';
 import { evidence_files, assessment_items } from '../db/schema';
 import {
@@ -25,7 +25,7 @@ import {
   getFileExtension,
 } from '../lib/storage';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 /**
  * POST /api/evidence/upload
@@ -44,28 +44,27 @@ app.post('/upload', async (c) => {
     const file = formData.get('file') as File;
     const assessmentId = formData.get('assessment_id') as string;
     const assessmentItemId = formData.get('assessment_item_id') as string | null;
-    const organizationId = formData.get('organization_id') as string;
-    const uploadedBy = formData.get('uploaded_by') as string;
+    const organizationId = (formData.get('organization_id') as string) || c.get('organizationId');
+    const uploadedBy = (formData.get('uploaded_by') as string) || c.get('userId');
 
     // Validate required fields
     if (!file || !assessmentId || !organizationId) {
       return c.json(
-        { error: 'file, assessment_id, and organization_id are required' },
+        { error: 'file and assessment_id are required' },
         400
       );
     }
 
-    // Validate file
-    const validation = validateFile(file.type, file.size);
+    // Read file buffer and validate with magic bytes
+    const fileBuffer = await file.arrayBuffer();
+    const fileBytes = new Uint8Array(fileBuffer.slice(0, 8));
+    const validation = validateFile(file.type, file.size, fileBytes);
     if (!validation.valid) {
       return c.json({ error: validation.error }, 400);
     }
 
     // Generate R2 key
     const r2Key = generateR2Key(organizationId, assessmentId, file.name);
-
-    // Upload to R2
-    const fileBuffer = await file.arrayBuffer();
     await uploadFile(c.env.EVIDENCE_BUCKET, r2Key, fileBuffer, {
       contentType: file.type,
       fileName: file.name,
@@ -87,7 +86,7 @@ app.post('/upload', async (c) => {
       .returning();
 
     // Generate download token
-    const downloadToken = await generateDownloadToken(r2Key);
+    const downloadToken = await generateDownloadToken(c.env.JWT_SECRET, r2Key);
 
     return c.json({
       ...newEvidence[0],
@@ -108,7 +107,7 @@ app.get('/download/:token', async (c) => {
     const token = c.req.param('token');
 
     // Validate token and get file path
-    const decoded = await validateDownloadToken(token);
+    const decoded = await validateDownloadToken(c.env.JWT_SECRET, token);
     if (!decoded) {
       return c.json({ error: 'Invalid or expired download token' }, 403);
     }
@@ -200,7 +199,7 @@ app.get('/item/:itemId', async (c) => {
     // Generate download tokens for each file
     const filesWithTokens = await Promise.all(
       files.map(async (file) => {
-        const downloadToken = await generateDownloadToken(file.r2_key);
+        const downloadToken = await generateDownloadToken(c.env.JWT_SECRET, file.r2_key);
         return {
           ...file,
           download_url: `/api/evidence/download/${downloadToken}`,
@@ -232,7 +231,7 @@ app.get('/assessment/:assessmentId', async (c) => {
     // Generate download tokens
     const filesWithTokens = await Promise.all(
       files.map(async (file) => {
-        const downloadToken = await generateDownloadToken(file.r2_key);
+        const downloadToken = await generateDownloadToken(c.env.JWT_SECRET, file.r2_key);
         return {
           ...file,
           download_url: `/api/evidence/download/${downloadToken}`,

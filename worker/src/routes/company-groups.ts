@@ -12,7 +12,7 @@
 
 import { Hono } from 'hono';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import type { Env } from '../types/env';
+import type { Env, AuthVariables } from '../types/env';
 import { createDbClient } from '../db/client';
 import {
   company_groups,
@@ -24,7 +24,7 @@ import {
   csf_functions,
 } from '../db/schema';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 /**
  * GET /?organization_id=xxx
@@ -33,7 +33,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.get('/', async (c) => {
   try {
     const db = createDbClient(c.env.DB);
-    const organizationId = c.req.query('organization_id');
+    const organizationId = c.req.query('organization_id') || c.get('organizationId');
 
     if (!organizationId) {
       return c.json({ error: 'organization_id is required' }, 400);
@@ -72,15 +72,16 @@ app.post('/', async (c) => {
     const db = createDbClient(c.env.DB);
     const body = await c.req.json();
 
-    if (!body.organization_id || !body.name) {
-      return c.json({ error: 'organization_id and name are required' }, 400);
+    const orgId = body.organization_id || c.get('organizationId');
+    if (!orgId || !body.name) {
+      return c.json({ error: 'name is required' }, 400);
     }
 
     const now = new Date();
     const newGroup = await db
       .insert(company_groups)
       .values({
-        organization_id: body.organization_id,
+        organization_id: orgId,
         name: body.name,
         description: body.description || null,
         industry: body.industry || null,

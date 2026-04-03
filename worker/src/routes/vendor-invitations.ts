@@ -38,6 +38,7 @@ import { logAuditEvent } from '../lib/audit-logger';
 import { updateAssessmentScore } from '../lib/scoring';
 import { analyzeEvidence, generateRecommendations, generateExecutiveSummary } from '../lib/ai';
 import { generateR2Key, uploadFile, deleteFile, validateFile, generateDownloadToken } from '../lib/storage';
+import { sendEmail, vendorInviteEmail } from '../lib/email';
 import { evidence_files } from '../db/schema';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -135,6 +136,31 @@ app.post('/', async (c) => {
     // Generate magic link
     const baseUrl = c.env.FRONTEND_URL || 'http://localhost:5173';
     const magicLink = generateMagicLink(accessToken, baseUrl);
+
+    // Send invitation email to vendor
+    const fromEmail = c.env.FROM_EMAIL || 'noreply@assessment.tunahanokumus.com.tr';
+    if (c.env.RESEND_API_KEY) {
+      const vendorResult = await db.select({ name: vendors.name })
+        .from(vendors).where(eq(vendors.id, assessment.vendor_id)).limit(1);
+      const vendorName = vendorResult[0]?.name || 'Vendor';
+
+      const orgResult = await c.env.DB.prepare(
+        'SELECT name FROM organizations WHERE id = ?'
+      ).bind(assessment.organization_id).first<{ name: string }>();
+      const orgName = orgResult?.name || 'Organization';
+
+      const expiryDays = body.expiry_days || body.token_expiry_days || 7;
+
+      try {
+        await sendEmail(
+          c.env.RESEND_API_KEY, fromEmail, body.vendor_contact_email,
+          `Security Assessment Request from ${orgName}`,
+          vendorInviteEmail(vendorName, orgName, magicLink, expiryDays)
+        );
+      } catch (err) {
+        console.error('Vendor invite email failed:', err);
+      }
+    }
 
     return c.json({
       invitation_id: invitationId,
@@ -1027,8 +1053,10 @@ app.post('/:token/evidence/upload', async (c) => {
       return c.json({ error: 'File is required' }, 400, SECURITY_HEADERS);
     }
 
-    // 5. Validate file type and size
-    const validation = validateFile(file.type, file.size);
+    // 5. Validate file type, size, and magic bytes
+    const fileBuffer = await file.arrayBuffer();
+    const fileBytes = new Uint8Array(fileBuffer.slice(0, 8));
+    const validation = validateFile(file.type, file.size, fileBytes);
     if (!validation.valid) {
       return c.json({ error: validation.error }, 400, SECURITY_HEADERS);
     }
@@ -1049,7 +1077,6 @@ app.post('/:token/evidence/upload', async (c) => {
 
     // 7. Generate R2 key and upload file
     const r2Key = generateR2Key(orgId, assessmentId, file.name);
-    const fileBuffer = await file.arrayBuffer();
     await uploadFile(c.env.EVIDENCE_BUCKET, r2Key, fileBuffer, {
       contentType: file.type,
       fileName: file.name,
@@ -1085,7 +1112,7 @@ app.post('/:token/evidence/upload', async (c) => {
     });
 
     // 10. Generate download token
-    const downloadToken = await generateDownloadToken(r2Key);
+    const downloadToken = await generateDownloadToken(c.env.JWT_SECRET, r2Key);
 
     return c.json({
       id: evidenceId,
@@ -1163,7 +1190,7 @@ app.get('/:token/evidence/item/:itemId', async (c) => {
     // 5. Generate download tokens for each file
     const filesWithUrls = await Promise.all(
       files.map(async (file) => {
-        const downloadToken = await generateDownloadToken(file.r2_key as string);
+        const downloadToken = await generateDownloadToken(c.env.JWT_SECRET, file.r2_key as string);
         return {
           ...file,
           download_url: `/api/evidence/download/${downloadToken}`,

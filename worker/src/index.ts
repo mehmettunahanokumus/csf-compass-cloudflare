@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import type { Env } from './types/env';
+import type { Env, AuthVariables } from './types/env';
+import { requireOrgAuth } from './lib/auth';
 
 // Import route handlers
+import authRouter from './routes/auth';
 import assessmentsRouter from './routes/assessments';
 import vendorsRouter from './routes/vendors';
 import evidenceRouter from './routes/evidence';
@@ -14,10 +16,19 @@ import companyGroupsRouter from './routes/company-groups';
 import importRouter from './routes/import';
 import consolidatedQuestionsRouter from './routes/consolidated-questions';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 // Middleware
 app.use('*', logger());
+
+// Security headers
+app.use('*', async (c, next) => {
+  await next();
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+});
 
 // Unified CORS middleware
 // Hono's app.use('/exact-path', handler) does NOT reliably match OPTIONS preflight
@@ -32,21 +43,14 @@ app.use('*', async (c, next) => {
   const isVendorInvitations = c.req.path === '/api/vendor-invitations'
     || c.req.path.startsWith('/api/vendor-invitations/');
 
-  if (isVendorInvitations) {
-    // Vendor invitations: strict origin check + credentials for session cookies
-    if (isAllowed) {
-      c.header('Access-Control-Allow-Origin', origin);
-      c.header('Access-Control-Allow-Credentials', 'true');
-      c.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
-      c.header('Access-Control-Allow-Headers', 'Content-Type');
-      c.header('Vary', 'Origin');
-    }
-  } else {
-    // General API: allow known origins, fallback to '*'
-    c.header('Access-Control-Allow-Origin', isAllowed ? origin : '*');
-    c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // All routes need credentials for session cookies
+  if (isAllowed) {
+    c.header('Access-Control-Allow-Origin', origin);
+    c.header('Access-Control-Allow-Credentials', 'true');
+    c.header('Vary', 'Origin');
   }
+  c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (c.req.method === 'OPTIONS') {
     return c.text('', 204);
@@ -64,7 +68,16 @@ app.get('/health', (c) => {
   });
 });
 
-// Mount API routes
+// Org-scoped auth middleware (excludes vendor-invitations which has its own JWT auth, and CSF which is public reference data)
+app.use('/api/assessments/*', requireOrgAuth);
+app.use('/api/vendors/*', requireOrgAuth);
+app.use('/api/evidence/*', requireOrgAuth);
+app.use('/api/ai/*', requireOrgAuth);
+app.use('/api/company-groups/*', requireOrgAuth);
+app.use('/api/import/*', requireOrgAuth);
+
+// Mount API routes (auth is public — no requireOrgAuth)
+app.route('/api/auth', authRouter);
 app.route('/api/assessments', assessmentsRouter);
 app.route('/api/vendors', vendorsRouter);
 app.route('/api/evidence', evidenceRouter);
@@ -83,7 +96,7 @@ app.notFound((c) => {
 // Error handler
 app.onError((err, c) => {
   console.error('Unhandled error:', err);
-  return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+  return c.json({ error: 'Internal Server Error' }, 500);
 });
 
 export default app;

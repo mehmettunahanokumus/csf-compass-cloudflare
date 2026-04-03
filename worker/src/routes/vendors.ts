@@ -12,12 +12,12 @@
 
 import { Hono } from 'hono';
 import { eq, and, count, desc, isNull } from 'drizzle-orm';
-import type { Env } from '../types/env';
+import type { Env, AuthVariables } from '../types/env';
 import { createDbClient } from '../db/client';
 import { vendors, assessments } from '../db/schema';
 import { TIERING_QUESTIONS, calculateTier } from '../lib/tiering';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 /**
  * GET /api/vendors?organization_id=xxx
@@ -26,7 +26,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.get('/', async (c) => {
   try {
     const db = createDbClient(c.env.DB);
-    const organizationId = c.req.query('organization_id');
+    const organizationId = c.req.query('organization_id') || c.get('organizationId');
 
     if (!organizationId) {
       return c.json({ error: 'organization_id is required' }, 400);
@@ -82,16 +82,16 @@ app.post('/', async (c) => {
     const db = createDbClient(c.env.DB);
     const body = await c.req.json();
 
-    // Validate required fields
-    if (!body.organization_id || !body.name) {
-      return c.json({ error: 'organization_id and name are required' }, 400);
+    const orgId = body.organization_id || c.get('organizationId');
+    if (!orgId || !body.name) {
+      return c.json({ error: 'name is required' }, 400);
     }
 
     // Insert vendor
     const newVendor = await db
       .insert(vendors)
       .values({
-        organization_id: body.organization_id,
+        organization_id: orgId,
         name: body.name,
         industry: body.industry,
         website: body.website,
@@ -102,7 +102,7 @@ app.post('/', async (c) => {
         vendor_status: body.vendor_status || 'active',
         notes: body.notes,
         group_id: body.group_id,
-        created_by: body.created_by,
+        created_by: body.created_by || c.get('userId'),
       })
       .returning();
 
@@ -160,13 +160,21 @@ app.patch('/:id', async (c) => {
       return c.json({ error: 'Vendor not found' }, 404);
     }
 
-    // Update vendor
+    // Whitelist allowed fields to prevent mass assignment
+    const ALLOWED_FIELDS = [
+      'name', 'industry', 'website', 'contact_name', 'contact_email', 'contact_phone',
+      'criticality_level', 'vendor_status', 'group_id',
+    ] as const;
+    const safeUpdate: Record<string, any> = { updated_at: new Date() };
+    for (const field of ALLOWED_FIELDS) {
+      if (body[field] !== undefined) {
+        safeUpdate[field] = body[field];
+      }
+    }
+
     const updated = await db
       .update(vendors)
-      .set({
-        ...body,
-        updated_at: new Date(),
-      })
+      .set(safeUpdate)
       .where(eq(vendors.id, id))
       .returning();
 

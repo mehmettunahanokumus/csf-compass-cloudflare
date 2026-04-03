@@ -3,7 +3,7 @@
  * Handles vendor self-assessment invitation management
  */
 
-import { apiClient, DEMO_ORG_ID } from './client';
+import { apiClient } from './client';
 import type {
   SendInvitationData,
   SendInvitationResponse,
@@ -42,10 +42,7 @@ export const vendorInvitationsApi = {
   async send(data: SendInvitationData): Promise<SendInvitationResponse> {
     const response = await apiClient.post<SendInvitationResponse>(
       '/api/vendor-invitations',
-      {
-        ...data,
-        organization_id: DEMO_ORG_ID,
-      }
+      data
     );
     return response.data;
   },
@@ -104,9 +101,6 @@ export const vendorInvitationsApi = {
   async getComparison(organizationAssessmentId: string): Promise<ComparisonData> {
     const response = await apiClient.get<ComparisonData>(
       `/api/vendor-invitations/${organizationAssessmentId}/comparison`,
-      {
-        params: { organization_id: DEMO_ORG_ID },
-      }
     );
     return response.data;
   },
@@ -118,10 +112,7 @@ export const vendorInvitationsApi = {
   async getInvitation(assessmentId: string): Promise<VendorAssessmentInvitation | null> {
     try {
       const response = await apiClient.get<VendorAssessmentInvitation | null>(
-        `/api/vendor-invitations/assessments/${assessmentId}/invitation`,
-        {
-          params: { organization_id: DEMO_ORG_ID },
-        }
+        `/api/vendor-invitations/assessments/${assessmentId}/invitation`
       );
       return response.data;
     } catch (error) {

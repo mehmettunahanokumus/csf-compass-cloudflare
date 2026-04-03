@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import axios from 'axios';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { apiClient } from '../api/client';
 import type { AssessmentComparison, Assessment } from '../types';
 import { T, card, sectionLabel } from '../tokens';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
-const ORG_ID = 'demo-org-123';
 
 const STATUS_COLORS: Record<string, string> = {
   compliant: T.success,
@@ -72,8 +69,8 @@ export default function AssessmentHistoryComparison() {
 
   const loadAssessments = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/assessments`, {
-        params: { organization_id: ORG_ID, vendor_id: vendorId },
+      const res = await apiClient.get('/api/assessments', {
+        params: { vendor_id: vendorId },
       });
       setAssessments(res.data);
     } catch {}
@@ -82,7 +79,7 @@ export default function AssessmentHistoryComparison() {
   const loadComparison = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/api/assessments/compare`, {
+      const res = await apiClient.get('/api/assessments/compare', {
         params: { ids: `${sel1},${sel2}` },
       });
       setComparison(res.data);

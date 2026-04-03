@@ -7,7 +7,7 @@ import {
 import { importApi, type ImportPayload, type ImportCompany } from '../../api/import';
 import type { ImportPreview } from '../../types';
 
-const ORG_ID = 'demo-org-123';
+// org_id is derived from the auth session cookie
 
 interface Props {
   groupId: string;
@@ -270,7 +270,7 @@ export default function ExcelImportModal({ groupId: _groupId, groupName, onClose
         notes: r[singleMapping.notes_col]?.trim() || undefined,
       }));
     return {
-      organization_id: ORG_ID,
+      organization_id: '', // resolved from auth session on backend
       group_name: groupName,
       companies: [{ name: singleCompanyName.trim() || 'Imported Company', items }],
       assessment_name: assessmentName,
@@ -304,7 +304,7 @@ export default function ExcelImportModal({ groupId: _groupId, groupName, onClose
       companies.push(...Object.values(map));
     }
     return {
-      organization_id: ORG_ID,
+      organization_id: '', // resolved from auth session on backend
       group_name: groupName,
       companies,
       assessment_name: assessmentName,

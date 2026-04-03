@@ -7,6 +7,8 @@
  * - File deletions
  */
 
+import jwt from '@tsndr/cloudflare-worker-jwt';
+
 /**
  * File path structure: evidence/{orgId}/{assessmentId}/{timestamp}-{filename}
  */
@@ -87,52 +89,48 @@ export async function fileExists(
 }
 
 /**
- * Generate a presigned download token (JWT)
+ * Generate a signed download token (JWT)
  *
+ * @param jwtSecret - Secret key for signing
  * @param r2Key - R2 file path
  * @param expiresIn - Expiration time in seconds (default: 1 hour)
- * @returns JWT token
+ * @returns Signed JWT token
  */
 export async function generateDownloadToken(
+  jwtSecret: string,
   r2Key: string,
   expiresIn: number = 3600
 ): Promise<string> {
-  const payload = {
-    key: r2Key,
-    exp: Math.floor(Date.now() / 1000) + expiresIn,
-  };
-
-  // Simple base64 encoding for demo (in production, use proper JWT with signature)
-  // For production: Use @tsndr/cloudflare-worker-jwt or similar
-  const token = btoa(JSON.stringify(payload));
+  const exp = Math.floor(Date.now() / 1000) + expiresIn;
+  const token = await jwt.sign({ key: r2Key, exp }, jwtSecret);
   return token;
 }
 
 /**
- * Validate and decode download token
+ * Validate and decode signed download token
  *
+ * @param jwtSecret - Secret key for verification
  * @param token - JWT token
  * @returns Decoded payload with file path or null if invalid
  */
 export async function validateDownloadToken(
+  jwtSecret: string,
   token: string
 ): Promise<{ key: string } | null> {
   try {
-    // Simple base64 decoding for demo
-    const decoded = JSON.parse(atob(token));
+    const isValid = await jwt.verify(token, jwtSecret);
+    if (!isValid) return null;
 
-    // Check expiration
-    if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
-      return null; // Token expired
+    const { payload } = jwt.decode(token) as { payload: Record<string, unknown> };
+    if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
     }
-
-    if (!decoded.key) {
-      return null; // Invalid token
+    if (!payload.key || typeof payload.key !== 'string') {
+      return null;
     }
-
-    return { key: decoded.key };
-  } catch (error) {
-    return null; // Invalid token format
+    return { key: payload.key };
+  } catch {
+    return null;
   }
 }
 
@@ -155,13 +153,26 @@ export const ALLOWED_FILE_TYPES = [
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB in bytes
 
 /**
- * Validate file type and size
+ * Magic byte signatures for allowed file types.
+ * Used to verify file content matches declared MIME type.
+ */
+const MAGIC_BYTES: Record<string, number[][]> = {
+  'application/pdf': [[0x25, 0x50, 0x44, 0x46]], // %PDF
+  'image/png': [[0x89, 0x50, 0x4E, 0x47]], // .PNG
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]], // JFIF/EXIF
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [[0x50, 0x4B, 0x03, 0x04]], // PK (ZIP)
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [[0x50, 0x4B, 0x03, 0x04]], // PK (ZIP)
+};
+
+/**
+ * Validate file type, size, and content magic bytes
  *
  * @param contentType - MIME type
  * @param size - File size in bytes
+ * @param fileBytes - Optional first bytes of file for magic byte validation
  * @returns Validation result
  */
-export function validateFile(contentType: string, size: number): {
+export function validateFile(contentType: string, size: number, fileBytes?: Uint8Array): {
   valid: boolean;
   error?: string;
 } {
@@ -179,6 +190,20 @@ export function validateFile(contentType: string, size: number): {
       valid: false,
       error: `File size exceeds maximum limit of 10 MB`,
     };
+  }
+
+  // Verify magic bytes if available (skip for text types)
+  if (fileBytes && MAGIC_BYTES[contentType]) {
+    const signatures = MAGIC_BYTES[contentType];
+    const matches = signatures.some(sig =>
+      sig.every((byte, i) => fileBytes[i] === byte)
+    );
+    if (!matches) {
+      return {
+        valid: false,
+        error: 'File content does not match declared file type',
+      };
+    }
   }
 
   return { valid: true };

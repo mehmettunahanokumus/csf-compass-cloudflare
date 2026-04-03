@@ -14,7 +14,7 @@
 
 import { Hono } from 'hono';
 import { eq, and, desc, inArray } from 'drizzle-orm';
-import type { Env } from '../types/env';
+import type { Env, AuthVariables } from '../types/env';
 import { createDbClient } from '../db/client';
 import {
   assessments,
@@ -33,7 +33,7 @@ import {
 } from '../db/schema';
 import { updateAssessmentScore, getAssessmentStats } from '../lib/scoring';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 /**
  * GET /compare?ids=id1,id2
@@ -144,7 +144,7 @@ app.get('/compare', async (c) => {
 app.get('/', async (c) => {
   try {
     const db = createDbClient(c.env.DB);
-    const organizationId = c.req.query('organization_id');
+    const organizationId = c.req.query('organization_id') || c.get('organizationId');
     const type = c.req.query('type'); // organization or vendor
 
     if (!organizationId) {
@@ -209,9 +209,11 @@ app.post('/', async (c) => {
     const db = createDbClient(c.env.DB);
     const body = await c.req.json();
 
-    // Validate required fields
-    if (!body.organization_id || !body.name) {
-      return c.json({ error: 'organization_id and name are required' }, 400);
+    // Use org/user from auth session if not in body
+    const orgId = body.organization_id || c.get('organizationId');
+    const userId = body.created_by || c.get('userId');
+    if (!orgId || !body.name) {
+      return c.json({ error: 'name is required' }, 400);
     }
 
     // Validate vendor assessment has vendor_id
@@ -223,14 +225,14 @@ app.post('/', async (c) => {
     const newAssessment = await db
       .insert(assessments)
       .values({
-        organization_id: body.organization_id,
+        organization_id: orgId,
         assessment_type: body.assessment_type || 'organization',
         vendor_id: body.vendor_id,
         template_id: body.template_id,
         name: body.name,
         description: body.description,
         status: body.status || 'draft',
-        created_by: body.created_by,
+        created_by: userId,
         started_at: body.started_at ? new Date(body.started_at) : undefined,
       })
       .returning();
@@ -390,15 +392,22 @@ app.patch('/:id', async (c) => {
       return c.json({ error: 'Assessment not found' }, 404);
     }
 
-    // Update assessment
+    // Whitelist allowed fields to prevent mass assignment
+    const ALLOWED_FIELDS = ['name', 'description', 'status', 'started_at', 'completed_at'] as const;
+    const safeUpdate: Record<string, any> = { updated_at: new Date() };
+    for (const field of ALLOWED_FIELDS) {
+      if (body[field] !== undefined) {
+        if (field === 'started_at' || field === 'completed_at') {
+          safeUpdate[field] = body[field] ? new Date(body[field]) : undefined;
+        } else {
+          safeUpdate[field] = body[field];
+        }
+      }
+    }
+
     const updated = await db
       .update(assessments)
-      .set({
-        ...body,
-        started_at: body.started_at ? new Date(body.started_at) : undefined,
-        completed_at: body.completed_at ? new Date(body.completed_at) : undefined,
-        updated_at: new Date(),
-      })
+      .set(safeUpdate)
       .where(eq(assessments.id, id))
       .returning();
 

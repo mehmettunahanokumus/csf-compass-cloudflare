@@ -255,13 +255,13 @@ export default function InviteVendorDialog({
                 fontFamily: T.fontSans, fontSize: 18, fontWeight: 600,
                 color: T.text1, textAlign: 'center', marginBottom: 6,
               }}>
-                Vendor Link Created!
+                Invitation Sent!
               </div>
               <div style={{
                 fontFamily: T.fontSans, fontSize: 13, color: T.text3,
                 textAlign: 'center', marginBottom: 20, lineHeight: 1.5,
               }}>
-                Copy this link and send it to the vendor.
+                An email with the assessment link has been sent to the vendor. You can also copy the link below.
               </div>
 
               {/* Copy-able link box */}
@@ -346,7 +346,7 @@ export default function InviteVendorDialog({
                   <span style={{
                     fontFamily: T.fontSans, fontSize: 16, fontWeight: 600, color: T.text1,
                   }}>
-                    Create Vendor Link
+                    Invite Vendor
                   </span>
                 </div>
                 <button
@@ -410,7 +410,7 @@ export default function InviteVendorDialog({
                     fontFamily: T.fontSans, fontSize: 11, color: T.text3,
                     fontStyle: 'italic', marginTop: 5,
                   }}>
-                    For your records only — no email will be sent
+                    An invitation email with the assessment link will be sent to this address
                   </div>
                 </div>
 
@@ -483,7 +483,7 @@ export default function InviteVendorDialog({
                     onMouseLeave={e => { e.currentTarget.style.opacity = creating ? '0.7' : '1'; e.currentTarget.style.transform = 'translateY(0)'; }}
                   >
                     <Link2 size={14} />
-                    {creating ? 'Creating Link...' : 'Create Link'}
+                    {creating ? 'Sending Invitation...' : 'Send Invitation'}
                   </button>
                 </div>
               </form>

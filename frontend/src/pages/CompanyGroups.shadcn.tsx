@@ -4,7 +4,7 @@ import { Building2, Plus, X, Pencil, Trash2, MoreHorizontal, Search, Users } fro
 import { companyGroupsApi } from '../api/company-groups';
 import type { CompanyGroup } from '../types';
 
-const ORG_ID = 'demo-org-123';
+// org_id is now derived from the auth session cookie
 
 const T = {
   card: 'var(--card)',
@@ -265,7 +265,7 @@ export default function CompanyGroups() {
   const loadGroups = async () => {
     try {
       setLoading(true);
-      const res = await companyGroupsApi.list(ORG_ID);
+      const res = await companyGroupsApi.list();
       setGroups(res.data);
     } catch {
       setError('Failed to load group companies');
@@ -300,7 +300,6 @@ export default function CompanyGroups() {
     try {
       setCreating(true);
       await companyGroupsApi.create({
-        organization_id: ORG_ID,
         name: createForm.name,
         description: createForm.description || undefined,
         industry: createForm.industry || undefined,

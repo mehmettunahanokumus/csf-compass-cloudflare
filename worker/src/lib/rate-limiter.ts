@@ -34,7 +34,8 @@ export async function rateLimiter(
   c: Context,
   operation: 'token_validation' | 'status_update' | 'evidence_upload' | 'ai_analysis'
 ): Promise<{ allowed: boolean, retryAfter?: number }> {
-  const ipAddress = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
+  // Use only cf-connecting-ip (set by Cloudflare, not spoofable). Never fall back to x-forwarded-for.
+  const ipAddress = c.req.header('cf-connecting-ip') || 'unknown';
   const config = RATE_LIMITS[operation];
 
   // KV key format: rate:{operation}:{ip}
@@ -75,9 +76,9 @@ export async function rateLimiter(
 
     return { allowed: true };
   } catch (error) {
-    // If KV fails, allow the request (fail open for availability)
+    // Fail closed: if KV is unavailable, deny the request to prevent abuse
     console.error('Rate limiter KV error:', error);
-    return { allowed: true };
+    return { allowed: false, retryAfter: 60 };
   }
 }
 

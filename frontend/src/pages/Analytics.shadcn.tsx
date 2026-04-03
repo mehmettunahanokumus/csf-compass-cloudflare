@@ -9,11 +9,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   AreaChart, Area, Cell,
 } from 'recharts';
-import axios from 'axios';
 import type { Assessment, Vendor, AssessmentItem } from '../types';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
-const ORG_ID = 'demo-org-123';
+import { apiClient } from '../api/client';
 
 // ── Date range helpers ────────────────────────────────────────────
 
@@ -280,8 +277,8 @@ export default function Analytics() {
     (async () => {
       try {
         const [aRes, vRes] = await Promise.all([
-          axios.get(`${API_URL}/api/assessments`, { params: { organization_id: ORG_ID } }),
-          axios.get(`${API_URL}/api/vendors`,     { params: { organization_id: ORG_ID, exclude_grouped: 'true' } }),
+          apiClient.get('/api/assessments'),
+          apiClient.get('/api/vendors', { params: { exclude_grouped: 'true' } }),
         ]);
         if (!cancelled) {
           // Normalize created_at to numeric ms — Drizzle timestamp_ms mode
@@ -345,7 +342,7 @@ export default function Analytics() {
     let cancelled = false;
     setItemsLoading(true);
 
-    axios.get(`${API_URL}/api/assessments/${latestOrgAssessment.id}/items`)
+    apiClient.get(`/api/assessments/${latestOrgAssessment.id}/items`)
       .then(res => {
         if (!cancelled && fetchIdRef.current === myId) setLatestItems(res.data);
       })

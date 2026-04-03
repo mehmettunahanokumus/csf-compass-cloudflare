@@ -2,7 +2,7 @@
  * Evidence API Service
  */
 
-import { apiClient, DEMO_ORG_ID, DEMO_USER_ID } from './client';
+import { apiClient } from './client';
 import type { EvidenceFile } from '../types';
 
 export const evidenceApi = {
@@ -17,8 +17,7 @@ export const evidenceApi = {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('assessment_id', assessmentId);
-    formData.append('organization_id', DEMO_ORG_ID);
-    formData.append('uploaded_by', DEMO_USER_ID);
+    // organization_id and uploaded_by are derived from the auth session cookie
 
     if (assessmentItemId) {
       formData.append('assessment_item_id', assessmentItemId);

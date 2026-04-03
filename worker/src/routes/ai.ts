@@ -321,11 +321,21 @@ app.post('/chat', async (c) => {
   try {
     const body = await c.req.json();
     const messages: Array<{ role: string; content: string }> = body.messages ?? [];
-    const pageContext: string = body.page_context ?? '';
+    const rawPageContext: string = body.page_context ?? '';
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return c.json({ error: 'messages array is required' }, 400);
     }
+
+    // Sanitize pageContext: allow only known page names to prevent prompt injection
+    const ALLOWED_CONTEXTS = [
+      'Dashboard', 'Assessments', 'Assessment Detail', 'Vendors', 'Analytics',
+      'Exports', 'Company Groups', 'Organization', 'Vendor Portal',
+      'General platform view',
+    ];
+    const pageContext = ALLOWED_CONTEXTS.includes(rawPageContext)
+      ? rawPageContext
+      : 'General platform view';
 
     const client = new Anthropic({ apiKey: c.env.ANTHROPIC_API_KEY });
 
@@ -333,7 +343,7 @@ app.post('/chat', async (c) => {
       `You are a NIST CSF 2.0 compliance expert embedded in the CSF Compass platform. ` +
       `You help users understand controls, gather evidence, and improve their compliance posture. ` +
       `Be concise, practical, and reference specific CSF control IDs when relevant.\n\n` +
-      `Current page context: ${pageContext || 'General platform view'}`;
+      `Current page context: ${pageContext}`;
 
     const apiMessages = messages
       .filter(
@@ -373,8 +383,9 @@ app.post('/chat', async (c) => {
           }
           controller.enqueue(enc.encode('data: [DONE]\n\n'));
         } catch (err) {
+          console.error('AI chat stream error:', err);
           controller.enqueue(
-            enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`),
+            enc.encode(`data: ${JSON.stringify({ error: 'An error occurred while processing your request' })}\n\n`),
           );
         } finally {
           controller.close();

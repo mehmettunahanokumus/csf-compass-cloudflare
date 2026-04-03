@@ -26,6 +26,8 @@ export const organizations = sqliteTable('organizations', {
   industry: text('industry'),
   size: text('size'), // Small, Medium, Large, Enterprise
   description: text('description'),
+  logo_url: text('logo_url'),
+  primary_color: text('primary_color').default('#6366f1'),
   created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updated_at: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 });
@@ -39,10 +41,33 @@ export const profiles = sqliteTable('profiles', {
   email: text('email').notNull().unique(),
   full_name: text('full_name'),
   role: text('role').default('member'), // admin, member, viewer
+  password_hash: text('password_hash'),
+  password_reset_token: text('password_reset_token'),
+  password_reset_expires_at: integer('password_reset_expires_at', { mode: 'timestamp_ms' }),
+  email_verified: integer('email_verified').notNull().default(0),
   created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updated_at: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (table) => ({
   orgIdx: index('idx_profiles_organization').on(table.organization_id),
+}));
+
+/**
+ * Organization member invitations
+ */
+export const org_invitations = sqliteTable('org_invitations', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organization_id: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  role: text('role').notNull().default('member'),
+  token: text('token').notNull().unique(),
+  invited_by: text('invited_by').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  expires_at: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+  accepted_at: integer('accepted_at', { mode: 'timestamp_ms' }),
+  created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (table) => ({
+  orgIdx: index('idx_org_invitations_org').on(table.organization_id),
+  tokenIdx: index('idx_org_invitations_token').on(table.token),
+  emailIdx: index('idx_org_invitations_email').on(table.email),
 }));
 
 /**

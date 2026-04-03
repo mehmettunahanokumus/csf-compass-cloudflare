@@ -59,14 +59,14 @@ export async function validateInvitationToken(
   try {
     const isValid = await jwt.verify(token, jwtSecret);
     if (!isValid) {
-      return { valid: false, error: 'Invalid token signature' };
+      return { valid: false, error: 'Invalid or expired token' };
     }
 
     const { payload } = jwt.decode(token);
 
     // Check expiration
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return { valid: false, error: 'Token expired' };
+      return { valid: false, error: 'Invalid or expired token' };
     }
 
     return {
@@ -79,7 +79,7 @@ export async function validateInvitationToken(
       }
     };
   } catch (error) {
-    return { valid: false, error: 'Invalid token format' };
+    return { valid: false, error: 'Invalid or expired token' };
   }
 }
 
@@ -124,17 +124,17 @@ export async function validateSessionToken(
       return { valid: false, error: 'Invalid session token' };
     }
 
-    const { payload } = jwt.decode(token);
+    const { payload } = jwt.decode(token) as { payload: Record<string, unknown> };
 
     if (payload.type !== 'session') {
       return { valid: false, error: 'Not a session token' };
     }
 
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) {
       return { valid: false, error: 'Session expired' };
     }
 
-    return { valid: true, invitationId: payload.invitationId };
+    return { valid: true, invitationId: payload.invitationId as string };
   } catch (error) {
     return { valid: false, error: 'Invalid session token' };
   }

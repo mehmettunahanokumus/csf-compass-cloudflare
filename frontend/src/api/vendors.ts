@@ -2,7 +2,7 @@
  * Vendors API Service
  */
 
-import { apiClient, DEMO_ORG_ID, DEMO_USER_ID } from './client';
+import { apiClient } from './client';
 import type { Vendor, VendorStats, TieringResponse } from '../types';
 
 export interface CreateVendorData {
@@ -36,7 +36,7 @@ export const vendorsApi = {
    */
   list: async (): Promise<Vendor[]> => {
     const response = await apiClient.get<Vendor[]>('/api/vendors', {
-      params: { organization_id: DEMO_ORG_ID, exclude_grouped: 'true' },
+      params: { exclude_grouped: 'true' },
     });
     return response.data;
   },
@@ -46,7 +46,7 @@ export const vendorsApi = {
    */
   listAll: async (): Promise<Vendor[]> => {
     const response = await apiClient.get<Vendor[]>('/api/vendors', {
-      params: { organization_id: DEMO_ORG_ID },
+      params: {},
     });
     return response.data;
   },
@@ -65,8 +65,6 @@ export const vendorsApi = {
   create: async (data: CreateVendorData): Promise<Vendor> => {
     const response = await apiClient.post<Vendor>('/api/vendors', {
       ...data,
-      organization_id: DEMO_ORG_ID,
-      created_by: DEMO_USER_ID,
     });
     return response.data;
   },

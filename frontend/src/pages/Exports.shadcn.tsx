@@ -6,14 +6,11 @@ import {
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import axios from 'axios';
 import { assessmentsApi } from '../api/assessments';
 import { companyGroupsApi } from '../api/company-groups';
+import { apiClient } from '../api/client';
 import type { Assessment, AssessmentItem, Vendor, CompanyGroup } from '../types';
 import { T, card } from '../tokens';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
-const ORG_ID = 'demo-org-123';
 
 type FormatType = 'pdf' | 'xlsx' | 'csv';
 type ReportKey = 'org_summary' | 'vendor_risk' | 'assessment_detail' | 'group_overview';
@@ -449,7 +446,7 @@ export default function Exports() {
 
         // ── Vendor Risk Report ──────────────────────────────────────────────
         case 'vendor_risk': {
-          const res = await axios.get(`${API_URL}/api/vendors`, { params: { organization_id: ORG_ID } });
+          const res = await apiClient.get('/api/vendors');
           const allVendors: Vendor[] = res.data;
           if (allVendors.length === 0) { setError(key, 'No vendors found'); break; }
 
@@ -511,7 +508,7 @@ export default function Exports() {
 
         // ── Group Companies Overview ────────────────────────────────────────
         case 'group_overview': {
-          const groupsRes = await companyGroupsApi.list(ORG_ID);
+          const groupsRes = await companyGroupsApi.list();
           const groups: CompanyGroup[] = groupsRes.data;
           if (groups.length === 0) { setError(key, 'No group companies found'); break; }
 

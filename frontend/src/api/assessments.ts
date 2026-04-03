@@ -2,7 +2,7 @@
  * Assessments API Service
  */
 
-import { apiClient, DEMO_ORG_ID, DEMO_USER_ID } from './client';
+import { apiClient } from './client';
 import type { Assessment, AssessmentItem } from '../types';
 
 export interface CreateAssessmentData {
@@ -33,9 +33,7 @@ export const assessmentsApi = {
    * List assessments for organization
    */
   list: async (type?: 'organization' | 'vendor'): Promise<Assessment[]> => {
-    const params: Record<string, string> = {
-      organization_id: DEMO_ORG_ID,
-    };
+    const params: Record<string, string> = {};
 
     if (type) {
       params.type = type;
@@ -59,8 +57,6 @@ export const assessmentsApi = {
   create: async (data: CreateAssessmentData): Promise<Assessment> => {
     const response = await apiClient.post<Assessment>('/api/assessments', {
       ...data,
-      organization_id: DEMO_ORG_ID,
-      created_by: DEMO_USER_ID,
     });
     return response.data;
   },

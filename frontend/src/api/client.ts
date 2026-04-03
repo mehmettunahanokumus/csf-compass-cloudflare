@@ -8,9 +8,21 @@ import axios, { AxiosError } from 'axios';
 // API base URL from environment
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 
-// Demo mode constants (hardcoded for development)
-export const DEMO_ORG_ID = 'demo-org-123';
-export const DEMO_USER_ID = 'demo-user-456';
+// ─── Auth Token Management ──────────────────────────────────────────────────
+
+const TOKEN_KEY = 'csf_auth_token';
+
+export function setAuthToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
 
 // Create axios instance
 export const apiClient = axios.create({
@@ -21,14 +33,16 @@ export const apiClient = axios.create({
   timeout: 30000, // 30 seconds
 });
 
-// Request interceptor for logging
+// Request interceptor: attach Bearer token
 apiClient.interceptors.request.use(
   (config) => {
-    console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
+    const token = getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
-    console.error('[API] Request error:', error);
     return Promise.reject(error);
   }
 );
